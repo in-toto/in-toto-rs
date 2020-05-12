@@ -1,0 +1,49 @@
+[package]
+name = "in-toto"
+edition = "2018"
+version = "0.0.0-alpha3"
+authors = [ "Santiago Torres-Arias <santiago@nyu.edu>" ]
+description = "Library for in-toto"
+homepage = "https://github.com/sanitiagotorres/in-toto-rs"
+repository = "https://github.com/sanitiagotorres/in-toto-rs"
+documentation = "https://docs.rs/in-toto"
+readme = "README.md"
+license = "MIT/Apache-2.0"
+keywords = [ "security", "software supply chain" ]
+categories = [ "cryptography" ]
+
+[lib]
+name = "in_toto"
+path = "./src/lib.rs"
+
+[dependencies]
+chrono = { version = "0.4", features = [ "serde" ] }
+data-encoding = "2.0.0-rc.2"
+derp = "0.0.13"
+futures-executor = "0.3.1"
+futures-io = "0.3.1"
+futures-util = { version = "0.3.1", features = [ "compat", "io" ] }
+http = "0.1"
+hyper = { version = "0.12", default-features = false }
+itoa = "0.4"
+log = "0.4"
+ring = { version = "0.16" }
+parking_lot = "0.9"
+percent-encoding = "2.1"
+serde = "1"
+serde_derive = "1"
+serde_json = "1"
+tempfile = "3"
+untrusted = "0.7"
+url = "2"
+thiserror = "1.0"
+
+[dev-dependencies]
+lazy_static = "1"
+maplit = "1"
+matches = "0.1.8"
+pretty_assertions = "0.6"
+
+[features]
+default = ["hyper/default"]
+

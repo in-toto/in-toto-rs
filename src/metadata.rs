@@ -1,7 +1,7 @@
-//! TUF metadata.
+//! in-toto metadata.
 
-use chrono::offset::Utc;
-use chrono::{DateTime, Duration};
+// use chrono::offset::Utc;
+// use chrono::{DateTime, Duration};
 use log::{debug, warn};
 use serde::de::{Deserialize, DeserializeOwned, Deserializer, Error as DeserializeError};
 use serde::ser::{Error as SerializeError, Serialize, Serializer};
@@ -244,9 +244,6 @@ pub trait Metadata: Debug + PartialEq + Serialize + DeserializeOwned {
 
     /// The version number.
     fn version(&self) -> u32;
-
-    /// An immutable reference to the metadata's expiration `DateTime`.
-    fn expires(&self) -> &DateTime<Utc>;
 }
 
 /// Unverified raw metadata with attached signatures and type information identifying the
@@ -616,7 +613,6 @@ where
 /// Helper to construct `RootMetadata`.
 pub struct RootMetadataBuilder {
     version: u32,
-    expires: DateTime<Utc>,
     consistent_snapshot: bool,
     keys: HashMap<KeyId, PublicKey>,
     root_threshold: u32,
@@ -633,13 +629,11 @@ impl RootMetadataBuilder {
     /// Create a new `RootMetadataBuilder`. It defaults to:
     ///
     /// * version: 1,
-    /// * expires: 365 days from the current time.
     /// * consistent snapshot: false
     /// * role thresholds: 1
     pub fn new() -> Self {
         RootMetadataBuilder {
             version: 1,
-            expires: Utc::now() + Duration::days(365),
             consistent_snapshot: false,
             keys: HashMap::new(),
             root_threshold: 1,
@@ -656,12 +650,6 @@ impl RootMetadataBuilder {
     /// Set the version number for this metadata.
     pub fn version(mut self, version: u32) -> Self {
         self.version = version;
-        self
-    }
-
-    /// Set the time this metadata expires.
-    pub fn expires(mut self, expires: DateTime<Utc>) -> Self {
-        self.expires = expires;
         self
     }
 
@@ -731,7 +719,6 @@ impl RootMetadataBuilder {
     pub fn build(self) -> Result<RootMetadata> {
         RootMetadata::new(
             self.version,
-            self.expires,
             self.consistent_snapshot,
             self.keys,
             RoleDefinition::new(self.root_threshold, self.root_key_ids)?,
@@ -760,7 +747,6 @@ impl From<RootMetadata> for RootMetadataBuilder {
     fn from(metadata: RootMetadata) -> Self {
         RootMetadataBuilder {
             version: metadata.version,
-            expires: metadata.expires,
             consistent_snapshot: metadata.consistent_snapshot,
             keys: metadata.keys,
             root_threshold: metadata.root.threshold,
@@ -779,7 +765,6 @@ impl From<RootMetadata> for RootMetadataBuilder {
 #[derive(Debug, Clone, PartialEq)]
 pub struct RootMetadata {
     version: u32,
-    expires: DateTime<Utc>,
     consistent_snapshot: bool,
     keys: HashMap<KeyId, PublicKey>,
     root: RoleDefinition,
@@ -792,7 +777,6 @@ impl RootMetadata {
     /// Create new `RootMetadata`.
     pub fn new(
         version: u32,
-        expires: DateTime<Utc>,
         consistent_snapshot: bool,
         keys: HashMap<KeyId, PublicKey>,
         root: RoleDefinition,
@@ -809,7 +793,6 @@ impl RootMetadata {
 
         Ok(RootMetadata {
             version,
-            expires,
             consistent_snapshot,
             keys,
             root,
@@ -858,9 +841,6 @@ impl Metadata for RootMetadata {
         self.version
     }
 
-    fn expires(&self) -> &DateTime<Utc> {
-        &self.expires
-    }
 }
 
 impl Serialize for RootMetadata {
@@ -1160,11 +1140,6 @@ impl Metadata for LinkMetadata {
     fn version(&self) -> u32 {
         0u32
     }
-
-    fn expires(&self) -> &DateTime<Utc> {
-        &DateTime::<Utc>::parse_from_rfc2822("Tue, 1 Jul 2003 10:52:37 +0000").unwrap()
-    }
-
 }
 
 impl Serialize for LinkMetadata {
@@ -1192,7 +1167,6 @@ impl<'de> Deserialize<'de> for LinkMetadata {
 /// Helper to construct `TimestampMetadata`.
 pub struct TimestampMetadataBuilder {
     version: u32,
-    expires: DateTime<Utc>,
     snapshot: MetadataDescription,
 }
 
@@ -1200,7 +1174,6 @@ impl TimestampMetadataBuilder {
     /// Create a new `TimestampMetadataBuilder` from a given snapshot. It defaults to:
     ///
     /// * version: 1
-    /// * expires: 1 day from the current time.
     pub fn from_snapshot<D, M>(
         snapshot: &SignedMetadata<D, M>,
         hash_algs: &[HashAlgorithm],
@@ -1224,11 +1197,9 @@ impl TimestampMetadataBuilder {
     /// `MetadataDescription`. It defaults to:
     ///
     /// * version: 1
-    /// * expires: 1 day from the current time.
     pub fn from_metadata_description(description: MetadataDescription) -> Self {
         TimestampMetadataBuilder {
             version: 1,
-            expires: Utc::now() + Duration::days(1),
             snapshot: description,
         }
     }
@@ -1239,15 +1210,9 @@ impl TimestampMetadataBuilder {
         self
     }
 
-    /// Set the time this metadata expires.
-    pub fn expires(mut self, expires: DateTime<Utc>) -> Self {
-        self.expires = expires;
-        self
-    }
-
     /// Construct a new `TimestampMetadata`.
     pub fn build(self) -> Result<TimestampMetadata> {
-        TimestampMetadata::new(self.version, self.expires, self.snapshot)
+        TimestampMetadata::new(self.version, self.snapshot)
     }
 
     /// Construct a new `SignedMetadata<D, TimestampMetadata>`.
@@ -1263,7 +1228,6 @@ impl TimestampMetadataBuilder {
 #[derive(Debug, Clone, PartialEq)]
 pub struct TimestampMetadata {
     version: u32,
-    expires: DateTime<Utc>,
     snapshot: MetadataDescription,
 }
 
@@ -1271,7 +1235,6 @@ impl TimestampMetadata {
     /// Create new `TimestampMetadata`.
     pub fn new(
         version: u32,
-        expires: DateTime<Utc>,
         snapshot: MetadataDescription,
     ) -> Result<Self> {
         if version < 1 {
@@ -1283,7 +1246,6 @@ impl TimestampMetadata {
 
         Ok(TimestampMetadata {
             version,
-            expires,
             snapshot,
         })
     }
@@ -1301,9 +1263,6 @@ impl Metadata for TimestampMetadata {
         self.version
     }
 
-    fn expires(&self) -> &DateTime<Utc> {
-        &self.expires
-    }
 }
 
 impl Serialize for TimestampMetadata {
@@ -1416,7 +1375,6 @@ impl<'de> Deserialize<'de> for MetadataDescription {
 /// Helper to construct `SnapshotMetadata`.
 pub struct SnapshotMetadataBuilder {
     version: u32,
-    expires: DateTime<Utc>,
     meta: HashMap<MetadataPath, MetadataDescription>,
 }
 
@@ -1424,11 +1382,9 @@ impl SnapshotMetadataBuilder {
     /// Create a new `SnapshotMetadataBuilder`. It defaults to:
     ///
     /// * version: 1
-    /// * expires: 7 days from the current time.
     pub fn new() -> Self {
         SnapshotMetadataBuilder {
             version: 1,
-            expires: Utc::now() + Duration::days(7),
             meta: HashMap::new(),
         }
     }
@@ -1436,12 +1392,6 @@ impl SnapshotMetadataBuilder {
     /// Set the version number for this metadata.
     pub fn version(mut self, version: u32) -> Self {
         self.version = version;
-        self
-    }
-
-    /// Set the time this metadata expires.
-    pub fn expires(mut self, expires: DateTime<Utc>) -> Self {
-        self.expires = expires;
         self
     }
 
@@ -1493,7 +1443,7 @@ impl SnapshotMetadataBuilder {
 
     /// Construct a new `SnapshotMetadata`.
     pub fn build(self) -> Result<SnapshotMetadata> {
-        SnapshotMetadata::new(self.version, self.expires, self.meta)
+        SnapshotMetadata::new(self.version, self.meta)
     }
 
     /// Construct a new `SignedMetadata<D, SnapshotMetadata>`.
@@ -1515,7 +1465,6 @@ impl From<SnapshotMetadata> for SnapshotMetadataBuilder {
     fn from(meta: SnapshotMetadata) -> Self {
         SnapshotMetadataBuilder {
             version: meta.version,
-            expires: meta.expires,
             meta: meta.meta,
         }
     }
@@ -1525,7 +1474,6 @@ impl From<SnapshotMetadata> for SnapshotMetadataBuilder {
 #[derive(Debug, Clone, PartialEq)]
 pub struct SnapshotMetadata {
     version: u32,
-    expires: DateTime<Utc>,
     meta: HashMap<MetadataPath, MetadataDescription>,
 }
 
@@ -1533,7 +1481,6 @@ impl SnapshotMetadata {
     /// Create new `SnapshotMetadata`.
     pub fn new(
         version: u32,
-        expires: DateTime<Utc>,
         meta: HashMap<MetadataPath, MetadataDescription>,
     ) -> Result<Self> {
         if version < 1 {
@@ -1545,7 +1492,6 @@ impl SnapshotMetadata {
 
         Ok(SnapshotMetadata {
             version,
-            expires,
             meta,
         })
     }
@@ -1563,9 +1509,6 @@ impl Metadata for SnapshotMetadata {
         self.version
     }
 
-    fn expires(&self) -> &DateTime<Utc> {
-        &self.expires
-    }
 }
 
 impl Serialize for SnapshotMetadata {
@@ -1974,7 +1917,6 @@ impl<'de> Deserialize<'de> for TargetDescription {
 #[derive(Debug, Clone, PartialEq)]
 pub struct TargetsMetadata {
     version: u32,
-    expires: DateTime<Utc>,
     targets: HashMap<VirtualTargetPath, TargetDescription>,
 }
 
@@ -1982,7 +1924,6 @@ impl TargetsMetadata {
     /// Create new `TargetsMetadata`.
     pub fn new(
         version: u32,
-        expires: DateTime<Utc>,
         targets: HashMap<VirtualTargetPath, TargetDescription>,
     ) -> Result<Self> {
         if version < 1 {
@@ -1994,7 +1935,6 @@ impl TargetsMetadata {
 
         Ok(TargetsMetadata {
             version,
-            expires,
             targets,
         })
     }
@@ -2012,9 +1952,6 @@ impl Metadata for TargetsMetadata {
         self.version
     }
 
-    fn expires(&self) -> &DateTime<Utc> {
-        &self.expires
-    }
 }
 
 impl Serialize for TargetsMetadata {
@@ -2040,7 +1977,6 @@ impl<'de> Deserialize<'de> for TargetsMetadata {
 /// Helper to construct `TargetsMetadata`.
 pub struct TargetsMetadataBuilder {
     version: u32,
-    expires: DateTime<Utc>,
     targets: HashMap<VirtualTargetPath, TargetDescription>,
 }
 
@@ -2048,11 +1984,9 @@ impl TargetsMetadataBuilder {
     /// Create a new `TargetsMetadataBuilder`. It defaults to:
     ///
     /// * version: 1
-    /// * expires: 90 days from the current time.
     pub fn new() -> Self {
         TargetsMetadataBuilder {
             version: 1,
-            expires: Utc::now() + Duration::days(90),
             targets: HashMap::new(),
         }
     }
@@ -2060,12 +1994,6 @@ impl TargetsMetadataBuilder {
     /// Set the version number for this metadata.
     pub fn version(mut self, version: u32) -> Self {
         self.version = version;
-        self
-    }
-
-    /// Set the time this metadata expires.
-    pub fn expires(mut self, expires: DateTime<Utc>) -> Self {
-        self.expires = expires;
         self
     }
 
@@ -2093,9 +2021,8 @@ impl TargetsMetadataBuilder {
         self
     }
 
-    /// Construct a new `TargetsMetadata`.
     pub fn build(self) -> Result<TargetsMetadata> {
-        TargetsMetadata::new(self.version, self.expires, self.targets)
+        TargetsMetadata::new(self.version, self.targets)
     }
 
     /// Construct a new `SignedMetadata<D, TargetsMetadata>`.
@@ -2111,6 +2038,8 @@ impl Default for TargetsMetadataBuilder {
     fn default() -> Self {
         TargetsMetadataBuilder::new()
     }
+
+
 }
 
 #[cfg(test)]
@@ -2285,7 +2214,6 @@ mod test {
             PrivateKey::from_pkcs8(ED25519_4_PK8, SignatureScheme::Ed25519).unwrap();
 
         let root = RootMetadataBuilder::new()
-            .expires(Utc.ymd(2017, 1, 1).and_hms(0, 0, 0))
             .root_key(root_key.public().clone())
             .snapshot_key(snapshot_key.public().clone())
             .targets_key(targets_key.public().clone())
@@ -2297,7 +2225,6 @@ mod test {
             "_type": "root",
             "spec_version": "1.0",
             "version": 1,
-            "expires": "2017-01-01T00:00:00Z",
             "consistent_snapshot": false,
             "keys": {
                 "09557ed63f91b5b95917d46f66c63ea79bdaef1b008ba823808bca849f1d18a1": {
@@ -2364,7 +2291,6 @@ mod test {
             "_type": "root",
             "spec_version": "1.0",
             "version": 1,
-            "expires": "2017-01-01T00:00:00Z",
             "consistent_snapshot": false,
             "keys": {
                 "12435b260b6172bd750aeb102f54a347c56b109e0524ab1f144593c07af66356": {
@@ -2573,7 +2499,6 @@ mod test {
         .unwrap();
 
         let timestamp = TimestampMetadataBuilder::from_metadata_description(description)
-            .expires(Utc.ymd(2017, 1, 1).and_hms(0, 0, 0))
             .build()
             .unwrap();
 
@@ -2581,7 +2506,6 @@ mod test {
             "_type": "timestamp",
             "spec_version": "1.0",
             "version": 1,
-            "expires": "2017-01-01T00:00:00Z",
             "meta": {
                 "snapshot.json": {
                     "version": 1,
@@ -2605,7 +2529,6 @@ mod test {
             "_type": "timestamp",
             "spec_version": "1.0",
             "version": 1,
-            "expires": "2017-01-01T00:00:00Z",
             "meta": {}
         });
 
@@ -2621,7 +2544,6 @@ mod test {
             "_type": "timestamp",
             "spec_version": "1.0",
             "version": 1,
-            "expires": "2017-01-01T00:00:00Z",
             "meta": {
                 "snapshot.json": {
                     "version": 1,
@@ -2650,7 +2572,6 @@ mod test {
     #[test]
     fn serde_snapshot_metadata() {
         let snapshot = SnapshotMetadataBuilder::new()
-            .expires(Utc.ymd(2017, 1, 1).and_hms(0, 0, 0))
             .insert_metadata_description(
                 MetadataPath::new("targets").unwrap(),
                 MetadataDescription::new(
@@ -2667,7 +2588,6 @@ mod test {
             "_type": "snapshot",
             "spec_version": "1.0",
             "version": 1,
-            "expires": "2017-01-01T00:00:00Z",
             "meta": {
                 "targets.json": {
                     "version": 1,
@@ -2688,7 +2608,6 @@ mod test {
     #[test]
     fn serde_targets_metadata() {
         let targets = TargetsMetadataBuilder::new()
-            .expires(Utc.ymd(2017, 1, 1).and_hms(0, 0, 0))
             .insert_target_description(
                 VirtualTargetPath::new("foo".into()).unwrap(),
                 TargetDescription::from_reader(&b"foo"[..], &[HashAlgorithm::Sha256]).unwrap(),
@@ -2721,7 +2640,6 @@ mod test {
             "_type": "targets",
             "spec_version": "1.0",
             "version": 1,
-            "expires": "2017-01-01T00:00:00Z",
             "targets": {
                 "foo": {
                     "length": 3,
@@ -2761,7 +2679,6 @@ mod test {
     #[test]
     fn serde_signed_metadata() {
         let snapshot = SnapshotMetadataBuilder::new()
-            .expires(Utc.ymd(2017, 1, 1).and_hms(0, 0, 0))
             .insert_metadata_description(
                 MetadataPath::new("targets").unwrap(),
                 MetadataDescription::new(
@@ -2791,7 +2708,6 @@ mod test {
                 "_type": "snapshot",
                 "spec_version": "1.0",
                 "version": 1,
-                "expires": "2017-01-01T00:00:00Z",
                 "meta": {
                     "targets.json": {
                         "version": 1,
@@ -2842,7 +2758,6 @@ mod test {
             PrivateKey::from_pkcs8(ED25519_4_PK8, SignatureScheme::Ed25519).unwrap();
 
         let root = RootMetadataBuilder::new()
-            .expires(Utc.ymd(2038, 1, 1).and_hms(0, 0, 0))
             .root_key(root_key.public().clone())
             .snapshot_key(snapshot_key.public().clone())
             .targets_key(targets_key.public().clone())
@@ -2855,7 +2770,6 @@ mod test {
 
     fn make_snapshot() -> serde_json::Value {
         let snapshot = SnapshotMetadataBuilder::new()
-            .expires(Utc.ymd(2038, 1, 1).and_hms(0, 0, 0))
             .build()
             .unwrap();
 
@@ -2867,7 +2781,6 @@ mod test {
             MetadataDescription::from_reader(&[][..], 1, &[HashAlgorithm::Sha256]).unwrap();
 
         let timestamp = TimestampMetadataBuilder::from_metadata_description(description)
-            .expires(Utc.ymd(2017, 1, 1).and_hms(0, 0, 0))
             .build()
             .unwrap();
 
@@ -2910,7 +2823,6 @@ mod test {
             "_type": "root",
             "spec_version": "1.0",
             "version": 1,
-            "expires": "2017-01-01T00:00:00Z",
             "consistent_snapshot": false,
             "keys": {
                 "09557ed63f91b5b95917d46f66c63ea79bdaef1b008ba823808bca849f1d18a1": {
@@ -3094,7 +3006,6 @@ mod test {
             "_type": "snapshot",
             "spec_version": "1.0",
             "version": 1,
-            "expires": "2017-01-01T00:00:00Z",
             "meta": {
                 "targets.json": {
                     "version": 1,
@@ -3159,7 +3070,6 @@ mod test {
             "_type": "timestamp",
             "spec_version": "1.0",
             "version": 1,
-            "expires": "2017-01-01T00:00:00Z",
             "meta": {
                 "snapshot.json": {
                     "version": 1,

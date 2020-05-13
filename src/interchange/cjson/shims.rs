@@ -1,5 +1,5 @@
-use chrono::offset::Utc;
-use chrono::prelude::*;
+//use chrono::offset::Utc;
+//use chrono::prelude::*;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
 
@@ -10,22 +10,22 @@ use crate::Result;
 
 const SPEC_VERSION: &str = "1.0";
 
-fn parse_datetime(ts: &str) -> Result<DateTime<Utc>> {
-    Utc.datetime_from_str(ts, "%FT%TZ")
-        .map_err(|e| Error::Encoding(format!("Can't parse DateTime: {:?}", e)))
-}
-
-fn format_datetime(ts: &DateTime<Utc>) -> String {
-    format!(
-        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
-        ts.year(),
-        ts.month(),
-        ts.day(),
-        ts.hour(),
-        ts.minute(),
-        ts.second()
-    )
-}
+// fn parse_datetime(ts: &str) -> Result<DateTime<Utc>> {
+//     Utc.datetime_from_str(ts, "%FT%TZ")
+//         .map_err(|e| Error::Encoding(format!("Can't parse DateTime: {:?}", e)))
+// }
+// 
+// fn format_datetime(ts: &DateTime<Utc>) -> String {
+//     format!(
+//         "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
+//         ts.year(),
+//         ts.month(),
+//         ts.day(),
+//         ts.hour(),
+//         ts.minute(),
+//         ts.second()
+//     )
+// }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Link {
@@ -76,7 +76,6 @@ pub struct RootMetadata {
     spec_version: String,
     version: u32,
     consistent_snapshot: bool,
-    expires: String,
     #[serde(deserialize_with = "deserialize_reject_duplicates::deserialize")]
     keys: BTreeMap<crypto::KeyId, crypto::PublicKey>,
     roles: RoleDefinitions,
@@ -88,7 +87,6 @@ impl RootMetadata {
             typ: metadata::Role::Root,
             spec_version: SPEC_VERSION.to_string(),
             version: meta.version(),
-            expires: format_datetime(&meta.expires()),
             consistent_snapshot: meta.consistent_snapshot(),
             keys: meta
                 .keys()
@@ -130,7 +128,6 @@ impl RootMetadata {
 
         metadata::RootMetadata::new(
             self.version,
-            parse_datetime(&self.expires)?,
             self.consistent_snapshot,
             keys_with_correct_key_id,
             self.roles.root,
@@ -203,7 +200,6 @@ pub struct TimestampMetadata {
     typ: metadata::Role,
     spec_version: String,
     version: u32,
-    expires: String,
     meta: TimestampMeta,
 }
 
@@ -220,7 +216,6 @@ impl TimestampMetadata {
             typ: metadata::Role::Timestamp,
             spec_version: SPEC_VERSION.to_string(),
             version: metadata.version(),
-            expires: format_datetime(metadata.expires()),
             meta: TimestampMeta {
                 snapshot: metadata.snapshot().clone(),
             },
@@ -244,7 +239,6 @@ impl TimestampMetadata {
 
         metadata::TimestampMetadata::new(
             self.version,
-            parse_datetime(&self.expires)?,
             self.meta.snapshot,
         )
     }
@@ -256,7 +250,6 @@ pub struct SnapshotMetadata {
     typ: metadata::Role,
     spec_version: String,
     version: u32,
-    expires: String,
     #[serde(deserialize_with = "deserialize_reject_duplicates::deserialize")]
     meta: BTreeMap<String, metadata::MetadataDescription>,
 }
@@ -267,7 +260,6 @@ impl SnapshotMetadata {
             typ: metadata::Role::Snapshot,
             spec_version: SPEC_VERSION.to_string(),
             version: metadata.version(),
-            expires: format_datetime(&metadata.expires()),
             meta: metadata
                 .meta()
                 .iter()
@@ -293,7 +285,6 @@ impl SnapshotMetadata {
 
         metadata::SnapshotMetadata::new(
             self.version,
-            parse_datetime(&self.expires)?,
             self.meta
                 .into_iter()
                 .map(|(p, d)| {
@@ -320,7 +311,6 @@ pub struct TargetsMetadata {
     typ: metadata::Role,
     spec_version: String,
     version: u32,
-    expires: String,
     targets: BTreeMap<metadata::VirtualTargetPath, metadata::TargetDescription>,
 }
 
@@ -330,7 +320,6 @@ impl TargetsMetadata {
             typ: metadata::Role::Targets,
             spec_version: SPEC_VERSION.to_string(),
             version: metadata.version(),
-            expires: format_datetime(&metadata.expires()),
             targets: metadata
                 .targets()
                 .iter()
@@ -356,7 +345,6 @@ impl TargetsMetadata {
 
         metadata::TargetsMetadata::new(
             self.version,
-            parse_datetime(&self.expires)?,
             self.targets.into_iter().collect(),
         )
     }

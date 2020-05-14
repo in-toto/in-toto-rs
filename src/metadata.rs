@@ -1032,6 +1032,15 @@ pub struct LinkMetadataBuilder {
 impl LinkMetadataBuilder {
 
     // This should definitely be improved
+    pub fn new() -> Self {
+        LinkMetadataBuilder {
+            name: String::new(),
+            materials: BTreeMap::new(),
+            products: BTreeMap::new(),
+            env: BTreeMap::new(),
+            byproducts: BTreeMap::new()
+        }
+    }
 
     /// Set the name number for this link 
     pub fn name(mut self, name: String) -> Self {
@@ -1069,7 +1078,7 @@ impl LinkMetadataBuilder {
             self.env, self.byproducts)
     }
 
-      /// Construct a new `SignedMetadata<D, TimestampMetadata>`.
+      /// Construct a new `SignedMetadata<D, LinkMetadata>`.
     pub fn signed<D>(self, private_key: &PrivateKey) -> Result<SignedMetadata<D, LinkMetadata>>
     where
         D: DataInterchange,

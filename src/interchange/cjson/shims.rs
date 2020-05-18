@@ -96,7 +96,6 @@ impl RootMetadata {
             roles: RoleDefinitions {
                 root: meta.root().clone(),
                 snapshot: meta.snapshot().clone(),
-                targets: meta.targets().clone(),
                 timestamp: meta.timestamp().clone(),
             },
         })
@@ -132,7 +131,6 @@ impl RootMetadata {
             keys_with_correct_key_id,
             self.roles.root,
             self.roles.snapshot,
-            self.roles.targets,
             self.roles.timestamp,
         )
     }
@@ -142,7 +140,6 @@ impl RootMetadata {
 struct RoleDefinitions {
     root: metadata::RoleDefinition,
     snapshot: metadata::RoleDefinition,
-    targets: metadata::RoleDefinition,
     timestamp: metadata::RoleDefinition,
 }
 
@@ -305,50 +302,6 @@ impl SnapshotMetadata {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct TargetsMetadata {
-    #[serde(rename = "_type")]
-    typ: metadata::Role,
-    spec_version: String,
-    version: u32,
-    targets: BTreeMap<metadata::VirtualTargetPath, metadata::TargetDescription>,
-}
-
-impl TargetsMetadata {
-    pub fn from(metadata: &metadata::TargetsMetadata) -> Result<Self> {
-        Ok(TargetsMetadata {
-            typ: metadata::Role::Targets,
-            spec_version: SPEC_VERSION.to_string(),
-            version: metadata.version(),
-            targets: metadata
-                .targets()
-                .iter()
-                .map(|(p, d)| (p.clone(), d.clone()))
-                .collect(),
-        })
-    }
-
-    pub fn try_into(self) -> Result<metadata::TargetsMetadata> {
-        if self.typ != metadata::Role::Targets {
-            return Err(Error::Encoding(format!(
-                "Attempted to decode targets metdata labeled as {:?}",
-                self.typ
-            )));
-        }
-
-        if self.spec_version != SPEC_VERSION {
-            return Err(Error::Encoding(format!(
-                "Unknown spec version {}",
-                self.spec_version
-            )));
-        }
-
-        metadata::TargetsMetadata::new(
-            self.version,
-            self.targets.into_iter().collect(),
-        )
-    }
-}
 
 #[derive(Serialize, Deserialize)]
 pub struct PublicKey {

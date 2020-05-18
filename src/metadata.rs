@@ -154,9 +154,6 @@ pub enum Role {
     /// The snapshot role.
     #[serde(rename = "snapshot")]
     Snapshot,
-    /// The targets role.
-    #[serde(rename = "targets")]
-    Targets,
     /// The timestamp role.
     #[serde(rename = "timestamp")]
     Timestamp,
@@ -177,7 +174,6 @@ impl Role {
     ///
     /// assert!(Role::Root.fuzzy_matches_path(&MetadataPath::from_role(&Role::Root)));
     /// assert!(Role::Snapshot.fuzzy_matches_path(&MetadataPath::from_role(&Role::Snapshot)));
-    /// assert!(Role::Targets.fuzzy_matches_path(&MetadataPath::from_role(&Role::Targets)));
     /// assert!(Role::Timestamp.fuzzy_matches_path(&MetadataPath::from_role(&Role::Timestamp)));
     ///
     /// assert!(!Role::Root.fuzzy_matches_path(&MetadataPath::from_role(&Role::Snapshot)));
@@ -188,8 +184,6 @@ impl Role {
             Role::Root if &path.0 == "root" => true,
             Role::Snapshot if &path.0 == "snapshot" => true,
             Role::Timestamp if &path.0 == "timestamp" => true,
-            Role::Targets if &path.0 == "targets" => true,
-            Role::Targets if !&["root", "snapshot", "targets"].contains(&path.0.as_str()) => true,
             Role::Root if &path.0 == "link" => true,
             //Role::Layout if &path.0 == "layout" => true,
             _ => false,
@@ -201,7 +195,6 @@ impl Role {
         match *self {
             Role::Root => "root",
             Role::Snapshot => "snapshot",
-            Role::Targets => "targets",
             Role::Timestamp => "timestamp",
             //Role::Layout => "layout",
             Role::Link => "link",
@@ -619,8 +612,6 @@ pub struct RootMetadataBuilder {
     root_key_ids: Vec<KeyId>,
     snapshot_threshold: u32,
     snapshot_key_ids: Vec<KeyId>,
-    targets_threshold: u32,
-    targets_key_ids: Vec<KeyId>,
     timestamp_threshold: u32,
     timestamp_key_ids: Vec<KeyId>,
 }
@@ -640,8 +631,6 @@ impl RootMetadataBuilder {
             root_key_ids: Vec::new(),
             snapshot_threshold: 1,
             snapshot_key_ids: Vec::new(),
-            targets_threshold: 1,
-            targets_key_ids: Vec::new(),
             timestamp_threshold: 1,
             timestamp_key_ids: Vec::new(),
         }
@@ -687,20 +676,6 @@ impl RootMetadataBuilder {
         self
     }
 
-    /// Set the targets threshold.
-    pub fn targets_threshold(mut self, threshold: u32) -> Self {
-        self.targets_threshold = threshold;
-        self
-    }
-
-    /// Add a targets public key.
-    pub fn targets_key(mut self, public_key: PublicKey) -> Self {
-        let key_id = public_key.key_id().clone();
-        self.keys.insert(key_id.clone(), public_key);
-        self.targets_key_ids.push(key_id);
-        self
-    }
-
     /// Set the timestamp threshold.
     pub fn timestamp_threshold(mut self, threshold: u32) -> Self {
         self.timestamp_threshold = threshold;
@@ -723,7 +698,6 @@ impl RootMetadataBuilder {
             self.keys,
             RoleDefinition::new(self.root_threshold, self.root_key_ids)?,
             RoleDefinition::new(self.snapshot_threshold, self.snapshot_key_ids)?,
-            RoleDefinition::new(self.targets_threshold, self.targets_key_ids)?,
             RoleDefinition::new(self.timestamp_threshold, self.timestamp_key_ids)?,
         )
     }
@@ -753,8 +727,6 @@ impl From<RootMetadata> for RootMetadataBuilder {
             root_key_ids: metadata.root.key_ids,
             snapshot_threshold: metadata.snapshot.threshold,
             snapshot_key_ids: metadata.snapshot.key_ids,
-            targets_threshold: metadata.targets.threshold,
-            targets_key_ids: metadata.targets.key_ids,
             timestamp_threshold: metadata.timestamp.threshold,
             timestamp_key_ids: metadata.timestamp.key_ids,
         }
@@ -769,7 +741,6 @@ pub struct RootMetadata {
     keys: HashMap<KeyId, PublicKey>,
     root: RoleDefinition,
     snapshot: RoleDefinition,
-    targets: RoleDefinition,
     timestamp: RoleDefinition,
 }
 
@@ -781,7 +752,6 @@ impl RootMetadata {
         keys: HashMap<KeyId, PublicKey>,
         root: RoleDefinition,
         snapshot: RoleDefinition,
-        targets: RoleDefinition,
         timestamp: RoleDefinition,
     ) -> Result<Self> {
         if version < 1 {
@@ -797,7 +767,6 @@ impl RootMetadata {
             keys,
             root,
             snapshot,
-            targets,
             timestamp,
         })
     }
@@ -821,11 +790,6 @@ impl RootMetadata {
     /// An immutable reference to the snapshot role's definition.
     pub fn snapshot(&self) -> &RoleDefinition {
         &self.snapshot
-    }
-
-    /// An immutable reference to the targets role's definition.
-    pub fn targets(&self) -> &RoleDefinition {
-        &self.targets
     }
 
     /// An immutable reference to the timestamp role's definition.
@@ -1897,134 +1861,6 @@ impl<'de> Deserialize<'de> for TargetDescription {
     }
 }
 
-/// Metadata for the targets role.
-#[derive(Debug, Clone, PartialEq)]
-pub struct TargetsMetadata {
-    version: u32,
-    targets: HashMap<VirtualTargetPath, TargetDescription>,
-}
-
-impl TargetsMetadata {
-    /// Create new `TargetsMetadata`.
-    pub fn new(
-        version: u32,
-        targets: HashMap<VirtualTargetPath, TargetDescription>,
-    ) -> Result<Self> {
-        if version < 1 {
-            return Err(Error::IllegalArgument(format!(
-                "Metadata version must be greater than zero. Found: {}",
-                version
-            )));
-        }
-
-        Ok(TargetsMetadata {
-            version,
-            targets,
-        })
-    }
-
-    /// An immutable reference to the descriptions of targets.
-    pub fn targets(&self) -> &HashMap<VirtualTargetPath, TargetDescription> {
-        &self.targets
-    }
-}
-
-impl Metadata for TargetsMetadata {
-    const ROLE: Role = Role::Targets;
-
-    fn version(&self) -> u32 {
-        self.version
-    }
-
-}
-
-impl Serialize for TargetsMetadata {
-    fn serialize<S>(&self, ser: S) -> ::std::result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        shims::TargetsMetadata::from(self)
-            .map_err(|e| SerializeError::custom(format!("{:?}", e)))?
-            .serialize(ser)
-    }
-}
-
-impl<'de> Deserialize<'de> for TargetsMetadata {
-    fn deserialize<D: Deserializer<'de>>(de: D) -> ::std::result::Result<Self, D::Error> {
-        let intermediate: shims::TargetsMetadata = Deserialize::deserialize(de)?;
-        intermediate
-            .try_into()
-            .map_err(|e| DeserializeError::custom(format!("{:?}", e)))
-    }
-}
-
-/// Helper to construct `TargetsMetadata`.
-pub struct TargetsMetadataBuilder {
-    version: u32,
-    targets: HashMap<VirtualTargetPath, TargetDescription>,
-}
-
-impl TargetsMetadataBuilder {
-    /// Create a new `TargetsMetadataBuilder`. It defaults to:
-    ///
-    /// * version: 1
-    pub fn new() -> Self {
-        TargetsMetadataBuilder {
-            version: 1,
-            targets: HashMap::new(),
-        }
-    }
-
-    /// Set the version number for this metadata.
-    pub fn version(mut self, version: u32) -> Self {
-        self.version = version;
-        self
-    }
-
-    /// Add target to the target metadata.
-    pub fn insert_target_from_reader<R>(
-        self,
-        path: VirtualTargetPath,
-        read: R,
-        hash_algs: &[HashAlgorithm],
-    ) -> Result<Self>
-    where
-        R: Read,
-    {
-        let description = TargetDescription::from_reader(read, hash_algs)?;
-        Ok(self.insert_target_description(path, description))
-    }
-
-    /// Add `TargetDescription` to this target metadata target description.
-    pub fn insert_target_description(
-        mut self,
-        path: VirtualTargetPath,
-        description: TargetDescription,
-    ) -> Self {
-        self.targets.insert(path, description);
-        self
-    }
-
-    pub fn build(self) -> Result<TargetsMetadata> {
-        TargetsMetadata::new(self.version, self.targets)
-    }
-
-    /// Construct a new `SignedMetadata<D, TargetsMetadata>`.
-    pub fn signed<D>(self, private_key: &PrivateKey) -> Result<SignedMetadata<D, TargetsMetadata>>
-    where
-        D: DataInterchange,
-    {
-        SignedMetadata::new(&self.build()?, private_key)
-    }
-}
-
-impl Default for TargetsMetadataBuilder {
-    fn default() -> Self {
-        TargetsMetadataBuilder::new()
-    }
-
-
-}
 
 #[cfg(test)]
 mod test {

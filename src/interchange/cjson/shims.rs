@@ -75,7 +75,6 @@ pub struct RootMetadata {
     typ: metadata::Role,
     spec_version: String,
     version: u32,
-    consistent_snapshot: bool,
     #[serde(deserialize_with = "deserialize_reject_duplicates::deserialize")]
     keys: BTreeMap<crypto::KeyId, crypto::PublicKey>,
     roles: RoleDefinitions,
@@ -87,7 +86,6 @@ impl RootMetadata {
             typ: metadata::Role::Root,
             spec_version: SPEC_VERSION.to_string(),
             version: meta.version(),
-            consistent_snapshot: meta.consistent_snapshot(),
             keys: meta
                 .keys()
                 .iter()
@@ -95,7 +93,6 @@ impl RootMetadata {
                 .collect(),
             roles: RoleDefinitions {
                 root: meta.root().clone(),
-                snapshot: meta.snapshot().clone(),
                 timestamp: meta.timestamp().clone(),
             },
         })
@@ -127,10 +124,8 @@ impl RootMetadata {
 
         metadata::RootMetadata::new(
             self.version,
-            self.consistent_snapshot,
             keys_with_correct_key_id,
             self.roles.root,
-            self.roles.snapshot,
             self.roles.timestamp,
         )
     }
@@ -139,7 +134,6 @@ impl RootMetadata {
 #[derive(Debug, Serialize, Deserialize)]
 struct RoleDefinitions {
     root: metadata::RoleDefinition,
-    snapshot: metadata::RoleDefinition,
     timestamp: metadata::RoleDefinition,
 }
 
@@ -203,8 +197,6 @@ pub struct TimestampMetadata {
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct TimestampMeta {
-    #[serde(rename = "snapshot.json")]
-    snapshot: metadata::MetadataDescription,
 }
 
 impl TimestampMetadata {
@@ -213,9 +205,7 @@ impl TimestampMetadata {
             typ: metadata::Role::Timestamp,
             spec_version: SPEC_VERSION.to_string(),
             version: metadata.version(),
-            meta: TimestampMeta {
-                snapshot: metadata.snapshot().clone(),
-            },
+            meta: TimestampMeta {},
         })
     }
 
@@ -236,68 +226,6 @@ impl TimestampMetadata {
 
         metadata::TimestampMetadata::new(
             self.version,
-            self.meta.snapshot,
-        )
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct SnapshotMetadata {
-    #[serde(rename = "_type")]
-    typ: metadata::Role,
-    spec_version: String,
-    version: u32,
-    #[serde(deserialize_with = "deserialize_reject_duplicates::deserialize")]
-    meta: BTreeMap<String, metadata::MetadataDescription>,
-}
-
-impl SnapshotMetadata {
-    pub fn from(metadata: &metadata::SnapshotMetadata) -> Result<Self> {
-        Ok(SnapshotMetadata {
-            typ: metadata::Role::Snapshot,
-            spec_version: SPEC_VERSION.to_string(),
-            version: metadata.version(),
-            meta: metadata
-                .meta()
-                .iter()
-                .map(|(p, d)| (format!("{}.json", p), d.clone()))
-                .collect(),
-        })
-    }
-
-    pub fn try_into(self) -> Result<metadata::SnapshotMetadata> {
-        if self.typ != metadata::Role::Snapshot {
-            return Err(Error::Encoding(format!(
-                "Attempted to decode snapshot metdata labeled as {:?}",
-                self.typ
-            )));
-        }
-
-        if self.spec_version != SPEC_VERSION {
-            return Err(Error::Encoding(format!(
-                "Unknown spec version {}",
-                self.spec_version
-            )));
-        }
-
-        metadata::SnapshotMetadata::new(
-            self.version,
-            self.meta
-                .into_iter()
-                .map(|(p, d)| {
-                    if !p.ends_with(".json") {
-                        return Err(Error::Encoding(format!(
-                            "Metadata does not end with .json: {}",
-                            p
-                        )));
-                    }
-
-                    let s = p.split_at(p.len() - ".json".len()).0;
-                    let p = metadata::MetadataPath::new(s)?;
-
-                    Ok((p, d))
-                })
-                .collect::<Result<_>>()?,
         )
     }
 }

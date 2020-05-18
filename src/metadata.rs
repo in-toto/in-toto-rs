@@ -151,9 +151,6 @@ pub enum Role {
     /// The root role.
     #[serde(rename = "root")]
     Root,
-    /// The snapshot role.
-    #[serde(rename = "snapshot")]
-    Snapshot,
     /// The timestamp role.
     #[serde(rename = "timestamp")]
     Timestamp,
@@ -173,16 +170,13 @@ impl Role {
     /// use in_toto::metadata::{MetadataPath, Role};
     ///
     /// assert!(Role::Root.fuzzy_matches_path(&MetadataPath::from_role(&Role::Root)));
-    /// assert!(Role::Snapshot.fuzzy_matches_path(&MetadataPath::from_role(&Role::Snapshot)));
     /// assert!(Role::Timestamp.fuzzy_matches_path(&MetadataPath::from_role(&Role::Timestamp)));
     ///
-    /// assert!(!Role::Root.fuzzy_matches_path(&MetadataPath::from_role(&Role::Snapshot)));
     /// assert!(!Role::Root.fuzzy_matches_path(&MetadataPath::new("wat").unwrap()));
     /// ```
     pub fn fuzzy_matches_path(&self, path: &MetadataPath) -> bool {
         match *self {
             Role::Root if &path.0 == "root" => true,
-            Role::Snapshot if &path.0 == "snapshot" => true,
             Role::Timestamp if &path.0 == "timestamp" => true,
             Role::Root if &path.0 == "link" => true,
             //Role::Layout if &path.0 == "layout" => true,
@@ -194,7 +188,6 @@ impl Role {
     pub fn name(&self) -> &'static str {
         match *self {
             Role::Root => "root",
-            Role::Snapshot => "snapshot",
             Role::Timestamp => "timestamp",
             //Role::Layout => "layout",
             Role::Link => "link",
@@ -363,14 +356,12 @@ where
     /// # use chrono::prelude::*;
     /// # use in_toto::crypto::{PrivateKey, SignatureScheme, HashAlgorithm};
     /// # use in_toto::interchange::Json;
-    /// # use in_toto::metadata::{SignedMetadata, SnapshotMetadataBuilder};
+    /// # use in_toto::metadata::{SignedMetadata};
     /// #
     /// # fn main() {
     /// # let key: &[u8] = include_bytes!("../tests/ed25519/ed25519-1.pk8.der");
     /// let key = PrivateKey::from_pkcs8(&key, SignatureScheme::Ed25519).unwrap();
     ///
-    /// let snapshot = SnapshotMetadataBuilder::new().build().unwrap();
-    /// SignedMetadata::<Json, _>::new(&snapshot, &key).unwrap();
     /// # }
     /// ```
     pub fn new(metadata: &M, private_key: &PrivateKey) -> Result<Self> {
@@ -413,7 +404,7 @@ where
     /// # use chrono::prelude::*;
     /// # use tuf::crypto::{PrivateKey, SignatureScheme, HashAlgorithm};
     /// # use tuf::interchange::Json;
-    /// # use tuf::metadata::{SignedMetadata, SnapshotMetadataBuilder};
+    /// # use tuf::metadata::{SignedMetadata};
     /// #
     /// # fn main() {
     /// let key_1: &[u8] = include_bytes!("../tests/ed25519/ed25519-1.pk8.der");
@@ -424,14 +415,7 @@ where
     /// let key_2: &[u8] = include_bytes!("../tests/ed25519/ed25519-2.pk8.der");
     /// let key_2 = PrivateKey::from_pkcs8(&key_2, SignatureScheme::Ed25519).unwrap();
     ///
-    /// let snapshot = SnapshotMetadataBuilder::new().build().unwrap();
-    /// let mut snapshot = SignedMetadata::<Json, _>::new(&snapshot, &key_1).unwrap();
     ///
-    /// snapshot.add_signature(&key_2).unwrap();
-    /// assert_eq!(snapshot.signatures().len(), 2);
-    ///
-    /// snapshot.add_signature(&key_2).unwrap();
-    /// assert_eq!(snapshot.signatures().len(), 2);
     /// # }
     /// ```
     pub fn add_signature(&mut self, private_key: &PrivateKey) -> Result<()> {
@@ -503,7 +487,7 @@ where
     /// # use chrono::prelude::*;
     /// # use tuf::crypto::{PrivateKey, SignatureScheme, HashAlgorithm};
     /// # use tuf::interchange::Json;
-    /// # use tuf::metadata::{SnapshotMetadataBuilder, SignedMetadata};
+    /// # use tuf::metadata::{SignedMetadata};
     ///
     /// # fn main() {
     /// let key_1: &[u8] = include_bytes!("../tests/ed25519/ed25519-1.pk8.der");
@@ -512,31 +496,7 @@ where
     /// let key_2: &[u8] = include_bytes!("../tests/ed25519/ed25519-2.pk8.der");
     /// let key_2 = PrivateKey::from_pkcs8(&key_2, SignatureScheme::Ed25519).unwrap();
     ///
-    /// let snapshot = SnapshotMetadataBuilder::new().build().unwrap();
-    /// let snapshot = SignedMetadata::<Json, _>::new(&snapshot, &key_1).unwrap();
     ///
-    /// assert!(snapshot.verify(
-    ///     1,
-    ///     vec![key_1.public()],
-    /// ).is_ok());
-    ///
-    /// // fail with increased threshold
-    /// assert!(snapshot.verify(
-    ///     2,
-    ///     vec![key_1.public()],
-    /// ).is_err());
-    ///
-    /// // fail when the keys aren't authorized
-    /// assert!(snapshot.verify(
-    ///     1,
-    ///     vec![key_2.public()],
-    /// ).is_err());
-    ///
-    /// // fail when the keys don't exist
-    /// assert!(snapshot.verify(
-    ///     1,
-    ///     &[],
-    /// ).is_err());
     /// # }
     pub fn verify<'a, I>(&self, threshold: u32, authorized_keys: I) -> Result<M>
     where
@@ -606,12 +566,9 @@ where
 /// Helper to construct `RootMetadata`.
 pub struct RootMetadataBuilder {
     version: u32,
-    consistent_snapshot: bool,
     keys: HashMap<KeyId, PublicKey>,
     root_threshold: u32,
     root_key_ids: Vec<KeyId>,
-    snapshot_threshold: u32,
-    snapshot_key_ids: Vec<KeyId>,
     timestamp_threshold: u32,
     timestamp_key_ids: Vec<KeyId>,
 }
@@ -620,17 +577,13 @@ impl RootMetadataBuilder {
     /// Create a new `RootMetadataBuilder`. It defaults to:
     ///
     /// * version: 1,
-    /// * consistent snapshot: false
     /// * role thresholds: 1
     pub fn new() -> Self {
         RootMetadataBuilder {
             version: 1,
-            consistent_snapshot: false,
             keys: HashMap::new(),
             root_threshold: 1,
             root_key_ids: Vec::new(),
-            snapshot_threshold: 1,
-            snapshot_key_ids: Vec::new(),
             timestamp_threshold: 1,
             timestamp_key_ids: Vec::new(),
         }
@@ -639,12 +592,6 @@ impl RootMetadataBuilder {
     /// Set the version number for this metadata.
     pub fn version(mut self, version: u32) -> Self {
         self.version = version;
-        self
-    }
-
-    /// Set this metadata to have a consistent snapshot.
-    pub fn consistent_snapshot(mut self, consistent_snapshot: bool) -> Self {
-        self.consistent_snapshot = consistent_snapshot;
         self
     }
 
@@ -659,20 +606,6 @@ impl RootMetadataBuilder {
         let key_id = public_key.key_id().clone();
         self.keys.insert(key_id.clone(), public_key);
         self.root_key_ids.push(key_id);
-        self
-    }
-
-    /// Set the snapshot threshold.
-    pub fn snapshot_threshold(mut self, threshold: u32) -> Self {
-        self.snapshot_threshold = threshold;
-        self
-    }
-
-    /// Add a snapshot public key.
-    pub fn snapshot_key(mut self, public_key: PublicKey) -> Self {
-        let key_id = public_key.key_id().clone();
-        self.keys.insert(key_id.clone(), public_key);
-        self.snapshot_key_ids.push(key_id);
         self
     }
 
@@ -694,10 +627,8 @@ impl RootMetadataBuilder {
     pub fn build(self) -> Result<RootMetadata> {
         RootMetadata::new(
             self.version,
-            self.consistent_snapshot,
             self.keys,
             RoleDefinition::new(self.root_threshold, self.root_key_ids)?,
-            RoleDefinition::new(self.snapshot_threshold, self.snapshot_key_ids)?,
             RoleDefinition::new(self.timestamp_threshold, self.timestamp_key_ids)?,
         )
     }
@@ -721,12 +652,9 @@ impl From<RootMetadata> for RootMetadataBuilder {
     fn from(metadata: RootMetadata) -> Self {
         RootMetadataBuilder {
             version: metadata.version,
-            consistent_snapshot: metadata.consistent_snapshot,
             keys: metadata.keys,
             root_threshold: metadata.root.threshold,
             root_key_ids: metadata.root.key_ids,
-            snapshot_threshold: metadata.snapshot.threshold,
-            snapshot_key_ids: metadata.snapshot.key_ids,
             timestamp_threshold: metadata.timestamp.threshold,
             timestamp_key_ids: metadata.timestamp.key_ids,
         }
@@ -737,10 +665,8 @@ impl From<RootMetadata> for RootMetadataBuilder {
 #[derive(Debug, Clone, PartialEq)]
 pub struct RootMetadata {
     version: u32,
-    consistent_snapshot: bool,
     keys: HashMap<KeyId, PublicKey>,
     root: RoleDefinition,
-    snapshot: RoleDefinition,
     timestamp: RoleDefinition,
 }
 
@@ -748,10 +674,8 @@ impl RootMetadata {
     /// Create new `RootMetadata`.
     pub fn new(
         version: u32,
-        consistent_snapshot: bool,
         keys: HashMap<KeyId, PublicKey>,
         root: RoleDefinition,
-        snapshot: RoleDefinition,
         timestamp: RoleDefinition,
     ) -> Result<Self> {
         if version < 1 {
@@ -763,18 +687,10 @@ impl RootMetadata {
 
         Ok(RootMetadata {
             version,
-            consistent_snapshot,
             keys,
             root,
-            snapshot,
             timestamp,
         })
-    }
-
-    /// Whether or not this repository is currently implementing that TUF consistent snapshot
-    /// feature.
-    pub fn consistent_snapshot(&self) -> bool {
-        self.consistent_snapshot
     }
 
     /// An immutable reference to the map of trusted keys.
@@ -785,11 +701,6 @@ impl RootMetadata {
     /// An immutable reference to the root role's definition.
     pub fn root(&self) -> &RoleDefinition {
         &self.root
-    }
-
-    /// An immutable reference to the snapshot role's definition.
-    pub fn snapshot(&self) -> &RoleDefinition {
-        &self.snapshot
     }
 
     /// An immutable reference to the timestamp role's definition.
@@ -932,8 +843,6 @@ impl MetadataPath {
     /// # use tuf::metadata::{Role, MetadataPath};
     /// assert_eq!(MetadataPath::from_role(&Role::Root),
     ///            MetadataPath::new("root").unwrap());
-    /// assert_eq!(MetadataPath::from_role(&Role::Snapshot),
-    ///            MetadataPath::new("snapshot").unwrap());
     /// assert_eq!(MetadataPath::from_role(&Role::Targets),
     ///            MetadataPath::new("targets").unwrap());
     /// assert_eq!(MetadataPath::from_role(&Role::Timestamp),
@@ -1140,42 +1049,9 @@ impl<'de> Deserialize<'de> for LinkMetadata {
 /// Helper to construct `TimestampMetadata`.
 pub struct TimestampMetadataBuilder {
     version: u32,
-    snapshot: MetadataDescription,
 }
 
 impl TimestampMetadataBuilder {
-    /// Create a new `TimestampMetadataBuilder` from a given snapshot. It defaults to:
-    ///
-    /// * version: 1
-    pub fn from_snapshot<D, M>(
-        snapshot: &SignedMetadata<D, M>,
-        hash_algs: &[HashAlgorithm],
-    ) -> Result<Self>
-    where
-        D: DataInterchange,
-        M: Metadata,
-    {
-        let mut bytes = Vec::new();
-        D::to_writer(&mut bytes, &snapshot)?;
-        let description = MetadataDescription::from_reader(
-            &*bytes,
-            snapshot.parse_version_untrusted()?,
-            hash_algs,
-        )?;
-
-        Ok(Self::from_metadata_description(description))
-    }
-
-    /// Create a new `TimestampMetadataBuilder` from a given
-    /// `MetadataDescription`. It defaults to:
-    ///
-    /// * version: 1
-    pub fn from_metadata_description(description: MetadataDescription) -> Self {
-        TimestampMetadataBuilder {
-            version: 1,
-            snapshot: description,
-        }
-    }
 
     /// Set the version number for this metadata.
     pub fn version(mut self, version: u32) -> Self {
@@ -1185,7 +1061,7 @@ impl TimestampMetadataBuilder {
 
     /// Construct a new `TimestampMetadata`.
     pub fn build(self) -> Result<TimestampMetadata> {
-        TimestampMetadata::new(self.version, self.snapshot)
+        TimestampMetadata::new(self.version)
     }
 
     /// Construct a new `SignedMetadata<D, TimestampMetadata>`.
@@ -1201,14 +1077,12 @@ impl TimestampMetadataBuilder {
 #[derive(Debug, Clone, PartialEq)]
 pub struct TimestampMetadata {
     version: u32,
-    snapshot: MetadataDescription,
 }
 
 impl TimestampMetadata {
     /// Create new `TimestampMetadata`.
     pub fn new(
         version: u32,
-        snapshot: MetadataDescription,
     ) -> Result<Self> {
         if version < 1 {
             return Err(Error::IllegalArgument(format!(
@@ -1219,13 +1093,7 @@ impl TimestampMetadata {
 
         Ok(TimestampMetadata {
             version,
-            snapshot,
         })
-    }
-
-    /// An immutable reference to the snapshot description.
-    pub fn snapshot(&self) -> &MetadataDescription {
-        &self.snapshot
     }
 }
 
@@ -1345,164 +1213,6 @@ impl<'de> Deserialize<'de> for MetadataDescription {
     }
 }
 
-/// Helper to construct `SnapshotMetadata`.
-pub struct SnapshotMetadataBuilder {
-    version: u32,
-    meta: HashMap<MetadataPath, MetadataDescription>,
-}
-
-impl SnapshotMetadataBuilder {
-    /// Create a new `SnapshotMetadataBuilder`. It defaults to:
-    ///
-    /// * version: 1
-    pub fn new() -> Self {
-        SnapshotMetadataBuilder {
-            version: 1,
-            meta: HashMap::new(),
-        }
-    }
-
-    /// Set the version number for this metadata.
-    pub fn version(mut self, version: u32) -> Self {
-        self.version = version;
-        self
-    }
-
-    /// Add metadata to this snapshot metadata using the default path.
-    pub fn insert_metadata<D, M>(
-        self,
-        metadata: &SignedMetadata<D, M>,
-        hash_algs: &[HashAlgorithm],
-    ) -> Result<Self>
-    where
-        M: Metadata,
-        D: DataInterchange,
-    {
-        self.insert_metadata_with_path(M::ROLE.name(), metadata, hash_algs)
-    }
-
-    /// Add metadata to this snapshot metadata using a custom path.
-    pub fn insert_metadata_with_path<P, D, M>(
-        self,
-        path: P,
-        metadata: &SignedMetadata<D, M>,
-        hash_algs: &[HashAlgorithm],
-    ) -> Result<Self>
-    where
-        P: Into<String>,
-        M: Metadata,
-        D: DataInterchange,
-    {
-        let mut bytes = Vec::new();
-        D::to_writer(&mut bytes, metadata)?;
-        let description = MetadataDescription::from_reader(
-            &*bytes,
-            metadata.parse_version_untrusted()?,
-            hash_algs,
-        )?;
-        let path = MetadataPath::new(path)?;
-        Ok(self.insert_metadata_description(path, description))
-    }
-
-    /// Add `MetadataDescription` to this snapshot metadata using a custom path.
-    pub fn insert_metadata_description(
-        mut self,
-        path: MetadataPath,
-        description: MetadataDescription,
-    ) -> Self {
-        self.meta.insert(path, description);
-        self
-    }
-
-    /// Construct a new `SnapshotMetadata`.
-    pub fn build(self) -> Result<SnapshotMetadata> {
-        SnapshotMetadata::new(self.version, self.meta)
-    }
-
-    /// Construct a new `SignedMetadata<D, SnapshotMetadata>`.
-    pub fn signed<D>(self, private_key: &PrivateKey) -> Result<SignedMetadata<D, SnapshotMetadata>>
-    where
-        D: DataInterchange,
-    {
-        SignedMetadata::new(&self.build()?, private_key)
-    }
-}
-
-impl Default for SnapshotMetadataBuilder {
-    fn default() -> Self {
-        SnapshotMetadataBuilder::new()
-    }
-}
-
-impl From<SnapshotMetadata> for SnapshotMetadataBuilder {
-    fn from(meta: SnapshotMetadata) -> Self {
-        SnapshotMetadataBuilder {
-            version: meta.version,
-            meta: meta.meta,
-        }
-    }
-}
-
-/// Metadata for the snapshot role.
-#[derive(Debug, Clone, PartialEq)]
-pub struct SnapshotMetadata {
-    version: u32,
-    meta: HashMap<MetadataPath, MetadataDescription>,
-}
-
-impl SnapshotMetadata {
-    /// Create new `SnapshotMetadata`.
-    pub fn new(
-        version: u32,
-        meta: HashMap<MetadataPath, MetadataDescription>,
-    ) -> Result<Self> {
-        if version < 1 {
-            return Err(Error::IllegalArgument(format!(
-                "Metadata version must be greater than zero. Found: {}",
-                version
-            )));
-        }
-
-        Ok(SnapshotMetadata {
-            version,
-            meta,
-        })
-    }
-
-    /// An immutable reference to the metadata paths and descriptions.
-    pub fn meta(&self) -> &HashMap<MetadataPath, MetadataDescription> {
-        &self.meta
-    }
-}
-
-impl Metadata for SnapshotMetadata {
-    const ROLE: Role = Role::Snapshot;
-
-    fn version(&self) -> u32 {
-        self.version
-    }
-
-}
-
-impl Serialize for SnapshotMetadata {
-    fn serialize<S>(&self, ser: S) -> ::std::result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        shims::SnapshotMetadata::from(self)
-            .map_err(|e| SerializeError::custom(format!("{:?}", e)))?
-            .serialize(ser)
-    }
-}
-
-impl<'de> Deserialize<'de> for SnapshotMetadata {
-    fn deserialize<D: Deserializer<'de>>(de: D) -> ::std::result::Result<Self, D::Error> {
-        let intermediate: shims::SnapshotMetadata = Deserialize::deserialize(de)?;
-        intermediate
-            .try_into()
-            .map_err(|e| DeserializeError::custom(format!("{:?}", e)))
-    }
-}
 
 /// Wrapper for the virtual path to a target.
 #[derive(Debug, Clone, PartialEq, Hash, Eq, PartialOrd, Ord, Serialize)]

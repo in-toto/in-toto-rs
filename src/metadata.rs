@@ -1770,9 +1770,7 @@ impl Serialize for ArtifactHash {
 /// Description of a target, used in verification.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TargetDescription {
-    length: u64,
     hashes: HashMap<HashAlgorithm, HashValue>,
-    custom: Option<HashMap<String, serde_json::Value>>,
 }
 
 impl TargetDescription {
@@ -1781,9 +1779,7 @@ impl TargetDescription {
     /// Note: Creating this manually could lead to errors, and the `from_reader` method is
     /// preferred.
     pub fn new(
-        length: u64,
         hashes: HashMap<HashAlgorithm, HashValue>,
-        custom: Option<HashMap<String, serde_json::Value>>,
     ) -> Result<Self> {
         if hashes.is_empty() {
             return Err(Error::IllegalArgument(
@@ -1792,9 +1788,7 @@ impl TargetDescription {
         }
 
         Ok(TargetDescription {
-            length,
             hashes,
-            custom,
         })
     }
 
@@ -1802,8 +1796,8 @@ impl TargetDescription {
     ///
     /// ```
     /// use data_encoding::BASE64URL;
-    /// use tuf::crypto::{HashAlgorithm,HashValue};
-    /// use tuf::metadata::TargetDescription;
+    /// use in_toto::crypto::{HashAlgorithm,HashValue};
+    /// use in_toto::metadata::TargetDescription;
     ///
     /// fn main() {
     ///     let bytes: &[u8] = b"it was a pleasure to burn";
@@ -1829,11 +1823,9 @@ impl TargetDescription {
     where
         R: Read,
     {
-        let (length, hashes) = crypto::calculate_hashes(read, hash_algs)?;
+        let (_length, hashes) = crypto::calculate_hashes(read, hash_algs)?;
         Ok(TargetDescription {
-            length,
             hashes,
-            custom: None,
         })
     }
 
@@ -1844,19 +1836,17 @@ impl TargetDescription {
     /// use data_encoding::BASE64URL;
     /// use serde_json::Value;
     /// use std::collections::HashMap;
-    /// use tuf::crypto::{HashAlgorithm,HashValue};
-    /// use tuf::metadata::TargetDescription;
+    /// use in_toto::crypto::{HashAlgorithm,HashValue};
+    /// use in_toto::metadata::TargetDescription;
     ///
     /// fn main() {
     ///     let bytes: &[u8] = b"it was a pleasure to burn";
     ///
     ///     let mut custom = HashMap::new();
-    ///     custom.insert("Hello".into(), "World".into());
     ///
     ///     let target_description = TargetDescription::from_reader_with_custom(
     ///         bytes,
     ///         &[HashAlgorithm::Sha256, HashAlgorithm::Sha512],
-    ///         custom,
     ///     ).unwrap();
     ///
     ///     let s = "Rd9zlbzrdWfeL7gnIEi05X-Yv2TCpy4qqZM1N72ZWQs=";
@@ -1866,41 +1856,26 @@ impl TargetDescription {
     ///         BU1zKP8GShoJuXEtCf5NkDTCEJgQ==";
     ///     let sha512 = HashValue::new(BASE64URL.decode(s.as_bytes()).unwrap());
     ///
-    ///     assert_eq!(target_description.length(), bytes.len() as u64);
     ///     assert_eq!(target_description.hashes().get(&HashAlgorithm::Sha256), Some(&sha256));
     ///     assert_eq!(target_description.hashes().get(&HashAlgorithm::Sha512), Some(&sha512));
-    ///     assert_eq!(target_description.custom().and_then(|c| c.get("Hello")), Some(&"World".into()));
     /// }
     /// ```
     pub fn from_reader_with_custom<R>(
         read: R,
         hash_algs: &[HashAlgorithm],
-        custom: HashMap<String, serde_json::Value>,
     ) -> Result<Self>
     where
         R: Read,
     {
-        let (length, hashes) = crypto::calculate_hashes(read, hash_algs)?;
+        let (_length, hashes) = crypto::calculate_hashes(read, hash_algs)?;
         Ok(TargetDescription {
-            length,
             hashes,
-            custom: Some(custom),
         })
-    }
-
-    /// The maximum length of the target.
-    pub fn length(&self) -> u64 {
-        self.length
     }
 
     /// An immutable reference to the list of calculated hashes.
     pub fn hashes(&self) -> &HashMap<HashAlgorithm, HashValue> {
         &self.hashes
-    }
-
-    /// An immutable reference to the custom metadata.
-    pub fn custom(&self) -> Option<&HashMap<String, serde_json::Value>> {
-        self.custom.as_ref()
     }
 }
 

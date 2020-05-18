@@ -11,6 +11,9 @@ use std::fmt::{self, Debug, Display};
 use std::io::Read;
 use std::marker::PhantomData;
 use std::str;
+use std::fs::File;
+use std::io::BufReader;
+
 
 use crate::crypto::{self, HashAlgorithm, HashValue, KeyId, PrivateKey, PublicKey, Signature};
 use crate::error::Error;
@@ -680,6 +683,23 @@ impl LinkMetadataBuilder {
         self
     }
 
+    pub fn add_material(mut self, material_path: VirtualTargetPath) -> Self {
+        let file = File::open(material_path.to_string()).unwrap();
+        let mut reader = BufReader::new(file);
+        let (_length, hashes) = crypto::calculate_hashes(&mut reader,
+                &[crypto::HashAlgorithm::Sha256]).unwrap();
+        self.materials.insert(material_path, hashes);
+        self
+    }
+
+    pub fn add_product(mut self, material_path: VirtualTargetPath) -> Self {
+        let file = File::open(material_path.to_string()).unwrap();
+        let mut reader = BufReader::new(file);
+        let (_length, hashes) = crypto::calculate_hashes(&mut reader,
+                &[crypto::HashAlgorithm::Sha256]).unwrap();
+        self.products.insert(material_path, hashes);
+        self
+    }
 
     /// Set the products for this metadata 
     pub fn env(mut self, env: BTreeMap<String, String>) -> Self {
@@ -736,6 +756,7 @@ impl LinkMetadata {
             byproducts
         })
     }
+
 
     // The step this link is associated to
     pub fn name(&self) -> &String {
@@ -1010,141 +1031,5 @@ impl ArtifactHash {
     }
 }
 
-impl Serialize for ArtifactHash {
-    fn serialize<S>(&self, ser: S) -> ::std::result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        shims::ArtifactHash::from(self).serialize(ser)
-    }
-}
-
 /// Description of a target, used in verification.
-#[derive(Debug, Clone, PartialEq)]
-pub struct TargetDescription {
-    hashes: HashMap<HashAlgorithm, HashValue>,
-}
-
-impl TargetDescription {
-    /// Create a new `TargetDescription`.
-    ///
-    /// Note: Creating this manually could lead to errors, and the `from_reader` method is
-    /// preferred.
-    pub fn new(
-        hashes: HashMap<HashAlgorithm, HashValue>,
-    ) -> Result<Self> {
-        if hashes.is_empty() {
-            return Err(Error::IllegalArgument(
-                "Cannot have empty set of hashes".into(),
-            ));
-        }
-
-        Ok(TargetDescription {
-            hashes,
-        })
-    }
-
-    /// Read the from the given reader and calculate the length and hash values.
-    ///
-    /// ```
-    /// use data_encoding::BASE64URL;
-    /// use in_toto::crypto::{HashAlgorithm,HashValue};
-    /// use in_toto::metadata::TargetDescription;
-    ///
-    /// fn main() {
-    ///     let bytes: &[u8] = b"it was a pleasure to burn";
-    ///
-    ///     let target_description = TargetDescription::from_reader(
-    ///         bytes,
-    ///         &[HashAlgorithm::Sha256, HashAlgorithm::Sha512],
-    ///     ).unwrap();
-    ///
-    ///     let s = "Rd9zlbzrdWfeL7gnIEi05X-Yv2TCpy4qqZM1N72ZWQs=";
-    ///     let sha256 = HashValue::new(BASE64URL.decode(s.as_bytes()).unwrap());
-    ///
-    ///     let s ="tuIxwKybYdvJpWuUj6dubvpwhkAozWB6hMJIRzqn2jOUdtDTBg381brV4K\
-    ///         BU1zKP8GShoJuXEtCf5NkDTCEJgQ==";
-    ///     let sha512 = HashValue::new(BASE64URL.decode(s.as_bytes()).unwrap());
-    ///
-    ///     assert_eq!(target_description.length(), bytes.len() as u64);
-    ///     assert_eq!(target_description.hashes().get(&HashAlgorithm::Sha256), Some(&sha256));
-    ///     assert_eq!(target_description.hashes().get(&HashAlgorithm::Sha512), Some(&sha512));
-    /// }
-    /// ```
-    pub fn from_reader<R>(read: R, hash_algs: &[HashAlgorithm]) -> Result<Self>
-    where
-        R: Read,
-    {
-        let (_length, hashes) = crypto::calculate_hashes(read, hash_algs)?;
-        Ok(TargetDescription {
-            hashes,
-        })
-    }
-
-    /// Read the from the given reader and custom metadata and calculate the length and hash
-    /// values.
-    ///
-    /// ```
-    /// use data_encoding::BASE64URL;
-    /// use serde_json::Value;
-    /// use std::collections::HashMap;
-    /// use in_toto::crypto::{HashAlgorithm,HashValue};
-    /// use in_toto::metadata::TargetDescription;
-    ///
-    /// fn main() {
-    ///     let bytes: &[u8] = b"it was a pleasure to burn";
-    ///
-    ///     let mut custom = HashMap::new();
-    ///
-    ///     let target_description = TargetDescription::from_reader_with_custom(
-    ///         bytes,
-    ///         &[HashAlgorithm::Sha256, HashAlgorithm::Sha512],
-    ///     ).unwrap();
-    ///
-    ///     let s = "Rd9zlbzrdWfeL7gnIEi05X-Yv2TCpy4qqZM1N72ZWQs=";
-    ///     let sha256 = HashValue::new(BASE64URL.decode(s.as_bytes()).unwrap());
-    ///
-    ///     let s ="tuIxwKybYdvJpWuUj6dubvpwhkAozWB6hMJIRzqn2jOUdtDTBg381brV4K\
-    ///         BU1zKP8GShoJuXEtCf5NkDTCEJgQ==";
-    ///     let sha512 = HashValue::new(BASE64URL.decode(s.as_bytes()).unwrap());
-    ///
-    ///     assert_eq!(target_description.hashes().get(&HashAlgorithm::Sha256), Some(&sha256));
-    ///     assert_eq!(target_description.hashes().get(&HashAlgorithm::Sha512), Some(&sha512));
-    /// }
-    /// ```
-    pub fn from_reader_with_custom<R>(
-        read: R,
-        hash_algs: &[HashAlgorithm],
-    ) -> Result<Self>
-    where
-        R: Read,
-    {
-        let (_length, hashes) = crypto::calculate_hashes(read, hash_algs)?;
-        Ok(TargetDescription {
-            hashes,
-        })
-    }
-
-    /// An immutable reference to the list of calculated hashes.
-    pub fn hashes(&self) -> &HashMap<HashAlgorithm, HashValue> {
-        &self.hashes
-    }
-}
-
-impl Serialize for TargetDescription {
-    fn serialize<S>(&self, ser: S) -> ::std::result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        shims::TargetDescription::from(self).serialize(ser)
-    }
-}
-
-impl<'de> Deserialize<'de> for TargetDescription {
-    fn deserialize<D: Deserializer<'de>>(de: D) -> ::std::result::Result<Self, D::Error> {
-        let intermediate: shims::TargetDescription = Deserialize::deserialize(de)?;
-        intermediate
-            .try_into()
-            .map_err(|e| DeserializeError::custom(format!("{:?}", e)))
-    }
-}
+pub type TargetDescription = HashMap<HashAlgorithm, HashValue>;

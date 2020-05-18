@@ -198,28 +198,7 @@ impl ArtifactHash {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct TargetDescription {
-    hashes: BTreeMap<crypto::HashAlgorithm, crypto::HashValue>,
-}
-
-impl TargetDescription {
-    pub fn from(description: &metadata::TargetDescription) -> TargetDescription {
-        TargetDescription {
-            hashes: description
-                .hashes()
-                .iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect(),
-        }
-    }
-
-    pub fn try_into(self) -> Result<metadata::TargetDescription> {
-        metadata::TargetDescription::new(
-            self.hashes.into_iter().collect(),
-        )
-    }
-}
+type TargetDescription = BTreeMap<crypto::HashAlgorithm, crypto::HashValue>;
 
 /// Custom deserialize to reject duplicate keys.
 mod deserialize_reject_duplicates {

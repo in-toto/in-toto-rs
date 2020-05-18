@@ -93,7 +93,6 @@ impl RootMetadata {
                 .collect(),
             roles: RoleDefinitions {
                 root: meta.root().clone(),
-                timestamp: meta.timestamp().clone(),
             },
         })
     }
@@ -126,7 +125,6 @@ impl RootMetadata {
             self.version,
             keys_with_correct_key_id,
             self.roles.root,
-            self.roles.timestamp,
         )
     }
 }
@@ -134,7 +132,6 @@ impl RootMetadata {
 #[derive(Debug, Serialize, Deserialize)]
 struct RoleDefinitions {
     root: metadata::RoleDefinition,
-    timestamp: metadata::RoleDefinition,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -182,51 +179,6 @@ impl RoleDefinition {
         }
 
         Ok(metadata::RoleDefinition::new(self.threshold, self.key_ids)?)
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct TimestampMetadata {
-    #[serde(rename = "_type")]
-    typ: metadata::Role,
-    spec_version: String,
-    version: u32,
-    meta: TimestampMeta,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct TimestampMeta {
-}
-
-impl TimestampMetadata {
-    pub fn from(metadata: &metadata::TimestampMetadata) -> Result<Self> {
-        Ok(TimestampMetadata {
-            typ: metadata::Role::Timestamp,
-            spec_version: SPEC_VERSION.to_string(),
-            version: metadata.version(),
-            meta: TimestampMeta {},
-        })
-    }
-
-    pub fn try_into(self) -> Result<metadata::TimestampMetadata> {
-        if self.typ != metadata::Role::Timestamp {
-            return Err(Error::Encoding(format!(
-                "Attempted to decode timestamp metdata labeled as {:?}",
-                self.typ
-            )));
-        }
-
-        if self.spec_version != SPEC_VERSION {
-            return Err(Error::Encoding(format!(
-                "Unknown spec version {}",
-                self.spec_version
-            )));
-        }
-
-        metadata::TimestampMetadata::new(
-            self.version,
-        )
     }
 }
 

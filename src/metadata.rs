@@ -151,9 +151,6 @@ pub enum Role {
     /// The root role.
     #[serde(rename = "root")]
     Root,
-    /// The timestamp role.
-    #[serde(rename = "timestamp")]
-    Timestamp,
     /// The link role
     #[serde(rename = "link")]
     Link,
@@ -170,14 +167,12 @@ impl Role {
     /// use in_toto::metadata::{MetadataPath, Role};
     ///
     /// assert!(Role::Root.fuzzy_matches_path(&MetadataPath::from_role(&Role::Root)));
-    /// assert!(Role::Timestamp.fuzzy_matches_path(&MetadataPath::from_role(&Role::Timestamp)));
     ///
     /// assert!(!Role::Root.fuzzy_matches_path(&MetadataPath::new("wat").unwrap()));
     /// ```
     pub fn fuzzy_matches_path(&self, path: &MetadataPath) -> bool {
         match *self {
             Role::Root if &path.0 == "root" => true,
-            Role::Timestamp if &path.0 == "timestamp" => true,
             Role::Root if &path.0 == "link" => true,
             //Role::Layout if &path.0 == "layout" => true,
             _ => false,
@@ -188,7 +183,6 @@ impl Role {
     pub fn name(&self) -> &'static str {
         match *self {
             Role::Root => "root",
-            Role::Timestamp => "timestamp",
             //Role::Layout => "layout",
             Role::Link => "link",
         }
@@ -569,8 +563,6 @@ pub struct RootMetadataBuilder {
     keys: HashMap<KeyId, PublicKey>,
     root_threshold: u32,
     root_key_ids: Vec<KeyId>,
-    timestamp_threshold: u32,
-    timestamp_key_ids: Vec<KeyId>,
 }
 
 impl RootMetadataBuilder {
@@ -584,8 +576,6 @@ impl RootMetadataBuilder {
             keys: HashMap::new(),
             root_threshold: 1,
             root_key_ids: Vec::new(),
-            timestamp_threshold: 1,
-            timestamp_key_ids: Vec::new(),
         }
     }
 
@@ -609,27 +599,12 @@ impl RootMetadataBuilder {
         self
     }
 
-    /// Set the timestamp threshold.
-    pub fn timestamp_threshold(mut self, threshold: u32) -> Self {
-        self.timestamp_threshold = threshold;
-        self
-    }
-
-    /// Add a timestamp public key.
-    pub fn timestamp_key(mut self, public_key: PublicKey) -> Self {
-        let key_id = public_key.key_id().clone();
-        self.keys.insert(key_id.clone(), public_key);
-        self.timestamp_key_ids.push(key_id);
-        self
-    }
-
     /// Construct a new `RootMetadata`.
     pub fn build(self) -> Result<RootMetadata> {
         RootMetadata::new(
             self.version,
             self.keys,
             RoleDefinition::new(self.root_threshold, self.root_key_ids)?,
-            RoleDefinition::new(self.timestamp_threshold, self.timestamp_key_ids)?,
         )
     }
 
@@ -655,8 +630,6 @@ impl From<RootMetadata> for RootMetadataBuilder {
             keys: metadata.keys,
             root_threshold: metadata.root.threshold,
             root_key_ids: metadata.root.key_ids,
-            timestamp_threshold: metadata.timestamp.threshold,
-            timestamp_key_ids: metadata.timestamp.key_ids,
         }
     }
 }
@@ -667,7 +640,6 @@ pub struct RootMetadata {
     version: u32,
     keys: HashMap<KeyId, PublicKey>,
     root: RoleDefinition,
-    timestamp: RoleDefinition,
 }
 
 impl RootMetadata {
@@ -676,7 +648,6 @@ impl RootMetadata {
         version: u32,
         keys: HashMap<KeyId, PublicKey>,
         root: RoleDefinition,
-        timestamp: RoleDefinition,
     ) -> Result<Self> {
         if version < 1 {
             return Err(Error::IllegalArgument(format!(
@@ -689,7 +660,6 @@ impl RootMetadata {
             version,
             keys,
             root,
-            timestamp,
         })
     }
 
@@ -703,10 +673,6 @@ impl RootMetadata {
         &self.root
     }
 
-    /// An immutable reference to the timestamp role's definition.
-    pub fn timestamp(&self) -> &RoleDefinition {
-        &self.timestamp
-    }
 }
 
 impl Metadata for RootMetadata {
@@ -845,8 +811,6 @@ impl MetadataPath {
     ///            MetadataPath::new("root").unwrap());
     /// assert_eq!(MetadataPath::from_role(&Role::Targets),
     ///            MetadataPath::new("targets").unwrap());
-    /// assert_eq!(MetadataPath::from_role(&Role::Timestamp),
-    ///            MetadataPath::new("timestamp").unwrap());
     /// ```
     pub fn from_role(role: &Role) -> Self {
         Self::new(format!("{}", role)).unwrap()
@@ -1045,86 +1009,6 @@ impl<'de> Deserialize<'de> for LinkMetadata {
 }
 
 
-///---
-/// Helper to construct `TimestampMetadata`.
-pub struct TimestampMetadataBuilder {
-    version: u32,
-}
-
-impl TimestampMetadataBuilder {
-
-    /// Set the version number for this metadata.
-    pub fn version(mut self, version: u32) -> Self {
-        self.version = version;
-        self
-    }
-
-    /// Construct a new `TimestampMetadata`.
-    pub fn build(self) -> Result<TimestampMetadata> {
-        TimestampMetadata::new(self.version)
-    }
-
-    /// Construct a new `SignedMetadata<D, TimestampMetadata>`.
-    pub fn signed<D>(self, private_key: &PrivateKey) -> Result<SignedMetadata<D, TimestampMetadata>>
-    where
-        D: DataInterchange,
-    {
-        SignedMetadata::new(&self.build()?, private_key)
-    }
-}
-
-/// Metadata for the timestamp role.
-#[derive(Debug, Clone, PartialEq)]
-pub struct TimestampMetadata {
-    version: u32,
-}
-
-impl TimestampMetadata {
-    /// Create new `TimestampMetadata`.
-    pub fn new(
-        version: u32,
-    ) -> Result<Self> {
-        if version < 1 {
-            return Err(Error::IllegalArgument(format!(
-                "Metadata version must be greater than zero. Found: {}",
-                version
-            )));
-        }
-
-        Ok(TimestampMetadata {
-            version,
-        })
-    }
-}
-
-impl Metadata for TimestampMetadata {
-    const ROLE: Role = Role::Timestamp;
-
-    fn version(&self) -> u32 {
-        self.version
-    }
-
-}
-
-impl Serialize for TimestampMetadata {
-    fn serialize<S>(&self, ser: S) -> ::std::result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        shims::TimestampMetadata::from(self)
-            .map_err(|e| SerializeError::custom(format!("{:?}", e)))?
-            .serialize(ser)
-    }
-}
-
-impl<'de> Deserialize<'de> for TimestampMetadata {
-    fn deserialize<D: Deserializer<'de>>(de: D) -> ::std::result::Result<Self, D::Error> {
-        let intermediate: shims::TimestampMetadata = Deserialize::deserialize(de)?;
-        intermediate
-            .try_into()
-            .map_err(|e| DeserializeError::custom(format!("{:?}", e)))
-    }
-}
 
 /// Description of a piece of metadata, used in verification.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -1740,14 +1624,11 @@ mod test {
         let root_key = PrivateKey::from_pkcs8(ED25519_1_PK8, SignatureScheme::Ed25519).unwrap();
         let snapshot_key = PrivateKey::from_pkcs8(ED25519_2_PK8, SignatureScheme::Ed25519).unwrap();
         let targets_key = PrivateKey::from_pkcs8(ED25519_3_PK8, SignatureScheme::Ed25519).unwrap();
-        let timestamp_key =
-            PrivateKey::from_pkcs8(ED25519_4_PK8, SignatureScheme::Ed25519).unwrap();
 
         let root = RootMetadataBuilder::new()
             .root_key(root_key.public().clone())
             .snapshot_key(snapshot_key.public().clone())
             .targets_key(targets_key.public().clone())
-            .timestamp_key(timestamp_key.public().clone())
             .build()
             .unwrap();
 
@@ -1802,10 +1683,6 @@ mod test {
                 "targets": {
                     "threshold": 1,
                     "keyids": ["40e35e8f6003ab90d104710cf88901edab931597401f91c19eeb366060ab3d53"],
-                },
-                "timestamp": {
-                    "threshold": 1,
-                    "keyids": ["09557ed63f91b5b95917d46f66c63ea79bdaef1b008ba823808bca849f1d18a1"],
                 },
             },
         });
@@ -1864,10 +1741,6 @@ mod test {
                 "targets": {
                     "threshold": 1,
                     "keyids": ["b9c336828063cf4fe5348e9fe2d86827c7b3104a76b1f4484a56bbef1ef08cfb"],
-                },
-                "timestamp": {
-                    "threshold": 1,
-                    "keyids": ["3af6b427c05274532231760f39d81212fdf8ac1a9f8fddf12722623ccec02fec"],
                 },
             },
         })
@@ -2005,11 +1878,6 @@ mod test {
     }
 
     #[test]
-    fn unknown_fields_included_in_timestamp_metadata_signature() {
-        verify_signature_with_unknown_fields::<TimestampMetadata>(make_timestamp());
-    }
-
-    #[test]
     fn unknown_fields_included_in_snapshot_metadata_signature() {
         verify_signature_with_unknown_fields::<SnapshotMetadata>(make_snapshot());
     }
@@ -2017,86 +1885,6 @@ mod test {
     #[test]
     fn unknown_fields_included_in_targets_metadata_signature() {
         verify_signature_with_unknown_fields::<TargetsMetadata>(make_targets());
-    }
-
-    #[test]
-    fn serde_timestamp_metadata() {
-        let description = MetadataDescription::new(
-            1,
-            100,
-            hashmap! { HashAlgorithm::Sha256 => HashValue::new(vec![]) },
-        )
-        .unwrap();
-
-        let timestamp = TimestampMetadataBuilder::from_metadata_description(description)
-            .build()
-            .unwrap();
-
-        let jsn = json!({
-            "_type": "timestamp",
-            "spec_version": "1.0",
-            "version": 1,
-            "meta": {
-                "snapshot.json": {
-                    "version": 1,
-                    "length": 100,
-                    "hashes": {
-                        "sha256": "",
-                    },
-                },
-            }
-        });
-
-        let encoded = serde_json::to_value(&timestamp).unwrap();
-        assert_eq!(encoded, jsn);
-        let decoded: TimestampMetadata = serde_json::from_value(encoded).unwrap();
-        assert_eq!(decoded, timestamp);
-    }
-
-    #[test]
-    fn serde_timestamp_metadata_missing_snapshot() {
-        let jsn = json!({
-            "_type": "timestamp",
-            "spec_version": "1.0",
-            "version": 1,
-            "meta": {}
-        });
-
-        assert_matches!(
-            serde_json::from_value::<TimestampMetadata>(jsn),
-            Err(ref err) if err.to_string() == "missing field `snapshot.json`"
-        );
-    }
-
-    #[test]
-    fn serde_timestamp_metadata_extra_metadata() {
-        let jsn = json!({
-            "_type": "timestamp",
-            "spec_version": "1.0",
-            "version": 1,
-            "meta": {
-                "snapshot.json": {
-                    "version": 1,
-                    "length": 100,
-                    "hashes": {
-                        "sha256": "",
-                    },
-                },
-                "targets.json": {
-                    "version": 1,
-                    "length": 100,
-                    "hashes": {
-                        "sha256": "",
-                    },
-                },
-            }
-        });
-
-        assert_matches!(
-            serde_json::from_value::<TimestampMetadata>(jsn),
-            Err(ref err) if err.to_string() ==
-            "unknown field `targets.json`, expected `snapshot.json`"
-        );
     }
 
     #[test]
@@ -2284,14 +2072,11 @@ mod test {
         let root_key = PrivateKey::from_pkcs8(ED25519_1_PK8, SignatureScheme::Ed25519).unwrap();
         let snapshot_key = PrivateKey::from_pkcs8(ED25519_2_PK8, SignatureScheme::Ed25519).unwrap();
         let targets_key = PrivateKey::from_pkcs8(ED25519_3_PK8, SignatureScheme::Ed25519).unwrap();
-        let timestamp_key =
-            PrivateKey::from_pkcs8(ED25519_4_PK8, SignatureScheme::Ed25519).unwrap();
 
         let root = RootMetadataBuilder::new()
             .root_key(root_key.public().clone())
             .snapshot_key(snapshot_key.public().clone())
             .targets_key(targets_key.public().clone())
-            .timestamp_key(timestamp_key.public().clone())
             .build()
             .unwrap();
 
@@ -2304,17 +2089,6 @@ mod test {
             .unwrap();
 
         serde_json::to_value(&snapshot).unwrap()
-    }
-
-    fn make_timestamp() -> serde_json::Value {
-        let description =
-            MetadataDescription::from_reader(&[][..], 1, &[HashAlgorithm::Sha256]).unwrap();
-
-        let timestamp = TimestampMetadataBuilder::from_metadata_description(description)
-            .build()
-            .unwrap();
-
-        serde_json::to_value(&timestamp).unwrap()
     }
 
     fn make_targets() -> serde_json::Value {
@@ -2383,10 +2157,6 @@ mod test {
                     "threshold": 1,
                     "keyids": ["09557ed63f91b5b95917d46f66c63ea79bdaef1b008ba823808bca849f1d18a1"]
                 },
-                "timestamp": {
-                    "threshold": 1,
-                    "keyids": ["09557ed63f91b5b95917d46f66c63ea79bdaef1b008ba823808bca849f1d18a1"]
-                }
             }
         }"#;
         match serde_json::from_str::<RootMetadata>(root_json) {
@@ -2554,70 +2324,6 @@ mod test {
             }
         }"#;
         match serde_json::from_str::<SnapshotMetadata>(snapshot_json) {
-            Err(ref err) if err.is_data() => {}
-            result => panic!("unexpected result: {:?}", result),
-        }
-    }
-
-    // Refuse to deserialize timestamp metadata with illegal versions
-    #[test]
-    fn deserialize_json_timestamp_illegal_version() {
-        let mut timestamp = make_timestamp();
-        set_version(&mut timestamp, 0);
-        assert!(serde_json::from_value::<TimestampMetadata>(timestamp).is_err());
-
-        let mut timestamp = make_timestamp();
-        set_version(&mut timestamp, -1);
-        assert!(serde_json::from_value::<TimestampMetadata>(timestamp).is_err());
-    }
-
-    // Refuse to deserialize timestamp metadata with wrong type field
-    #[test]
-    fn deserialize_json_timestamp_bad_type() {
-        let mut timestamp = make_timestamp();
-        let _ = timestamp
-            .as_object_mut()
-            .unwrap()
-            .insert("_type".into(), json!("root"));
-        assert!(serde_json::from_value::<TimestampMetadata>(timestamp).is_err());
-    }
-
-    // Refuse to deserialize timestamp metadata with unknown spec version
-    #[test]
-    fn deserialize_json_timestamp_bad_spec_version() {
-        let mut timestamp = make_timestamp();
-        let _ = timestamp
-            .as_object_mut()
-            .unwrap()
-            .insert("spec_version".into(), json!("0"));
-        assert!(serde_json::from_value::<TimestampMetadata>(timestamp).is_err());
-    }
-
-    // Refuse to deserialize timestamp metadata if it contains duplicate metadata
-    #[test]
-    fn deserialize_json_timestamp_duplicate_metadata() {
-        let timestamp_json = r#"{
-            "_type": "timestamp",
-            "spec_version": "1.0",
-            "version": 1,
-            "meta": {
-                "snapshot.json": {
-                    "version": 1,
-                    "length": 100,
-                    "hashes": {
-                        "sha256": ""
-                    }
-                },
-                "snapshot.json": {
-                    "version": 1,
-                    "length": 100,
-                    "hashes": {
-                        "sha256": ""
-                    }
-                }
-            }
-        }"#;
-        match serde_json::from_str::<TimestampMetadata>(timestamp_json) {
             Err(ref err) if err.is_data() => {}
             result => panic!("unexpected result: {:?}", result),
         }

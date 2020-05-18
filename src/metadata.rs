@@ -148,9 +148,6 @@ fn safe_path(path: &str) -> Result<()> {
 /// The TUF role.
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Role {
-    /// The root role.
-    #[serde(rename = "root")]
-    Root,
     /// The link role
     #[serde(rename = "link")]
     Link,
@@ -166,14 +163,10 @@ impl Role {
     /// ```
     /// use in_toto::metadata::{MetadataPath, Role};
     ///
-    /// assert!(Role::Root.fuzzy_matches_path(&MetadataPath::from_role(&Role::Root)));
-    ///
-    /// assert!(!Role::Root.fuzzy_matches_path(&MetadataPath::new("wat").unwrap()));
     /// ```
     pub fn fuzzy_matches_path(&self, path: &MetadataPath) -> bool {
         match *self {
-            Role::Root if &path.0 == "root" => true,
-            Role::Root if &path.0 == "link" => true,
+            Role::Link if &path.0 == "link" => true,
             //Role::Layout if &path.0 == "layout" => true,
             _ => false,
         }
@@ -182,7 +175,6 @@ impl Role {
     /// Return the name of the role.
     pub fn name(&self) -> &'static str {
         match *self {
-            Role::Root => "root",
             //Role::Layout => "layout",
             Role::Link => "link",
         }
@@ -557,152 +549,6 @@ where
     }
 }
 
-/// Helper to construct `RootMetadata`.
-pub struct RootMetadataBuilder {
-    version: u32,
-    keys: HashMap<KeyId, PublicKey>,
-    root_threshold: u32,
-    root_key_ids: Vec<KeyId>,
-}
-
-impl RootMetadataBuilder {
-    /// Create a new `RootMetadataBuilder`. It defaults to:
-    ///
-    /// * version: 1,
-    /// * role thresholds: 1
-    pub fn new() -> Self {
-        RootMetadataBuilder {
-            version: 1,
-            keys: HashMap::new(),
-            root_threshold: 1,
-            root_key_ids: Vec::new(),
-        }
-    }
-
-    /// Set the version number for this metadata.
-    pub fn version(mut self, version: u32) -> Self {
-        self.version = version;
-        self
-    }
-
-    /// Set the root threshold.
-    pub fn root_threshold(mut self, threshold: u32) -> Self {
-        self.root_threshold = threshold;
-        self
-    }
-
-    /// Add a root public key.
-    pub fn root_key(mut self, public_key: PublicKey) -> Self {
-        let key_id = public_key.key_id().clone();
-        self.keys.insert(key_id.clone(), public_key);
-        self.root_key_ids.push(key_id);
-        self
-    }
-
-    /// Construct a new `RootMetadata`.
-    pub fn build(self) -> Result<RootMetadata> {
-        RootMetadata::new(
-            self.version,
-            self.keys,
-            RoleDefinition::new(self.root_threshold, self.root_key_ids)?,
-        )
-    }
-
-    /// Construct a new `SignedMetadata<D, RootMetadata>`.
-    pub fn signed<D>(self, private_key: &PrivateKey) -> Result<SignedMetadata<D, RootMetadata>>
-    where
-        D: DataInterchange,
-    {
-        SignedMetadata::new(&self.build()?, private_key)
-    }
-}
-
-impl Default for RootMetadataBuilder {
-    fn default() -> Self {
-        RootMetadataBuilder::new()
-    }
-}
-
-impl From<RootMetadata> for RootMetadataBuilder {
-    fn from(metadata: RootMetadata) -> Self {
-        RootMetadataBuilder {
-            version: metadata.version,
-            keys: metadata.keys,
-            root_threshold: metadata.root.threshold,
-            root_key_ids: metadata.root.key_ids,
-        }
-    }
-}
-
-/// Metadata for the root role.
-#[derive(Debug, Clone, PartialEq)]
-pub struct RootMetadata {
-    version: u32,
-    keys: HashMap<KeyId, PublicKey>,
-    root: RoleDefinition,
-}
-
-impl RootMetadata {
-    /// Create new `RootMetadata`.
-    pub fn new(
-        version: u32,
-        keys: HashMap<KeyId, PublicKey>,
-        root: RoleDefinition,
-    ) -> Result<Self> {
-        if version < 1 {
-            return Err(Error::IllegalArgument(format!(
-                "Metadata version must be greater than zero. Found: {}",
-                version
-            )));
-        }
-
-        Ok(RootMetadata {
-            version,
-            keys,
-            root,
-        })
-    }
-
-    /// An immutable reference to the map of trusted keys.
-    pub fn keys(&self) -> &HashMap<KeyId, PublicKey> {
-        &self.keys
-    }
-
-    /// An immutable reference to the root role's definition.
-    pub fn root(&self) -> &RoleDefinition {
-        &self.root
-    }
-
-}
-
-impl Metadata for RootMetadata {
-    const ROLE: Role = Role::Root;
-
-    fn version(&self) -> u32 {
-        self.version
-    }
-
-}
-
-impl Serialize for RootMetadata {
-    fn serialize<S>(&self, ser: S) -> ::std::result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let m = shims::RootMetadata::from(self)
-            .map_err(|e| SerializeError::custom(format!("{:?}", e)))?;
-        m.serialize(ser)
-    }
-}
-
-impl<'de> Deserialize<'de> for RootMetadata {
-    fn deserialize<D: Deserializer<'de>>(de: D) -> ::std::result::Result<Self, D::Error> {
-        let intermediate: shims::RootMetadata = Deserialize::deserialize(de)?;
-        intermediate
-            .try_into()
-            .map_err(|e| DeserializeError::custom(format!("{:?}", e)))
-    }
-}
 
 /// The definition of what allows a role to be trusted.
 #[derive(Clone, Debug, PartialEq)]
@@ -807,7 +653,6 @@ impl MetadataPath {
     ///
     /// ```
     /// # use tuf::metadata::{Role, MetadataPath};
-    /// assert_eq!(MetadataPath::from_role(&Role::Root),
     ///            MetadataPath::new("root").unwrap());
     /// assert_eq!(MetadataPath::from_role(&Role::Targets),
     ///            MetadataPath::new("targets").unwrap());
@@ -1619,79 +1464,6 @@ mod test {
         assert!(serde_json::from_value::<RoleDefinition>(jsn).is_err());
     }
 
-    #[test]
-    fn serde_root_metadata() {
-        let root_key = PrivateKey::from_pkcs8(ED25519_1_PK8, SignatureScheme::Ed25519).unwrap();
-        let snapshot_key = PrivateKey::from_pkcs8(ED25519_2_PK8, SignatureScheme::Ed25519).unwrap();
-        let targets_key = PrivateKey::from_pkcs8(ED25519_3_PK8, SignatureScheme::Ed25519).unwrap();
-
-        let root = RootMetadataBuilder::new()
-            .root_key(root_key.public().clone())
-            .snapshot_key(snapshot_key.public().clone())
-            .targets_key(targets_key.public().clone())
-            .build()
-            .unwrap();
-
-        let jsn = json!({
-            "_type": "root",
-            "spec_version": "1.0",
-            "version": 1,
-            "consistent_snapshot": false,
-            "keys": {
-                "09557ed63f91b5b95917d46f66c63ea79bdaef1b008ba823808bca849f1d18a1": {
-                    "keytype": "ed25519",
-                    "scheme": "ed25519",
-                    "keyid_hash_algorithms": ["sha256", "sha512"],
-                    "keyval": {
-                        "public": "1410ae3053aa70bbfa98428a879d64d3002a3578f7dfaaeb1cb0764e860f7e0b",
-                    },
-                },
-                "40e35e8f6003ab90d104710cf88901edab931597401f91c19eeb366060ab3d53": {
-                    "keytype": "ed25519",
-                    "scheme": "ed25519",
-                    "keyid_hash_algorithms": ["sha256", "sha512"],
-                    "keyval": {
-                        "public": "166376c90a7f717d027056272f361c252fb050bed1a067ff2089a0302fbab73d",
-                    },
-                },
-                "a9f3ebc9b138762563a9c27b6edd439959e559709babd123e8d449ba2c18c61a": {
-                    "keytype": "ed25519",
-                    "scheme": "ed25519",
-                    "keyid_hash_algorithms": ["sha256", "sha512"],
-                    "keyval": {
-                        "public": "eb8ac26b5c9ef0279e3be3e82262a93bce16fe58ee422500d38caf461c65a3b6",
-                    },
-                },
-                "fd7b7741686fa44903f1e4b61d7db869939f402b4acedc044767922c7d309983": {
-                    "keytype": "ed25519",
-                    "scheme": "ed25519",
-                    "keyid_hash_algorithms": ["sha256", "sha512"],
-                    "keyval": {
-                        "public": "68d9ecb387371005a8eb8e60105305c34356a8fcd859d7fef3cc228bf2b2b3b2",
-                    },
-                }
-            },
-            "roles": {
-                "root": {
-                    "threshold": 1,
-                    "keyids": ["a9f3ebc9b138762563a9c27b6edd439959e559709babd123e8d449ba2c18c61a"],
-                },
-                "snapshot": {
-                    "threshold": 1,
-                    "keyids": ["fd7b7741686fa44903f1e4b61d7db869939f402b4acedc044767922c7d309983"],
-                },
-                "targets": {
-                    "threshold": 1,
-                    "keyids": ["40e35e8f6003ab90d104710cf88901edab931597401f91c19eeb366060ab3d53"],
-                },
-            },
-        });
-
-        let encoded = serde_json::to_value(&root).unwrap();
-        assert_eq!(encoded, jsn);
-        let decoded: RootMetadata = serde_json::from_value(encoded).unwrap();
-        assert_eq!(decoded, root);
-    }
 
     fn jsn_root_metadata_without_keyid_hash_algos() -> serde_json::Value {
         json!({
@@ -1744,137 +1516,6 @@ mod test {
                 },
             },
         })
-    }
-
-    #[test]
-    fn de_ser_root_metadata_without_keyid_hash_algorithms() {
-        let jsn = jsn_root_metadata_without_keyid_hash_algos();
-        let decoded: RootMetadata = serde_json::from_value(jsn.clone()).unwrap();
-        let encoded = serde_json::to_value(decoded).unwrap();
-
-        assert_eq!(jsn, encoded);
-    }
-
-    #[test]
-    fn de_ser_root_metadata_wrong_key_id() {
-        let jsn = jsn_root_metadata_without_keyid_hash_algos();
-        let mut jsn_str = str::from_utf8(&Json::canonicalize(&jsn).unwrap())
-            .unwrap()
-            .to_owned();
-        // Replace the key id to something else.
-        jsn_str = jsn_str.replace(
-            "12435b260b6172bd750aeb102f54a347c56b109e0524ab1f144593c07af66356",
-            "00435b260b6172bd750aeb102f54a347c56b109e0524ab1f144593c07af66356",
-        );
-        let decoded: RootMetadata = serde_json::from_str(&jsn_str).unwrap();
-        assert_eq!(3, decoded.keys.len());
-    }
-
-    #[test]
-    fn sign_and_verify_root_metadata() {
-        let jsn = jsn_root_metadata_without_keyid_hash_algos();
-        let root_key = PrivateKey::from_pkcs8(ED25519_1_PK8, SignatureScheme::Ed25519).unwrap();
-        let decoded: RootMetadata = serde_json::from_value(jsn).unwrap();
-
-        let signed: SignedMetadata<crate::interchange::cjson::Json, _> =
-            SignedMetadata::new(&decoded, &root_key).unwrap();
-        signed.verify(1, &[root_key.public().clone()]).unwrap();
-    }
-
-    #[test]
-    fn verify_signed_serialized_root_metadata() {
-        let jsn = json!({
-            "signatures": [{
-                "keyid": "a9f3ebc9b138762563a9c27b6edd439959e559709babd123e8d449ba2c18c61a",
-                "sig": "c4ba838e0d3f783716393a4d691f568f840733ff488bb79ac68287e97e0b31d63fcef392dbc978e878c2103ba231905af634cc651d6f0e63a35782d051ac6e00"
-            }],
-            "signed": jsn_root_metadata_without_keyid_hash_algos()
-        });
-        let root_key = PrivateKey::from_pkcs8(ED25519_1_PK8, SignatureScheme::Ed25519).unwrap();
-        let decoded: SignedMetadata<crate::interchange::cjson::Json, RootMetadata> =
-            serde_json::from_value(jsn).unwrap();
-
-        decoded.verify(1, &[root_key.public().clone()]).unwrap();
-    }
-
-    #[test]
-    fn verify_signed_serialized_root_metadata_with_duplicate_sig() {
-        let jsn = json!({
-            "signatures": [{
-                "keyid": "a9f3ebc9b138762563a9c27b6edd439959e559709babd123e8d449ba2c18c61a",
-                "sig": "c4ba838e0d3f783716393a4d691f568f840733ff488bb79ac68287e97e0b31d63fcef392dbc978e878c2103ba231905af634cc651d6f0e63a35782d051ac6e00"
-            },
-            {
-                "keyid": "a9f3ebc9b138762563a9c27b6edd439959e559709babd123e8d449ba2c18c61a",
-                "sig": "c4ba838e0d3f783716393a4d691f568f840733ff488bb79ac68287e97e0b31d63fcef392dbc978e878c2103ba231905af634cc651d6f0e63a35782d051ac6e00"
-            }],
-            "signed": jsn_root_metadata_without_keyid_hash_algos()
-        });
-        let root_key = PrivateKey::from_pkcs8(ED25519_1_PK8, SignatureScheme::Ed25519).unwrap();
-        let decoded: SignedMetadata<crate::interchange::cjson::Json, RootMetadata> =
-            serde_json::from_value(jsn).unwrap();
-        assert_matches!(
-            decoded.verify(2, &[root_key.public().clone()]),
-            Err(Error::VerificationFailure(_))
-        );
-        decoded.verify(1, &[root_key.public().clone()]).unwrap();
-    }
-
-    fn verify_signature_with_unknown_fields<M>(mut metadata: serde_json::Value)
-    where
-        M: Metadata,
-    {
-        let key = PrivateKey::from_pkcs8(ED25519_1_PK8, SignatureScheme::Ed25519).unwrap();
-
-        let mut standard = SignedMetadataBuilder::<Json, M>::from_raw_metadata(metadata.clone())
-            .unwrap()
-            .sign(&key)
-            .unwrap()
-            .build()
-            .to_raw()
-            .unwrap()
-            .parse()
-            .unwrap();
-
-        metadata.as_object_mut().unwrap().insert(
-            "custom".into(),
-            json!({
-                "metadata": ["please", "sign", "me"],
-                "this-too": 42,
-            }),
-        );
-        let mut custom = SignedMetadataBuilder::<Json, M>::from_raw_metadata(metadata)
-            .unwrap()
-            .sign(&key)
-            .unwrap()
-            .build()
-            .to_raw()
-            .unwrap()
-            .parse()
-            .unwrap();
-
-        // Ensure the signatures are valid as-is.
-        assert_matches!(standard.verify(1, std::iter::once(key.public())), Ok(_));
-        assert_matches!(custom.verify(1, std::iter::once(key.public())), Ok(_));
-
-        // But not if the metadata was signed with custom fields and they are now missing or
-        // unexpected new fields appear.
-        std::mem::swap(&mut standard.metadata, &mut custom.metadata);
-        assert_matches!(
-            standard.verify(1, std::iter::once(key.public())),
-            Err(Error::VerificationFailure(_))
-        );
-        assert_matches!(
-            custom.verify(1, std::iter::once(key.public())),
-            Err(Error::VerificationFailure(_))
-        );
-    }
-
-    #[test]
-    fn unknown_fields_included_in_root_metadata_signature() {
-        verify_signature_with_unknown_fields::<RootMetadata>(
-            jsn_root_metadata_without_keyid_hash_algos(),
-        );
     }
 
     #[test]
@@ -2073,13 +1714,6 @@ mod test {
         let snapshot_key = PrivateKey::from_pkcs8(ED25519_2_PK8, SignatureScheme::Ed25519).unwrap();
         let targets_key = PrivateKey::from_pkcs8(ED25519_3_PK8, SignatureScheme::Ed25519).unwrap();
 
-        let root = RootMetadataBuilder::new()
-            .root_key(root_key.public().clone())
-            .snapshot_key(snapshot_key.public().clone())
-            .targets_key(targets_key.public().clone())
-            .build()
-            .unwrap();
-
         serde_json::to_value(&root).unwrap()
     }
 
@@ -2113,62 +1747,9 @@ mod test {
     fn deserialize_json_root_illegal_version() {
         let mut root_json = make_root();
         set_version(&mut root_json, 0);
-        assert!(serde_json::from_value::<RootMetadata>(root_json.clone()).is_err());
 
         let mut root_json = make_root();
         set_version(&mut root_json, -1);
-        assert!(serde_json::from_value::<RootMetadata>(root_json).is_err());
-    }
-
-    // Refuse to deserialize root metadata if it contains duplicate keys
-    #[test]
-    fn deserialize_json_root_duplicate_keys() {
-        let root_json = r#"{
-            "_type": "root",
-            "spec_version": "1.0",
-            "version": 1,
-            "consistent_snapshot": false,
-            "keys": {
-                "09557ed63f91b5b95917d46f66c63ea79bdaef1b008ba823808bca849f1d18a1": {
-                    "keytype": "ed25519",
-                    "scheme": "ed25519",
-                    "keyval": {
-                        "public": "1410ae3053aa70bbfa98428a879d64d3002a3578f7dfaaeb1cb0764e860f7e0b"
-                    }
-                },
-                "09557ed63f91b5b95917d46f66c63ea79bdaef1b008ba823808bca849f1d18a1": {
-                    "keytype": "ed25519",
-                    "scheme": "ed25519",
-                    "keyval": {
-                        "public": "166376c90a7f717d027056272f361c252fb050bed1a067ff2089a0302fbab73d"
-                    }
-                }
-            },
-            "roles": {
-                "root": {
-                    "threshold": 1,
-                    "keyids": ["09557ed63f91b5b95917d46f66c63ea79bdaef1b008ba823808bca849f1d18a1"]
-                },
-                "snapshot": {
-                    "threshold": 1,
-                    "keyids": ["09557ed63f91b5b95917d46f66c63ea79bdaef1b008ba823808bca849f1d18a1"]
-                },
-                "targets": {
-                    "threshold": 1,
-                    "keyids": ["09557ed63f91b5b95917d46f66c63ea79bdaef1b008ba823808bca849f1d18a1"]
-                },
-            }
-        }"#;
-        match serde_json::from_str::<RootMetadata>(root_json) {
-            Err(ref err) if err.is_data() => {
-                assert!(
-                    err.to_string().starts_with("Cannot have duplicate keys"),
-                    "unexpected err: {:?}",
-                    err
-                );
-            }
-            result => panic!("unexpected result: {:?}", result),
-        }
     }
 
     fn set_threshold(value: &mut serde_json::Value, threshold: i32) {
@@ -2220,28 +1801,6 @@ mod test {
         let mut jsn = serde_json::to_value(&role_def).unwrap();
         set_threshold(&mut jsn, 3);
         assert!(serde_json::from_value::<RoleDefinition>(jsn).is_err());
-    }
-
-    // Refuse to deserialize root metadata with wrong type field
-    #[test]
-    fn deserialize_json_root_bad_type() {
-        let mut root = make_root();
-        let _ = root
-            .as_object_mut()
-            .unwrap()
-            .insert("_type".into(), json!("snapshot"));
-        assert!(serde_json::from_value::<RootMetadata>(root).is_err());
-    }
-
-    // Refuse to deserialize root metadata with unknown spec version
-    #[test]
-    fn deserialize_json_root_bad_spec_version() {
-        let mut root = make_root();
-        let _ = root
-            .as_object_mut()
-            .unwrap()
-            .insert("spec_version".into(), json!("0"));
-        assert!(serde_json::from_value::<RootMetadata>(root).is_err());
     }
 
     // Refuse to deserialize role definitions with duplicated key ids

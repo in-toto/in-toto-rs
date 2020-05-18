@@ -187,28 +187,6 @@ impl Display for Role {
     }
 }
 
-/// Enum used for addressing versioned TUF metadata.
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
-pub enum MetadataVersion {
-    /// The metadata is unversioned. This is the latest version of the metadata.
-    None,
-    /// The metadata is addressed by a specific version number.
-    Number(u32),
-    /// The metadata is addressed by a hash prefix. Used with TUF's consistent snapshot feature.
-    Hash(HashValue),
-}
-
-impl MetadataVersion {
-    /// Converts this struct into the string used for addressing metadata.
-    pub fn prefix(&self) -> String {
-        match *self {
-            MetadataVersion::None => String::new(),
-            MetadataVersion::Number(ref x) => format!("{}.", x),
-            MetadataVersion::Hash(ref v) => format!("{}.", v),
-        }
-    }
-}
-
 /// Top level trait used for role metadata.
 pub trait Metadata: Debug + PartialEq + Serialize + DeserializeOwned {
     /// The role associated with the metadata.
@@ -445,20 +423,6 @@ where
         &self.signatures
     }
 
-    /// Parse the version number of this metadata without verifying signatures.
-    ///
-    /// This operation is generally unsafe to do with metadata obtained from an untrusted source,
-    /// but rolling forward to the most recent root.json requires using the version number of the
-    /// latest root.json.
-    pub(crate) fn parse_version_untrusted(&self) -> Result<u32> {
-        #[derive(Deserialize)]
-        pub struct MetadataVersion {
-            version: u32,
-        }
-
-        let meta: MetadataVersion = D::deserialize(&self.metadata)?;
-        Ok(meta.version)
-    }
 
     /// Parse this metadata without verifying signatures.
     ///
@@ -661,32 +625,6 @@ impl MetadataPath {
         Self::new(format!("{}", role)).unwrap()
     }
 
-    /// Split `MetadataPath` into components that can be joined to create URL paths, Unix paths, or
-    /// Windows paths.
-    ///
-    /// ```
-    /// # use tuf::crypto::HashValue;
-    /// # use tuf::interchange::Json;
-    /// # use tuf::metadata::{MetadataPath, MetadataVersion};
-    /// #
-    /// let path = MetadataPath::new("foo/bar").unwrap();
-    /// assert_eq!(path.components::<Json>(&MetadataVersion::None),
-    ///            ["foo".to_string(), "bar.json".to_string()]);
-    /// assert_eq!(path.components::<Json>(&MetadataVersion::Number(1)),
-    ///            ["foo".to_string(), "1.bar.json".to_string()]);
-    /// assert_eq!(path.components::<Json>(
-    ///                 &MetadataVersion::Hash(HashValue::new(vec![0x69, 0xb7, 0x1d]))),
-    ///            ["foo".to_string(), "69b71d.bar.json".to_string()]);
-    /// ```
-    pub fn components<D>(&self, version: &MetadataVersion) -> Vec<String>
-    where
-        D: DataInterchange,
-    {
-        let mut buf: Vec<String> = self.0.split('/').map(|s| s.to_string()).collect();
-        let len = buf.len();
-        buf[len - 1] = format!("{}{}.{}", version.prefix(), buf[len - 1], D::extension());
-        buf
-    }
 }
 
 impl Display for MetadataPath {
@@ -854,96 +792,7 @@ impl<'de> Deserialize<'de> for LinkMetadata {
 }
 
 
-
-/// Description of a piece of metadata, used in verification.
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct MetadataDescription {
-    version: u32,
-    length: usize,
-    hashes: HashMap<HashAlgorithm, HashValue>,
-}
-
-impl MetadataDescription {
-    /// Create a `MetadataDescription` from a given reader. Size and hashes will be calculated.
-    pub fn from_reader<R: Read>(
-        read: R,
-        version: u32,
-        hash_algs: &[HashAlgorithm],
-    ) -> Result<Self> {
-        if version < 1 {
-            return Err(Error::IllegalArgument(
-                "Version must be greater than zero".into(),
-            ));
-        }
-
-        let (length, hashes) = crypto::calculate_hashes(read, hash_algs)?;
-
-        if length > ::std::usize::MAX as u64 {
-            return Err(Error::IllegalArgument(
-                "Calculated length exceeded usize".into(),
-            ));
-        }
-
-        Ok(MetadataDescription {
-            version,
-            length: length as usize,
-            hashes,
-        })
-    }
-
-    /// Create a new `MetadataDescription`.
-    pub fn new(
-        version: u32,
-        length: usize,
-        hashes: HashMap<HashAlgorithm, HashValue>,
-    ) -> Result<Self> {
-        if version < 1 {
-            return Err(Error::IllegalArgument(format!(
-                "Metadata version must be greater than zero. Found: {}",
-                version
-            )));
-        }
-
-        if hashes.is_empty() {
-            return Err(Error::IllegalArgument(
-                "Cannot have empty set of hashes".into(),
-            ));
-        }
-
-        Ok(MetadataDescription {
-            version,
-            length,
-            hashes,
-        })
-    }
-
-    /// The version of the described metadata.
-    pub fn version(&self) -> u32 {
-        self.version
-    }
-
-    /// The length of the described metadata.
-    pub fn length(&self) -> usize {
-        self.length
-    }
-
-    /// An immutable reference to the hashes of the described metadata.
-    pub fn hashes(&self) -> &HashMap<HashAlgorithm, HashValue> {
-        &self.hashes
-    }
-}
-
-impl<'de> Deserialize<'de> for MetadataDescription {
-    fn deserialize<D: Deserializer<'de>>(de: D) -> ::std::result::Result<Self, D::Error> {
-        let intermediate: shims::MetadataDescription = Deserialize::deserialize(de)?;
-        intermediate
-            .try_into()
-            .map_err(|e| DeserializeError::custom(format!("{:?}", e)))
-    }
-}
-
-
-/// Wrapper for the virtual path to a target.
+/// Wrapper for the Virtual path to a target.
 #[derive(Debug, Clone, PartialEq, Hash, Eq, PartialOrd, Ord, Serialize)]
 pub struct VirtualTargetPath(String);
 
@@ -1529,42 +1378,6 @@ mod test {
     }
 
     #[test]
-    fn serde_snapshot_metadata() {
-        let snapshot = SnapshotMetadataBuilder::new()
-            .insert_metadata_description(
-                MetadataPath::new("targets").unwrap(),
-                MetadataDescription::new(
-                    1,
-                    100,
-                    hashmap! { HashAlgorithm::Sha256 => HashValue::new(vec![]) },
-                )
-                .unwrap(),
-            )
-            .build()
-            .unwrap();
-
-        let jsn = json!({
-            "_type": "snapshot",
-            "spec_version": "1.0",
-            "version": 1,
-            "meta": {
-                "targets.json": {
-                    "version": 1,
-                    "length": 100,
-                    "hashes": {
-                        "sha256": "",
-                    },
-                },
-            },
-        });
-
-        let encoded = serde_json::to_value(&snapshot).unwrap();
-        assert_eq!(encoded, jsn);
-        let decoded: SnapshotMetadata = serde_json::from_value(encoded).unwrap();
-        assert_eq!(decoded, snapshot);
-    }
-
-    #[test]
     fn serde_targets_metadata() {
         let targets = TargetsMetadataBuilder::new()
             .insert_target_description(
@@ -1635,56 +1448,6 @@ mod test {
         assert_eq!(decoded, targets);
     }
 
-    #[test]
-    fn serde_signed_metadata() {
-        let snapshot = SnapshotMetadataBuilder::new()
-            .insert_metadata_description(
-                MetadataPath::new("targets").unwrap(),
-                MetadataDescription::new(
-                    1,
-                    100,
-                    hashmap! { HashAlgorithm::Sha256 => HashValue::new(vec![]) },
-                )
-                .unwrap(),
-            )
-            .build()
-            .unwrap();
-
-        let key = PrivateKey::from_pkcs8(ED25519_1_PK8, SignatureScheme::Ed25519).unwrap();
-
-        let signed = SignedMetadata::<Json, _>::new(&snapshot, &key).unwrap();
-
-        let jsn = json!({
-            "signatures": [
-                {
-                    "keyid": "a9f3ebc9b138762563a9c27b6edd439959e559709babd123e8d449ba2c18c61a",
-                    "sig": "ea48ddc7b3ea614b394e508eb8722100f94ff1a4e3aac3af09d\
-                        a0dada4f878431e8ac26160833405ec239924dfe62edf605fee8294\
-                        c49b4acade55c76e817602",
-                }
-            ],
-            "signed": {
-                "_type": "snapshot",
-                "spec_version": "1.0",
-                "version": 1,
-                "meta": {
-                    "targets.json": {
-                        "version": 1,
-                        "length": 100,
-                        "hashes": {
-                            "sha256": "",
-                        },
-                    },
-                },
-            },
-        });
-
-        let encoded = serde_json::to_value(&signed).unwrap();
-        assert_eq!(encoded, jsn, "{:#?} != {:#?}", encoded, jsn);
-        let decoded: SignedMetadata<Json, SnapshotMetadata> =
-            serde_json::from_value(encoded).unwrap();
-        assert_eq!(decoded, signed);
-    }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //

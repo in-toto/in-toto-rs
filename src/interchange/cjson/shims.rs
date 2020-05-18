@@ -1,5 +1,7 @@
+// FIXME: imports will be relevant for layout expiration
 //use chrono::offset::Utc;
 //use chrono::prelude::*;
+
 use serde_derive::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
 
@@ -8,8 +10,10 @@ use crate::error::Error;
 use crate::metadata::{self, Metadata};
 use crate::Result;
 
-const SPEC_VERSION: &str = "1.0";
+// FIXME, we need to tag a spec
+const SPEC_VERSION: &str = "0.9-dev";
 
+// FIXME: methods will be relevant for layout expiration
 // fn parse_datetime(ts: &str) -> Result<DateTime<Utc>> {
 //     Utc.datetime_from_str(ts, "%FT%TZ")
 //         .map_err(|e| Error::Encoding(format!("Can't parse DateTime: {:?}", e)))
@@ -212,23 +216,6 @@ impl TargetDescription {
 
     pub fn try_into(self) -> Result<metadata::TargetDescription> {
         metadata::TargetDescription::new(
-            self.hashes.into_iter().collect(),
-        )
-    }
-}
-
-#[derive(Deserialize)]
-pub struct MetadataDescription {
-    version: u32,
-    length: usize,
-    hashes: BTreeMap<crypto::HashAlgorithm, crypto::HashValue>,
-}
-
-impl MetadataDescription {
-    pub fn try_into(self) -> Result<metadata::MetadataDescription> {
-        metadata::MetadataDescription::new(
-            self.version,
-            self.length,
             self.hashes.into_iter().collect(),
         )
     }

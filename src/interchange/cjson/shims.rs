@@ -7,11 +7,11 @@ use std::collections::{BTreeMap, HashSet};
 
 use crate::crypto;
 use crate::error::Error;
-use crate::metadata::{self, Metadata};
+use crate::metadata;
 use crate::Result;
 
 // FIXME, we need to tag a spec
-const SPEC_VERSION: &str = "0.9-dev";
+//const SPEC_VERSION: &str = "0.9-dev";
 
 // FIXME: methods will be relevant for layout expiration
 // fn parse_datetime(ts: &str) -> Result<DateTime<Utc>> {
@@ -174,77 +174,3 @@ pub struct PublicKeyValue {
     public: String,
 }
 
-
-#[derive(Serialize, Deserialize)]
-pub struct ArtifactHash {
-    hashes: BTreeMap<crypto::HashAlgorithm, crypto::HashValue>,
-}
-
-impl ArtifactHash {
-    pub fn from(description: &metadata::ArtifactHash) -> ArtifactHash {
-        ArtifactHash {
-            hashes: description
-                .hashes()
-                .iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect(),
-        }
-    }
-
-    pub fn try_into(self) -> Result<metadata::ArtifactHash> {
-        metadata::ArtifactHash::new(
-            self.hashes.into_iter().collect(),
-        )
-    }
-}
-
-type TargetDescription = BTreeMap<crypto::HashAlgorithm, crypto::HashValue>;
-
-/// Custom deserialize to reject duplicate keys.
-mod deserialize_reject_duplicates {
-    use serde::de::{Deserialize, Deserializer, Error, MapAccess, Visitor};
-    use std::collections::BTreeMap;
-    use std::fmt;
-    use std::marker::PhantomData;
-    use std::result::Result;
-
-    pub fn deserialize<'de, K, V, D>(deserializer: D) -> Result<BTreeMap<K, V>, D::Error>
-    where
-        K: Deserialize<'de> + Ord,
-        V: Deserialize<'de>,
-        D: Deserializer<'de>,
-    {
-        struct BTreeVisitor<K, V> {
-            marker: PhantomData<(K, V)>,
-        };
-
-        impl<'de, K, V> Visitor<'de> for BTreeVisitor<K, V>
-        where
-            K: Deserialize<'de> + Ord,
-            V: Deserialize<'de>,
-        {
-            type Value = BTreeMap<K, V>;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("map")
-            }
-
-            fn visit_map<M>(self, mut access: M) -> std::result::Result<Self::Value, M::Error>
-            where
-                M: MapAccess<'de>,
-            {
-                let mut map = BTreeMap::new();
-                while let Some((key, value)) = access.next_entry()? {
-                    if map.insert(key, value).is_some() {
-                        return Err(M::Error::custom("Cannot have duplicate keys"));
-                    }
-                }
-                Ok(map)
-            }
-        }
-
-        deserializer.deserialize_map(BTreeVisitor {
-            marker: PhantomData,
-        })
-    }
-}

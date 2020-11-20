@@ -1,4 +1,4 @@
-# rust-tuf
+# in-toto-rs
 
 A Rust implementation of [in-toto](https://in-toto.io).
 

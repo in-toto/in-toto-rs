@@ -8,7 +8,6 @@ use serde::ser::{Error as SerializeError, Serialize, Serializer};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, BTreeMap};
 use std::fmt::{self, Debug, Display};
-use std::io::Read;
 use std::marker::PhantomData;
 use std::str;
 use std::fs::File;
@@ -665,19 +664,19 @@ impl LinkMetadataBuilder {
         }
     }
 
-    /// Set the name number for this link 
+    /// Set the name number for this link
     pub fn name(mut self, name: String) -> Self {
         self.name= name;
         self
     }
 
-    /// Set the materials for this metadata 
+    /// Set the materials for this metadata
     pub fn materials(mut self, materials: BTreeMap<VirtualTargetPath, TargetDescription>) -> Self {
         self.materials = materials;
         self
     }
 
-    /// Set the products for this metadata 
+    /// Set the products for this metadata
     pub fn products(mut self, products: BTreeMap<VirtualTargetPath, TargetDescription>) -> Self {
         self.products = products;
         self
@@ -701,20 +700,20 @@ impl LinkMetadataBuilder {
         self
     }
 
-    /// Set the products for this metadata 
+    /// Set the products for this metadata
     pub fn env(mut self, env: BTreeMap<String, String>) -> Self {
         self.env = env;
         self
     }
 
-    /// Set the products for this metadata 
+    /// Set the products for this metadata
     pub fn byproducts(mut self, byproducts: BTreeMap<String, String>) -> Self {
         self.byproducts = byproducts;
         self
     }
 
     pub fn build(self) -> Result<LinkMetadata> {
-        LinkMetadata::new(self.name, self.materials, self.products, 
+        LinkMetadata::new(self.name, self.materials, self.products,
             self.env, self.byproducts)
     }
 

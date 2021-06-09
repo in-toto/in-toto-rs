@@ -5,7 +5,6 @@ use std::io;
 use std::path::Path;
 use thiserror::Error;
 
-use crate::metadata::Role;
 
 /// Error type for all in-toto related errors.
 #[derive(Error, Debug, PartialEq, Eq)]
@@ -18,17 +17,9 @@ pub enum Error {
     #[error("encoding: {0}")]
     Encoding(String),
 
-    /// Metadata was expired.
-    #[error("expired {0} metadata")]
-    ExpiredMetadata(Role),
-
     /// An illegal argument was passed into a function.
     #[error("illegal argument: {0}")]
     IllegalArgument(String),
-
-    /// The metadata was missing, so an operation could not be completed.
-    #[error("missing {0} metadata")]
-    MissingMetadata(Role),
 
     /// There were no available hash algorithms.
     #[error("no supported hash algorithm")]

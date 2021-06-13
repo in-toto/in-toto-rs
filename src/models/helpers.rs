@@ -153,7 +153,7 @@ impl VirtualTargetPath {
     /// Create a new `VirtualTargetPath` from a `String`.
     ///
     /// ```
-    /// # use in_toto::models::helpers::{VirtualTargetPath};
+    /// # use in_toto::models::{VirtualTargetPath};
     /// assert!(VirtualTargetPath::new("foo".into()).is_ok());
     /// assert!(VirtualTargetPath::new("/foo".into()).is_err());
     /// assert!(VirtualTargetPath::new("../foo".into()).is_err());
@@ -172,7 +172,7 @@ impl VirtualTargetPath {
     /// paths, or Windows paths.
     ///
     /// ```
-    /// # use in_toto::models::helpers::{VirtualTargetPath};
+    /// # use in_toto::models::{VirtualTargetPath};
     /// let path = VirtualTargetPath::new("foo/bar".into()).unwrap();
     /// assert_eq!(path.components(), ["foo".to_string(), "bar".to_string()]);
     /// ```
@@ -183,7 +183,7 @@ impl VirtualTargetPath {
     /// Return whether this path is the child of another path.
     ///
     /// ```
-    /// # use in_toto::models::helpers::{VirtualTargetPath};
+    /// # use in_toto::models::{VirtualTargetPath};
     /// let path1 = VirtualTargetPath::new("foo".into()).unwrap();
     /// let path2 = VirtualTargetPath::new("foo/bar".into()).unwrap();
     /// assert!(!path2.is_child(&path1));

@@ -19,7 +19,7 @@ use crate::error::Error;
 use crate::interchange::DataInterchange;
 use crate::Result;
 
-use crate::models::helpers::safe_path;
+use crate::models::safe_path;
 
 
 /// Top level trait used for role metadata.
@@ -152,7 +152,7 @@ where
     /// # use chrono::prelude::*;
     /// # use in_toto::crypto::{PrivateKey, SignatureScheme, HashAlgorithm};
     /// # use in_toto::interchange::Json;
-    /// # use in_toto::models::metadata::{SignedMetadata};
+    /// # use in_toto::models::{SignedMetadata};
     /// #
     /// # fn main() {
     /// # let key: &[u8] = include_bytes!("../../tests/ed25519/ed25519-1.pk8.der");
@@ -234,7 +234,7 @@ where
     /// # use chrono::prelude::*;
     /// # use in_toto::crypto::{PrivateKey, SignatureScheme, HashAlgorithm};
     /// # use in_toto::interchange::Json;
-    /// # use in_toto::models::metadata::MetadataPath;
+    /// # use in_toto::models::MetadataPath;
     ///
     /// # fn main() {
     /// let key_1: &[u8] = include_bytes!("../../tests/ed25519/ed25519-1.pk8.der");
@@ -315,7 +315,7 @@ where
 /// library depending on what type of data interchange format is being used.
 ///
 /// ```
-/// use in_toto::models::metadata::MetadataPath;
+/// use in_toto::models::MetadataPath;
 ///
 /// // right
 /// let _ = MetadataPath::new("root");
@@ -330,7 +330,7 @@ impl MetadataPath {
     /// Create a new `MetadataPath` from a `String`.
     ///
     /// ```
-    /// # use in_toto::models::metadata::MetadataPath;
+    /// # use in_toto::models::MetadataPath;
     /// assert!(MetadataPath::new("foo").is_ok());
     /// assert!(MetadataPath::new("/foo").is_err());
     /// assert!(MetadataPath::new("../foo").is_err());
@@ -376,7 +376,7 @@ impl TargetPath {
     /// Windows paths.
     ///
     /// ```
-    /// # use in_toto::models::metadata::TargetPath;
+    /// # use in_toto::models::TargetPath;
     /// let path = TargetPath::new("foo/bar".into()).unwrap();
     /// assert_eq!(path.components(), ["foo".to_string(), "bar".to_string()]);
     /// ```

@@ -1,6 +1,11 @@
 //! Models used in in-toto
 
-pub mod link;
-pub mod metadata;
-pub mod layout;
-pub mod helpers;
+mod link;
+mod metadata;
+mod layout;
+mod helpers;
+
+pub use link::*;
+pub use metadata::*;
+pub use layout::*;
+pub use helpers::*;

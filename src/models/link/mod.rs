@@ -6,10 +6,11 @@ use std::str;
 
 use serde_derive::{Deserialize, Serialize};
 use crate::Result;
-use crate::models;
 
 pub mod metadata;
-use crate::models::helpers::{VirtualTargetPath, TargetDescription};
+pub use metadata::{LinkMetadata, LinkMetadataBuilder};
+
+use crate::models::{VirtualTargetPath, TargetDescription};
 
 // FIXME, we need to tag a spec
 //const SPEC_VERSION: &str = "0.9-dev";
@@ -39,15 +40,15 @@ pub struct Link {
     // Why is the type named as typ?
     #[serde(rename = "_type")]
     name: String,
-    materials: BTreeMap<VirtualTargetPath, models::link::TargetDescription>,
-    products: BTreeMap<models::link::VirtualTargetPath, models::link::TargetDescription>,
+    materials: BTreeMap<VirtualTargetPath, TargetDescription>,
+    products: BTreeMap<VirtualTargetPath, TargetDescription>,
     env: BTreeMap<String, String>,
     byproducts: BTreeMap<String, String>,
 
 }
 
 impl Link {
-    pub fn from(meta: &models::link::metadata::LinkMetadata) -> Result<Self> {
+    pub fn from(meta: &LinkMetadata) -> Result<Self> {
         Ok(Link {
             name: meta.name().to_string(),
             materials: (*meta.materials()).clone(),
@@ -57,8 +58,8 @@ impl Link {
         })
     }
 
-    pub fn try_into(self) -> Result<models::link::metadata::LinkMetadata > {
-        models::link::metadata::LinkMetadata::new(
+    pub fn try_into(self) -> Result<LinkMetadata> {
+        LinkMetadata::new(
             self.name,
             self.materials,
             self.products,

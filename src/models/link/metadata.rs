@@ -11,10 +11,7 @@ use crate::crypto::{self, PrivateKey};
 use crate::interchange::DataInterchange;
 use crate::Result;
 
-use crate::models::metadata::{SignedMetadata, Metadata};
-
-use crate::models::link::{Link};
-use crate::models::helpers::{VirtualTargetPath, TargetDescription};
+use crate::models::{SignedMetadata, Metadata, Link, VirtualTargetPath, TargetDescription};
 
 /// Helper to construct `LinkMetadata`.
 pub struct LinkMetadataBuilder {

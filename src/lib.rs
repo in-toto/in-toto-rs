@@ -15,12 +15,10 @@ pub mod error;
 pub mod interchange;
 pub mod models;
 pub mod verification;
-//pub mod in_toto;
 
 mod format_hex;
 
 pub use crate::error::*;
-//pub use crate::in_toto::*;
 
 /// Alias for `Result<T, Error>`.
 pub type Result<T> = std::result::Result<T, Error>;

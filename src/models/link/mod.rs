@@ -6,7 +6,6 @@ use std::str;
 
 use serde_derive::{Deserialize, Serialize};
 use crate::Result;
-use crate::error::Error;
 use crate::models;
 
 pub mod metadata;
@@ -33,10 +32,12 @@ use crate::models::helpers::{VirtualTargetPath, TargetDescription};
 //     )
 // }
 
+pub const FILENAME_FORMAT: &str = "{step_name}.{keyid:.8}.link";
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Link {
+    // Why is the type named as typ?
     #[serde(rename = "_type")]
-    typ: String,
     name: String,
     materials: BTreeMap<VirtualTargetPath, models::link::TargetDescription>,
     products: BTreeMap<models::link::VirtualTargetPath, models::link::TargetDescription>,
@@ -48,7 +49,6 @@ pub struct Link {
 impl Link {
     pub fn from(meta: &models::link::metadata::LinkMetadata) -> Result<Self> {
         Ok(Link {
-            typ: "link".to_string(),
             name: meta.name().to_string(),
             materials: (*meta.materials()).clone(),
             products: (*meta.products()).clone(),
@@ -58,13 +58,6 @@ impl Link {
     }
 
     pub fn try_into(self) -> Result<models::link::metadata::LinkMetadata > {
-        if self.typ != "link".to_string() {
-            return Err(Error::Encoding(format!(
-                "Attempted to decode link metdata labeled as {:?}",
-                self.typ
-            )));
-        }
-
         models::link::metadata::LinkMetadata::new(
             self.name,
             self.materials,

@@ -1187,7 +1187,6 @@ mod test {
         assert_eq!(bad_pub_key.verify(msg, &sig), Err(Error::BadSignature));
     }
 
-    // This test passed
     #[test]
     fn serde_key_id() {
         let s = "4750eaf6878740780d6f97b12dbad079fb012bec88c78de2c380add56d3f51db";
@@ -1198,7 +1197,6 @@ mod test {
         assert_eq!(encoded, jsn);
     }
 
-    // This test passed
     #[test]
     fn serde_signature_value() {
         let s = "4750eaf6878740780d6f97b12dbad079fb012bec88c78de2c380add56d3f51db";
@@ -1372,7 +1370,6 @@ mod test {
         assert_eq!(decoded, sig);
     }
 
-    // This test passed
     #[test]
     #[cfg(not(any(target_os = "fuchsia", windows)))]
     fn new_rsa_key() {
@@ -1380,7 +1377,6 @@ mod test {
         let _ = PrivateKey::from_pkcs8(&bytes, SignatureScheme::RsaSsaPssSha256).unwrap();
     }
 
-    // This test passed
     #[test]
     fn new_ed25519_key() {
         let bytes = PrivateKey::new(KeyType::Ed25519).unwrap();

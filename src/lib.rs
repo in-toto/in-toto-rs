@@ -14,7 +14,7 @@ pub mod crypto;
 pub mod error;
 pub mod interchange;
 pub mod models;
-pub mod verification;
+pub mod verifylib;
 
 mod format_hex;
 

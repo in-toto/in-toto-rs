@@ -1,4 +1,4 @@
-use in_toto::metadata::{LinkMetadataBuilder, VirtualTargetPath};
+use in_toto::models::{VirtualTargetPath, LinkMetadataBuilder};
 use in_toto::crypto::{PrivateKey, KeyType, SignatureScheme};
 use in_toto::interchange::Json;
 use serde_json;

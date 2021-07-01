@@ -7,45 +7,48 @@ use std::process::Command;
 use walkdir::WalkDir;
 
 use crate::models::{Link, TargetDescription};
-use crate::Result;
+use crate::{Error, Result};
 use crate::{
     crypto,
     crypto::PrivateKey,
     models::{LinkMetadataBuilder, VirtualTargetPath},
 };
 
-/// recordArtifacts is a function that traverses through the passed slice of paths and logs the path
-/// and hashed file contents.
+/// recordArtifacts is a function that traverses through the passed slice of paths, hashes the content of files
+/// encountered, and returns the path and hashed content in BTreeMap format, wrapped in Result.
+/// If a step in record_artifact fails, the error is returned.
 pub fn record_artifacts(
     paths: &[&str],
     // hash_algorithms: Option<&[&str]>,
 ) -> Result<BTreeMap<VirtualTargetPath, TargetDescription>> {
-    // TODO: if a step in record_artifact fails, and error should be returned instead of panicking
 
     // Initialize artifacts
     let mut artifacts: BTreeMap<VirtualTargetPath, TargetDescription> = BTreeMap::new();
 
+    // For each path provided, walk the directory and add all files to artifacts
     for path in paths {
-        // For each path provided, walk the directory and add to artifacts
         for entry in WalkDir::new(path) {
-            let entry = entry.unwrap();
+            let entry = match entry {
+                Ok(content) => content,
+                Err(error) => return Err(Error::from(io::Error::new(
+                    std::io::ErrorKind::Other, format!("Walkdir Error: {}", error)
+                )))
+            };
             let entry_path = entry.path();
 
             // TODO: Handle soft/symbolic links, by default is they are ignored, but we should visit them just once
-
             // TODO: Handle hidden files & directories
 
-            // Open and hash files
-            let md = metadata(entry_path).unwrap();
+            // If entry is a file, open and hash the file
+            let md = metadata(entry_path)?;
             if md.is_file() {
-                let file = File::open(entry_path).unwrap();
+                let file = File::open(entry_path)?;
                 let mut reader = BufReader::new(file);
                 // TODO: handle optional hash_algorithms input
                 let (_length, hashes) =
-                    crypto::calculate_hashes(&mut reader, &[crypto::HashAlgorithm::Sha256])
-                        .unwrap();
+                    crypto::calculate_hashes(&mut reader, &[crypto::HashAlgorithm::Sha256])?;
                 let path = entry_path.to_str().unwrap().to_string().replace("./", "");
-                artifacts.insert(VirtualTargetPath::new(path).unwrap(), hashes);
+                artifacts.insert(VirtualTargetPath::new(path)?, hashes);
             }
         }
     }
@@ -55,34 +58,44 @@ pub fn record_artifacts(
 /// run_command is a function that, given command arguments, executes commands on a software supply chain step
 /// and returns the stdout and stderr as byproducts.
 /// The first element of cmd_args is used as executable and the rest as command arguments.
+/// If a commands in run_command fails to execute, the error is returned.
 pub fn run_command(
     cmd_args: &[&str],
     // TODO run_dir: Option<&str>
 ) -> Result<BTreeMap<String, String>> {
-    // TODO: If the commands fail to execute, instead of panicking, it should return the error
-
     let mut cmd = Command::new(cmd_args[0]);
-    let output = cmd
-        .args(&cmd_args[1..])
-        .output()?;
+    let output = cmd.args(&cmd_args[1..]).output()?;
 
     // Emit stdout, stderror
-    io::stdout().write_all(&output.stdout).unwrap();
-    io::stderr().write_all(&output.stderr).unwrap();
+    io::stdout().write_all(&output.stdout)?;
+    io::stderr().write_all(&output.stderr)?;
 
     // Format output into Byproduct
     let mut byproducts: BTreeMap<String, String> = BTreeMap::new();
     // Write to byproducts
-    let stdout = String::from_utf8(output.stdout).unwrap();
-    let stderr = String::from_utf8(output.stderr).unwrap();
+    let stdout = match String::from_utf8(output.stdout) {
+        Ok(output) => output,
+        Err(error) => return Err(Error::from(io::Error::new(
+            std::io::ErrorKind::Other, format!("Utf8Error: {}", error)
+        )))
+    };
+    let stderr = match String::from_utf8(output.stderr) {
+        Ok(output) => output,
+        Err(error) => return Err(Error::from(io::Error::new(
+            std::io::ErrorKind::Other, format!("Utf8Error: {}", error)
+        )))
+    };
+    byproducts.insert("stdout".to_string(), stdout);
+    byproducts.insert("stderr".to_string(), stderr);
 
-    println!("Stdout {:?}",  &stdout);
-    println!("Stderr {:?}",  &stderr);
+    // Handle exit status
+    if output.status.success() {
+        byproducts.insert("return-value".to_string(), "1".to_string()); // TODO turn stderr from a Vec to string
+    }
+    else {
+        // TODO
+    }
 
-    byproducts.insert("stdout".to_string(), stdout ); // TODO turn stdout from a Vec to string
-    byproducts.insert("stderr".to_string(), stderr); // TODO turn stderr from a Vec to string
-
-    assert!(output.status.success());
     Ok(byproducts)
 }
 
@@ -113,7 +126,7 @@ pub fn in_toto_run(
         .materials(materials)
         .byproducts(byproducts)
         .products(products);
-    let link_metadata = link_metadata_builder.build().unwrap();
+    let link_metadata = link_metadata_builder.build()?;
 
     // TODO Sign the link with key param supplied. If no key param supplied, build & return link
     /* match key {
@@ -144,12 +157,12 @@ mod test {
         let mut expected = BTreeMap::new();
         expected.insert("stdout".to_string(), "hello".to_string());
         expected.insert("stderr".to_string(), "".to_string());
+        expected.insert("return-value".to_string(), "1".to_string());
 
         assert_eq!(byproducts, expected);
 
-        // TODO: make invalid tests not panic but return error
         assert_eq!(
-            run_command(&["command-does-not-exist", "-c", "true"]).is_err(),
+            run_command(&["command-does-not-exist", "true"]).is_err(),
             true
         );
     }

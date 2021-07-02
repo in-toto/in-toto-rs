@@ -163,7 +163,7 @@ mod test {
         let mut expected = BTreeMap::new();
         expected.insert("stdout".to_string(), "hello".to_string());
         expected.insert("stderr".to_string(), "".to_string());
-        expected.insert("return-value".to_string(), "1".to_string());
+        expected.insert("return-value".to_string(), "0".to_string());
 
         assert_eq!(byproducts, expected);
 

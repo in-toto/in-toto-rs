@@ -7,21 +7,20 @@ use std::process::Command;
 use walkdir::WalkDir;
 
 use crate::models::{Link, TargetDescription};
-use crate::{Error, Result};
 use crate::{
     crypto,
     crypto::PrivateKey,
     models::{LinkMetadataBuilder, VirtualTargetPath},
 };
+use crate::{Error, Result};
 
-/// recordArtifacts is a function that traverses through the passed slice of paths, hashes the content of files
+/// record_artifacts is a function that traverses through the passed slice of paths, hashes the content of files
 /// encountered, and returns the path and hashed content in BTreeMap format, wrapped in Result.
 /// If a step in record_artifact fails, the error is returned.
 pub fn record_artifacts(
     paths: &[&str],
     // hash_algorithms: Option<&[&str]>,
 ) -> Result<BTreeMap<VirtualTargetPath, TargetDescription>> {
-
     // Initialize artifacts
     let mut artifacts: BTreeMap<VirtualTargetPath, TargetDescription> = BTreeMap::new();
 
@@ -30,9 +29,12 @@ pub fn record_artifacts(
         for entry in WalkDir::new(path) {
             let entry = match entry {
                 Ok(content) => content,
-                Err(error) => return Err(Error::from(io::Error::new(
-                    std::io::ErrorKind::Other, format!("Walkdir Error: {}", error)
-                )))
+                Err(error) => {
+                    return Err(Error::from(io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("Walkdir Error: {}", error),
+                    )))
+                }
             };
             let entry_path = entry.path();
 
@@ -75,26 +77,30 @@ pub fn run_command(
     // Write to byproducts
     let stdout = match String::from_utf8(output.stdout) {
         Ok(output) => output,
-        Err(error) => return Err(Error::from(io::Error::new(
-            std::io::ErrorKind::Other, format!("Utf8Error: {}", error)
-        )))
+        Err(error) => {
+            return Err(Error::from(io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Utf8Error: {}", error),
+            )))
+        }
     };
     let stderr = match String::from_utf8(output.stderr) {
         Ok(output) => output,
-        Err(error) => return Err(Error::from(io::Error::new(
-            std::io::ErrorKind::Other, format!("Utf8Error: {}", error)
-        )))
+        Err(error) => {
+            return Err(Error::from(io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Utf8Error: {}", error),
+            )))
+        }
     };
+    let status = match output.status.code() {
+        Some(code) => code.to_string(),
+        None => "Process terminated by signal".to_string()
+    };
+
     byproducts.insert("stdout".to_string(), stdout);
     byproducts.insert("stderr".to_string(), stderr);
-
-    // Handle exit status
-    if output.status.success() {
-        byproducts.insert("return-value".to_string(), "1".to_string()); // TODO turn stderr from a Vec to string
-    }
-    else {
-        // TODO
-    }
+    byproducts.insert("return-value".to_string(), status);
 
     Ok(byproducts)
 }
@@ -138,7 +144,7 @@ pub fn in_toto_run(
         None => {
         }
     } */
-    return Link::from(&link_metadata);
+    Link::from(&link_metadata)
 }
 
 #[cfg(test)]

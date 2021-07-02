@@ -1,7 +1,7 @@
 //! A tool that functionaries can use to create link metadata about a step.
 
 use std::collections::BTreeMap;
-use std::fs::{metadata, File};
+use std::fs::{canonicalize as canonicalize_path, metadata, File};
 use std::io::{self, BufReader, Write};
 use std::process::Command;
 use walkdir::WalkDir;
@@ -61,12 +61,31 @@ pub fn record_artifacts(
 /// and returns the stdout and stderr as byproducts.
 /// The first element of cmd_args is used as executable and the rest as command arguments.
 /// If a commands in run_command fails to execute, the error is returned.
-pub fn run_command(
-    cmd_args: &[&str],
-    // TODO run_dir: Option<&str>
-) -> Result<BTreeMap<String, String>> {
-    let mut cmd = Command::new(cmd_args[0]);
-    let output = cmd.args(&cmd_args[1..]).output()?;
+pub fn run_command(cmd_args: &[&str], run_dir: Option<&str>) -> Result<BTreeMap<String, String>> {
+    let executable = cmd_args[0];
+    let args = (&cmd_args[1..])
+        .iter()
+        .map(|arg| {
+            if VirtualTargetPath::new((*arg).into()).is_ok() {
+                let absolute_path = canonicalize_path(*arg);
+                match absolute_path {
+                    Ok(path_buf) => match path_buf.to_str() {
+                        Some(p) => p,
+                        None => *arg,
+                    },
+                    Err(_) => *arg,
+                };
+            }
+            *arg
+        })
+        .collect::<Vec<&str>>();
+
+    let mut cmd = Command::new(executable);
+    let mut cmd = cmd.args(args);
+
+    if let Some(dir) = run_dir { cmd = cmd.current_dir(dir) }
+
+    let output = cmd.output()?;
 
     // Emit stdout, stderror
     io::stdout().write_all(&output.stdout)?;
@@ -95,7 +114,7 @@ pub fn run_command(
     };
     let status = match output.status.code() {
         Some(code) => code.to_string(),
-        None => "Process terminated by signal".to_string()
+        None => "Process terminated by signal".to_string(),
     };
 
     byproducts.insert("stdout".to_string(), stdout);
@@ -104,6 +123,8 @@ pub fn run_command(
 
     Ok(byproducts)
 }
+
+// TODO: implement default trait for in_toto_run's parameters
 
 /// in_toto_run is a function that executes commands on a software supply chain step
 /// (layout inspection coming soon), then generates and returns its corresponding Link metadata.
@@ -121,7 +142,7 @@ pub fn in_toto_run(
     let materials = record_artifacts(material_paths)?;
 
     // Execute commands provided in cmd_args
-    let byproducts = run_command(cmd_args)?;
+    let byproducts = run_command(cmd_args, None)?;
 
     // Record Products: Given the product_paths, recursively traverse and record files in given path(s)
     let products = record_artifacts(product_paths)?;
@@ -159,7 +180,7 @@ mod test {
 
     #[test]
     fn test_run_command() {
-        let byproducts = run_command(&["sh", "-c", "printf hello"]).unwrap();
+        let byproducts = run_command(&["sh", "-c", "printf hello"], Some("tests")).unwrap();
         let mut expected = BTreeMap::new();
         expected.insert("stdout".to_string(), "hello".to_string());
         expected.insert("stderr".to_string(), "".to_string());
@@ -168,7 +189,7 @@ mod test {
         assert_eq!(byproducts, expected);
 
         assert_eq!(
-            run_command(&["command-does-not-exist", "true"]).is_err(),
+            run_command(&["command-does-not-exist", "true"], None).is_err(),
             true
         );
     }

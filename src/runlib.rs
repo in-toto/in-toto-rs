@@ -39,7 +39,6 @@ pub fn record_artifacts(
             let entry_path = entry.path();
 
             // TODO: Handle soft/symbolic links, by default is they are ignored, but we should visit them just once
-            // TODO: Handle hidden files & directories
 
             // If entry is a file, open and hash the file
             let md = metadata(entry_path)?;
@@ -49,8 +48,18 @@ pub fn record_artifacts(
                 // TODO: handle optional hash_algorithms input
                 let (_length, hashes) =
                     crypto::calculate_hashes(&mut reader, &[crypto::HashAlgorithm::Sha256])?;
-                let path = entry_path.to_str().unwrap().to_string().replace("./", "");
-                artifacts.insert(VirtualTargetPath::new(path)?, hashes);
+
+                if let Some(path) = entry_path.to_str() {
+                    // TODO: normalize path instead of explicit checking
+                    // TODO: normalize path from the current directory instead of absolute path from root.
+                    // Canonicalize path doesn't work because Rust does not have enough support for it, see https://github.com/rust-lang/rfcs/issues/2208
+                    let cleaned_path = if &path[0..2] == "./" {
+                        &path[2..]
+                    } else {
+                        &path
+                    };
+                    artifacts.insert(VirtualTargetPath::new(String::from(cleaned_path))?, hashes);
+                }
             }
         }
     }
@@ -83,7 +92,9 @@ pub fn run_command(cmd_args: &[&str], run_dir: Option<&str>) -> Result<BTreeMap<
     let mut cmd = Command::new(executable);
     let mut cmd = cmd.args(args);
 
-    if let Some(dir) = run_dir { cmd = cmd.current_dir(dir) }
+    if let Some(dir) = run_dir {
+        cmd = cmd.current_dir(dir)
+    }
 
     let output = cmd.output()?;
 
@@ -130,7 +141,7 @@ pub fn run_command(cmd_args: &[&str], run_dir: Option<&str>) -> Result<BTreeMap<
 /// (layout inspection coming soon), then generates and returns its corresponding Link metadata.
 pub fn in_toto_run(
     name: &str,
-    // run_dir: Option<&str>,
+    run_dir: Option<&str>,
     material_paths: &[&str],
     product_paths: &[&str],
     cmd_args: &[&str],
@@ -142,7 +153,7 @@ pub fn in_toto_run(
     let materials = record_artifacts(material_paths)?;
 
     // Execute commands provided in cmd_args
-    let byproducts = run_command(cmd_args, None)?;
+    let byproducts = run_command(cmd_args, run_dir)?;
 
     // Record Products: Given the product_paths, recursively traverse and record files in given path(s)
     let products = record_artifacts(product_paths)?;
@@ -170,10 +181,48 @@ pub fn in_toto_run(
 
 #[cfg(test)]
 mod test {
+    use std::collections::HashMap;
+    use data_encoding::HEXLOWER;
+
     use super::*;
+
+    fn create_target_description(
+        hash_algorithm: crypto::HashAlgorithm,
+        hash_value: &[u8],
+    ) -> TargetDescription {
+        let mut hash = HashMap::new();
+        hash.insert(
+            hash_algorithm,
+            crypto::HashValue::new(HEXLOWER.decode(hash_value).unwrap()),
+        );
+        hash
+    }
 
     #[test]
     fn test_record_artifacts() {
+        let mut expected: BTreeMap<VirtualTargetPath, TargetDescription> = BTreeMap::new();
+        expected.insert(
+            VirtualTargetPath::new("tests/test_runlib/.hidden/foo".to_string()).unwrap(),
+            create_target_description(
+                crypto::HashAlgorithm::Sha256,
+                b"7d865e959b2466918c9863afca942d0fb89d7c9ac0c99bafc3749504ded97730",
+            ),
+        );
+        expected.insert(
+            VirtualTargetPath::new("tests/test_runlib/.hidden/.bar".to_string()).unwrap(),
+            create_target_description(
+                crypto::HashAlgorithm::Sha256,
+                b"b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c",
+            ),
+        );
+        expected.insert(
+            VirtualTargetPath::new("tests/test_runlib/hello./world".to_string()).unwrap(),
+            create_target_description(
+                crypto::HashAlgorithm::Sha256,
+                b"25623b53e0984428da972f4c635706d32d01ec92dcd2ab39066082e0b9488c9d",
+            ),
+        );
+        assert_eq!(record_artifacts(&["tests/test_runlib"]).unwrap(), expected);
         assert_eq!(record_artifacts(&["tests"]).is_ok(), true);
         assert_eq!(record_artifacts(&["file-does-not-exist"]).is_err(), true);
     }

@@ -1,7 +1,7 @@
 //! A tool that functionaries can use to create link metadata about a step.
 
-use std::collections::BTreeMap;
-use std::fs::{canonicalize as canonicalize_path, metadata, File};
+use std::collections::{BTreeMap, HashSet};
+use std::fs::{canonicalize as canonicalize_path, symlink_metadata, File};
 use std::io::{self, BufReader, Write};
 use std::process::Command;
 use walkdir::WalkDir;
@@ -14,6 +14,17 @@ use crate::{
 };
 use crate::{Error, Result};
 
+/// record_artifact is a function that reads and hashes an artifact given its path as a string literal,
+/// returning the VirtualTargetPath and TargetDescription of the file as a tuple, wrapped in Result.
+pub fn record_artifact(path: &str) -> Result<(VirtualTargetPath, TargetDescription)> {
+    let file = File::open(path)?;
+    let mut reader = BufReader::new(file);
+    // TODO: handle optional hash_algorithms input
+    let (_length, hashes) =
+        crypto::calculate_hashes(&mut reader, &[crypto::HashAlgorithm::Sha256])?;
+    Ok((VirtualTargetPath::new(String::from(path))?, hashes))
+}
+
 /// record_artifacts is a function that traverses through the passed slice of paths, hashes the content of files
 /// encountered, and returns the path and hashed content in BTreeMap format, wrapped in Result.
 /// If a step in record_artifact fails, the error is returned.
@@ -23,43 +34,37 @@ pub fn record_artifacts(
 ) -> Result<BTreeMap<VirtualTargetPath, TargetDescription>> {
     // Initialize artifacts
     let mut artifacts: BTreeMap<VirtualTargetPath, TargetDescription> = BTreeMap::new();
-
     // For each path provided, walk the directory and add all files to artifacts
     for path in paths {
-        for entry in WalkDir::new(path) {
-            let entry = match entry {
-                Ok(content) => content,
-                Err(error) => {
-                    return Err(Error::from(io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("Walkdir Error: {}", error),
-                    )))
-                }
+        let mut walker = WalkDir::new(path).follow_links(true).into_iter();
+        let mut visited_sym_links = HashSet::new();
+        loop {
+            let path = match walker.next() {
+                Some(entry) => dir_entry_to_path(entry)?,
+                None => break,
             };
-            let entry_path = entry.path();
-
-            // TODO: Handle soft/symbolic links, by default is they are ignored, but we should visit them just once
-
-            // If entry is a file, open and hash the file
-            let md = metadata(entry_path)?;
-            if md.is_file() {
-                let file = File::open(entry_path)?;
-                let mut reader = BufReader::new(file);
-                // TODO: handle optional hash_algorithms input
-                let (_length, hashes) =
-                    crypto::calculate_hashes(&mut reader, &[crypto::HashAlgorithm::Sha256])?;
-
-                if let Some(path) = entry_path.to_str() {
-                    // TODO: normalize path instead of explicit checking
-                    // TODO: normalize path from the current directory instead of absolute path from root.
-                    // Canonicalize path doesn't work because Rust does not have enough support for it, see https://github.com/rust-lang/rfcs/issues/2208
-                    let cleaned_path = if &path[0..2] == "./" {
-                        &path[2..]
-                    } else {
-                        &path
+            let file_type = std::fs::symlink_metadata(&path)?.file_type();
+            // If entry is a symlink, check it's unvisited. If so, continue.
+            if file_type.is_symlink() {
+                if visited_sym_links.contains(&path) {
+                    walker.skip_current_dir();
+                } else {
+                    visited_sym_links.insert(String::from(&path));
+                    // s_path: the actual path the symbolic link is pointing to
+                    let s_path = match std::fs::read_link(&path)?.as_path().to_str() {
+                        Some(str) => String::from(str),
+                        None => break,
                     };
-                    artifacts.insert(VirtualTargetPath::new(String::from(cleaned_path))?, hashes);
+                    if symlink_metadata(&s_path)?.file_type().is_file() {
+                        let (virtual_target_path, hashes) = record_artifact(&path)?;
+                        artifacts.insert(virtual_target_path, hashes);
+                    }
                 }
+            }
+            // If entry is a file, open and hash the file
+            if file_type.is_file() {
+                let (virtual_target_path, hashes) = record_artifact(&path)?;
+                artifacts.insert(virtual_target_path, hashes);
             }
         }
     }
@@ -179,10 +184,114 @@ pub fn in_toto_run(
     Link::from(&link_metadata)
 }
 
+
+// Helper functions specific to the runlib goes here
+
+// TODO - currently stuck on canonical function blocker. Commented out implementation until resolved.
+fn normalize_path(path: &str) -> Result<String> {
+    // TODO: get rid of this explicit check. Currently, it only exists to make sure path satisfies
+    // safe_path for VirtualTargetPath creation
+    let cleaned_path = if &path[0..2] == "./" {
+        &path[2..]
+    } else {
+        &path
+    };
+
+    // Convert to canonical path, then strip prefix to make relative
+
+    // TODO: canonicalize_path dissolves symbolic links, which we don't want.
+    // See https://github.com/rust-lang/rfcs/issues/2208
+
+    // This doesn't work because in some edge cases with symbolic links to outside root, strip_prefix
+    // would error because the links have been dissolved.
+    // (e.g. "root path" = "/dir_a", path = "/dir_a/symbolic_link/file", c_path = "/dir_b/file" )
+    /*
+    let c_path = canonicalize_path(path)?;
+    let c_path = c_path.as_path();
+    let c_path = match c_path.to_str()  {
+        Some(p) => p,
+        None => path,
+    };
+    println!("C-path is {}", c_path);
+
+    let n_path = match std::path::Path::new(c_path).strip_prefix(root) {
+        Ok(p) =>  match p.to_str()  {
+            Some(p) => p,
+            None => &path,
+        },
+        Err(error) => return Err(Error::from(io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Strip Prefix Error in Normalize Path Conversion: {}", error),
+        ))),
+    };
+    Ok(String::from(n_path))
+    */
+
+    Ok(String::from(cleaned_path))
+}
+
+/// dir_entry_to_path is a function that, given a DirEntry, return the entry's path as a String
+/// wrapped in Result. If the entry's path is invalid, error is returned.
+fn dir_entry_to_path(
+    entry: std::result::Result<walkdir::DirEntry, walkdir::Error>,
+) -> Result<String> {
+    let path = match entry {
+        Ok(dir_entry) => match dir_entry.path().to_str() {
+            Some(str) => String::from(str),
+            None => {
+                return Err(Error::Programming(format!(
+                    "Invalid Path {}; non-UTF-8 string",
+                    dir_entry.path().display()
+                )))
+            }
+        },
+        // If WalkDir errored, check if it's due to a symbolic link loop sighted,
+        // if so, override the error and continue using the symbolic link path.
+        // If this doesn't work, something hacky to consider would be reinvoking WalkDir
+        // using the error_path as root.
+
+        // Current behavior: when symbolic link is a directory and directly loops to parent,
+        // it skips the symbolic link recording.
+        // If this is not the desired behavior and we want to record the symbolic link's content
+        // , we can probably do it in a hacky way by recursively calling record_artifacts and
+        // extending the results to artifacts variable.
+        Err(error) => {
+            if error.loop_ancestor().is_some() {
+                match error.path() {
+                    None => {
+                        return Err(Error::from(io::Error::new(
+                            std::io::ErrorKind::Other,
+                            format!("Walkdir Error: {}", error),
+                        )))
+                    }
+                    Some(error_path) => {
+                        let sym_path = match error_path.to_str() {
+                            Some(str) => String::from(str),
+                            None => {
+                                return Err(Error::Programming(format!(
+                                    "Invalid Path {}; non-UTF-8 string",
+                                    error_path.display()
+                                )))
+                            }
+                        };
+                        sym_path
+                    }
+                }
+            } else {
+                return Err(Error::from(io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("Walkdir Error: {}", error),
+                )));
+            }
+        }
+    };
+    normalize_path(&path)
+}
+
 #[cfg(test)]
 mod test {
-    use std::collections::HashMap;
     use data_encoding::HEXLOWER;
+    use std::collections::HashMap;
 
     use super::*;
 
@@ -202,6 +311,14 @@ mod test {
     fn test_record_artifacts() {
         let mut expected: BTreeMap<VirtualTargetPath, TargetDescription> = BTreeMap::new();
         expected.insert(
+            VirtualTargetPath::new("tests/test_runlib/symbolic_to_license_file".to_string())
+                .unwrap(),
+            create_target_description(
+                crypto::HashAlgorithm::Sha256,
+                b"61ed40687d2656636a04680013dffe41d5c724201edaa84045e0677b8e2064d6",
+            ),
+        );
+        expected.insert(
             VirtualTargetPath::new("tests/test_runlib/.hidden/foo".to_string()).unwrap(),
             create_target_description(
                 crypto::HashAlgorithm::Sha256,
@@ -220,6 +337,33 @@ mod test {
             create_target_description(
                 crypto::HashAlgorithm::Sha256,
                 b"25623b53e0984428da972f4c635706d32d01ec92dcd2ab39066082e0b9488c9d",
+            ),
+        );
+        expected.insert(
+            VirtualTargetPath::new(
+                "tests/test_runlib/hello./symbolic_to_nonparent_folder/.bar".to_string(),
+            )
+            .unwrap(),
+            create_target_description(
+                crypto::HashAlgorithm::Sha256,
+                b"b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c",
+            ),
+        );
+        expected.insert(
+            VirtualTargetPath::new("tests/test_runlib/symbolic_to_file".to_string()).unwrap(),
+            create_target_description(
+                crypto::HashAlgorithm::Sha256,
+                b"25623b53e0984428da972f4c635706d32d01ec92dcd2ab39066082e0b9488c9d",
+            ),
+        );
+        expected.insert(
+            VirtualTargetPath::new(
+                "tests/test_runlib/hello./symbolic_to_nonparent_folder/foo".to_string(),
+            )
+            .unwrap(),
+            create_target_description(
+                crypto::HashAlgorithm::Sha256,
+                b"7d865e959b2466918c9863afca942d0fb89d7c9ac0c99bafc3749504ded97730",
             ),
         );
         assert_eq!(record_artifacts(&["tests/test_runlib"]).unwrap(), expected);

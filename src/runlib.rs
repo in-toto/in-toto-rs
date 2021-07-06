@@ -6,6 +6,7 @@ use std::io::{self, BufReader, Write};
 use std::process::Command;
 use walkdir::WalkDir;
 
+use crate::crypto::HashAlgorithm;
 use crate::models::{Link, TargetDescription};
 use crate::{
     crypto,
@@ -14,24 +15,46 @@ use crate::{
 };
 use crate::{Error, Result};
 
+// TODO: improve doc comments :p
+
 /// record_artifact is a function that reads and hashes an artifact given its path as a string literal,
 /// returning the VirtualTargetPath and TargetDescription of the file as a tuple, wrapped in Result.
-pub fn record_artifact(path: &str) -> Result<(VirtualTargetPath, TargetDescription)> {
+pub fn record_artifact(
+    path: &str,
+    hash_algorithms: &[HashAlgorithm],
+) -> Result<(VirtualTargetPath, TargetDescription)> {
     let file = File::open(path)?;
     let mut reader = BufReader::new(file);
-    // TODO: handle optional hash_algorithms input
-    let (_length, hashes) =
-        crypto::calculate_hashes(&mut reader, &[crypto::HashAlgorithm::Sha256])?;
+    let (_length, hashes) = crypto::calculate_hashes(&mut reader, hash_algorithms)?;
     Ok((VirtualTargetPath::new(String::from(path))?, hashes))
 }
 
 /// record_artifacts is a function that traverses through the passed slice of paths, hashes the content of files
-/// encountered, and returns the path and hashed content in BTreeMap format, wrapped in Result.
+/// encountered, and returns the path and hashed content in `BTreeMap` format, wrapped in Result.
 /// If a step in record_artifact fails, the error is returned.
+/// If no `hash_algorithms` are supplied, `Sha256` is assumed and used.
 pub fn record_artifacts(
     paths: &[&str],
-    // hash_algorithms: Option<&[&str]>,
+    hash_algorithms: Option<&[&str]>,
 ) -> Result<BTreeMap<VirtualTargetPath, TargetDescription>> {
+    // Verify hash_algorithms inputs are valid
+    let hash_mapping = HashAlgorithm::get_hash_mapping();
+    let hash_algorithms = match hash_algorithms {
+        Some(hashes) => {
+            let mut map = vec![];
+            for hash in hashes {
+                if !hash_mapping.contains_key(*hash) {
+                    return Err(Error::UnkonwnHashAlgorithm((*hash).to_string()));
+                }
+                let value = hash_mapping.get(*hash).unwrap();
+                map.push(value.clone());
+            }
+            map
+        }
+        None => vec![HashAlgorithm::Sha256],
+    };
+    let hash_algorithms = &hash_algorithms[..];
+
     // Initialize artifacts
     let mut artifacts: BTreeMap<VirtualTargetPath, TargetDescription> = BTreeMap::new();
     // For each path provided, walk the directory and add all files to artifacts
@@ -56,14 +79,15 @@ pub fn record_artifacts(
                         None => break,
                     };
                     if symlink_metadata(&s_path)?.file_type().is_file() {
-                        let (virtual_target_path, hashes) = record_artifact(&path)?;
+                        let (virtual_target_path, hashes) =
+                            record_artifact(&path, hash_algorithms)?;
                         artifacts.insert(virtual_target_path, hashes);
                     }
                 }
             }
             // If entry is a file, open and hash the file
             if file_type.is_file() {
-                let (virtual_target_path, hashes) = record_artifact(&path)?;
+                let (virtual_target_path, hashes) = record_artifact(&path, hash_algorithms)?;
                 artifacts.insert(virtual_target_path, hashes);
             }
         }
@@ -151,17 +175,17 @@ pub fn in_toto_run(
     product_paths: &[&str],
     cmd_args: &[&str],
     key: Option<PrivateKey>,
+    hash_algorithms: Option<&[&str]>,
     // env: Option<BTreeMap<String, String>>
-    // hash_algorithms: Option<&[&str]>,
 ) -> Result<Link> {
     // Record Materials: Given the material_paths, recursively traverse and record files in given path(s)
-    let materials = record_artifacts(material_paths)?;
+    let materials = record_artifacts(material_paths, hash_algorithms)?;
 
     // Execute commands provided in cmd_args
     let byproducts = run_command(cmd_args, run_dir)?;
 
     // Record Products: Given the product_paths, recursively traverse and record files in given path(s)
-    let products = record_artifacts(product_paths)?;
+    let products = record_artifacts(product_paths, hash_algorithms)?;
 
     // Create link based on values collected above
     let link_metadata_builder = LinkMetadataBuilder::new()
@@ -183,7 +207,6 @@ pub fn in_toto_run(
     } */
     Link::from(&link_metadata)
 }
-
 
 // Helper functions specific to the runlib goes here
 
@@ -366,9 +389,15 @@ mod test {
                 b"7d865e959b2466918c9863afca942d0fb89d7c9ac0c99bafc3749504ded97730",
             ),
         );
-        assert_eq!(record_artifacts(&["tests/test_runlib"]).unwrap(), expected);
-        assert_eq!(record_artifacts(&["tests"]).is_ok(), true);
-        assert_eq!(record_artifacts(&["file-does-not-exist"]).is_err(), true);
+        assert_eq!(
+            record_artifacts(&["tests/test_runlib"], None).unwrap(),
+            expected
+        );
+        assert_eq!(record_artifacts(&["tests"], None).is_ok(), true);
+        assert_eq!(
+            record_artifacts(&["file-does-not-exist"], None).is_err(),
+            true
+        );
     }
 
     #[test]

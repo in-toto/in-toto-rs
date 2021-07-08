@@ -1,5 +1,6 @@
 //! A tool that functionaries can use to create link metadata about a step.
 
+use path_clean::clean;
 use std::collections::{BTreeMap, HashSet};
 use std::fs::{canonicalize as canonicalize_path, symlink_metadata, File};
 use std::io::{self, BufReader, Write};
@@ -33,6 +34,7 @@ pub fn record_artifact(
 /// encountered, and returns the path and hashed content in `BTreeMap` format, wrapped in Result.
 /// If a step in record_artifact fails, the error is returned.
 /// If no `hash_algorithms` are supplied, `Sha256` is assumed and used.
+/// If a symbolic link cycle is detected in the material or product paths, it is skipped.
 pub fn record_artifacts(
     paths: &[&str],
     hash_algorithms: Option<&[&str]>,
@@ -168,6 +170,7 @@ pub fn run_command(cmd_args: &[&str], run_dir: Option<&str>) -> Result<BTreeMap<
 
 /// in_toto_run is a function that executes commands on a software supply chain step
 /// (layout inspection coming soon), then generates and returns its corresponding Link metadata.
+/// If a symbolic link cycle is detected in the material or product paths, it is skipped.
 pub fn in_toto_run(
     name: &str,
     run_dir: Option<&str>,
@@ -196,6 +199,7 @@ pub fn in_toto_run(
     let link_metadata = link_metadata_builder.build()?;
 
     // TODO Sign the link with key param supplied. If no key param supplied, build & return link
+    // If no key is found, dump out SignedMetadata with no signatures (for inspections)
     /* match key {
         Some(k)   => {
             // TODO: SignedMetadata and Link are different types. Need to consolidate
@@ -209,49 +213,6 @@ pub fn in_toto_run(
 }
 
 // Helper functions specific to the runlib goes here
-
-// TODO - currently stuck on canonical function blocker. Commented out implementation until resolved.
-fn normalize_path(path: &str) -> Result<String> {
-    // TODO: get rid of this explicit check. Currently, it only exists to make sure path satisfies
-    // safe_path for VirtualTargetPath creation
-    let cleaned_path = if &path[0..2] == "./" {
-        &path[2..]
-    } else {
-        &path
-    };
-
-    // Convert to canonical path, then strip prefix to make relative
-
-    // TODO: canonicalize_path dissolves symbolic links, which we don't want.
-    // See https://github.com/rust-lang/rfcs/issues/2208
-
-    // This doesn't work because in some edge cases with symbolic links to outside root, strip_prefix
-    // would error because the links have been dissolved.
-    // (e.g. "root path" = "/dir_a", path = "/dir_a/symbolic_link/file", c_path = "/dir_b/file" )
-    /*
-    let c_path = canonicalize_path(path)?;
-    let c_path = c_path.as_path();
-    let c_path = match c_path.to_str()  {
-        Some(p) => p,
-        None => path,
-    };
-    println!("C-path is {}", c_path);
-
-    let n_path = match std::path::Path::new(c_path).strip_prefix(root) {
-        Ok(p) =>  match p.to_str()  {
-            Some(p) => p,
-            None => &path,
-        },
-        Err(error) => return Err(Error::from(io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("Strip Prefix Error in Normalize Path Conversion: {}", error),
-        ))),
-    };
-    Ok(String::from(n_path))
-    */
-
-    Ok(String::from(cleaned_path))
-}
 
 /// dir_entry_to_path is a function that, given a DirEntry, return the entry's path as a String
 /// wrapped in Result. If the entry's path is invalid, error is returned.
@@ -297,6 +258,8 @@ fn dir_entry_to_path(
                                 )))
                             }
                         };
+                        // TODO: Emit a warning that a symlink cycle is detected and it will be skipped
+                        // Add it to the link itself
                         sym_path
                     }
                 }
@@ -308,7 +271,7 @@ fn dir_entry_to_path(
             }
         }
     };
-    normalize_path(&path)
+    Ok(clean(&path))
 }
 
 #[cfg(test)]

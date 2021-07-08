@@ -13,6 +13,7 @@ fn main() {
         &["tests/test_runlib"],
         &["sh", "-c", "echo 'in_toto says hi' >> hello_intoto"],
         Some(key),
+        Some(&["sha512", "sha256"]),
     )
     .unwrap();
 

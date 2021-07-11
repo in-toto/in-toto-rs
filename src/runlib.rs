@@ -8,7 +8,8 @@ use std::process::Command;
 use walkdir::WalkDir;
 
 use crate::crypto::HashAlgorithm;
-use crate::models::{Link, TargetDescription};
+use crate::interchange::Json;
+use crate::models::{LinkMetadata, Metablock, TargetDescription};
 use crate::{
     crypto,
     crypto::PrivateKey,
@@ -46,7 +47,7 @@ pub fn record_artifacts(
             let mut map = vec![];
             for hash in hashes {
                 if !hash_mapping.contains_key(*hash) {
-                    return Err(Error::UnkonwnHashAlgorithm((*hash).to_string()));
+                    return Err(Error::UnknownHashAlgorithm((*hash).to_string()));
                 }
                 let value = hash_mapping.get(*hash).unwrap();
                 map.push(value.clone());
@@ -180,7 +181,7 @@ pub fn in_toto_run(
     key: Option<PrivateKey>,
     hash_algorithms: Option<&[&str]>,
     // env: Option<BTreeMap<String, String>>
-) -> Result<Link> {
+) -> Result<Metablock<Json, LinkMetadata>> {
     // Record Materials: Given the material_paths, recursively traverse and record files in given path(s)
     let materials = record_artifacts(material_paths, hash_algorithms)?;
 
@@ -196,20 +197,13 @@ pub fn in_toto_run(
         .materials(materials)
         .byproducts(byproducts)
         .products(products);
-    let link_metadata = link_metadata_builder.build()?;
 
     // TODO Sign the link with key param supplied. If no key param supplied, build & return link
-    // If no key is found, dump out SignedMetadata with no signatures (for inspections)
-    /* match key {
-        Some(k)   => {
-            // TODO: SignedMetadata and Link are different types. Need to consolidate
-            let signed_link = link_metadata_builder.signed::<Json>(&k).unwrap();
-            let json = serde_json::to_value(&signed_link).unwrap();
-        },
-        None => {
-        }
-    } */
-    Link::from(&link_metadata)
+    // If no key is found, return Metablock with no signatures (for inspection purposes)
+    match key {
+        Some(k) => link_metadata_builder.signed::<Json>(&k),
+        None => link_metadata_builder.unsigned::<Json>(),
+    }
 }
 
 // Helper functions specific to the runlib goes here

@@ -16,6 +16,7 @@ fn main() {
         Some(&["sha512", "sha256"]),
     )
     .unwrap();
+    let json = serde_json::to_value(&link).unwrap();
 
-    println!("Generated link: {:?}", link)
+    println!("Generated link: {}", json)
 }

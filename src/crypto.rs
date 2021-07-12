@@ -887,7 +887,7 @@ impl HashAlgorithm {
             ))),
         }
     }
-    pub fn get_hash_mapping() -> HashMap<String, HashAlgorithm> {
+    pub fn return_all() -> HashMap<String, HashAlgorithm> {
         let mut map = HashMap::new();
         map.insert(String::from("sha256"), HashAlgorithm::Sha256);
         map.insert(String::from("sha512"), HashAlgorithm::Sha512);

@@ -19,8 +19,8 @@ use crate::{Error, Result};
 
 // TODO: improve doc comments :p
 
-/// record_artifact is a function that reads and hashes an artifact given its path as a string literal,
-/// returning the VirtualTargetPath and TargetDescription of the file as a tuple, wrapped in Result.
+/// Reads and hashes an artifact given its path as a string literal,
+/// returning the `VirtualTargetPath` and `TargetDescription` of the file as a tuple, wrapped in `Result`.
 pub fn record_artifact(
     path: &str,
     hash_algorithms: &[HashAlgorithm],
@@ -31,25 +31,36 @@ pub fn record_artifact(
     Ok((VirtualTargetPath::new(String::from(path))?, hashes))
 }
 
-/// record_artifacts is a function that traverses through the passed slice of paths, hashes the content of files
-/// encountered, and returns the path and hashed content in `BTreeMap` format, wrapped in Result.
+/// Traverses through the passed array of paths, hashes the content of files
+/// encountered, and returns the path and hashed content in `BTreeMap` format, wrapped in `Result`.
 /// If a step in record_artifact fails, the error is returned.
-/// If no `hash_algorithms` are supplied, `Sha256` is assumed and used.
-/// If a symbolic link cycle is detected in the material or product paths, it is skipped.
+/// # Arguments
+///
+/// * `paths` - An array of string slices (`&str`) that holds the paths to be traversed. If a symbolic link cycle is detected in the `paths` during traversal, it is skipped.
+/// * `hash_algorithms` - An array of string slice (`&str`) wrapped in an `Option` that holds the hash algorithms to be used. If `None` is provided, Sha256 is assumed as default.
+///
+/// # Examples
+///
+/// ```
+/// // You can have rust code between fences inside the comments
+/// // If you pass --test to `rustdoc`, it will even test it for you!
+/// # use in_toto::runlib::{record_artifacts};
+/// let materials = record_artifacts(&["tests/test_runlib"], None).unwrap();
+/// ```
 pub fn record_artifacts(
     paths: &[&str],
     hash_algorithms: Option<&[&str]>,
 ) -> Result<BTreeMap<VirtualTargetPath, TargetDescription>> {
     // Verify hash_algorithms inputs are valid
-    let hash_mapping = HashAlgorithm::get_hash_mapping();
+    let available_algorithms = HashAlgorithm::return_all();
     let hash_algorithms = match hash_algorithms {
         Some(hashes) => {
             let mut map = vec![];
             for hash in hashes {
-                if !hash_mapping.contains_key(*hash) {
+                if !available_algorithms.contains_key(*hash) {
                     return Err(Error::UnknownHashAlgorithm((*hash).to_string()));
                 }
-                let value = hash_mapping.get(*hash).unwrap();
+                let value = available_algorithms.get(*hash).unwrap();
                 map.push(value.clone());
             }
             map
@@ -98,10 +109,22 @@ pub fn record_artifacts(
     Ok(artifacts)
 }
 
-/// run_command is a function that, given command arguments, executes commands on a software supply chain step
-/// and returns the stdout and stderr as byproducts.
-/// The first element of cmd_args is used as executable and the rest as command arguments.
-/// If a commands in run_command fails to execute, the error is returned.
+/// Given command arguments, executes commands on a software supply chain step
+/// and returns the `stdout`, `stderr`, and `return valid` as `byproducts` in `Result<BTreeMap<String, String>>` format.
+/// If a commands in run_command fails to execute, `Error` is returned.
+/// # Arguments
+///
+/// * `cmd_args` - An array of string slices (`&str`) that holds the command arguments to be executed. The first element of cmd_args is used as executable and the rest as command arguments.
+/// * `run_dir` - A string slice (`&str`) wrapped in an `Option` that holds the directory the commands are to be ran. If `None` is provided, the current directory is assumed as default.
+///
+/// # Examples
+///
+/// ```
+/// // You can have rust code between fences inside the comments
+/// // If you pass --test to `rustdoc`, it will even test it for you!
+/// # use in_toto::runlib::{run_command};
+/// let byproducts = run_command(&["sh", "-c", "printf hello"], Some("tests")).unwrap();
+/// ```
 pub fn run_command(cmd_args: &[&str], run_dir: Option<&str>) -> Result<BTreeMap<String, String>> {
     let executable = cmd_args[0];
     let args = (&cmd_args[1..])
@@ -169,9 +192,32 @@ pub fn run_command(cmd_args: &[&str], run_dir: Option<&str>) -> Result<BTreeMap<
 
 // TODO: implement default trait for in_toto_run's parameters
 
-/// in_toto_run is a function that executes commands on a software supply chain step
-/// (layout inspection coming soon), then generates and returns its corresponding Link metadata.
-/// If a symbolic link cycle is detected in the material or product paths, it is skipped.
+/// Executes commands on a software supply chain step, then generates and returns its corresponding `LinkMetadata`
+/// as a `Metablock` component, wrapped in `Result`.
+/// If a symbolic link cycle is detected in the material or product paths, paths causing the cycle are skipped.
+/// # Arguments
+///
+/// * `name` - TODO
+/// * `run_dir` - TODO
+/// * `material_paths` - TODO
+/// * `product_paths` - TODO
+/// * `cmd_args` - TODO
+/// * `key` - TODO
+/// * `hash_algorithms` - TODO
+///
+/// # Examples
+///
+/// ```
+/// // You can have rust code between fences inside the comments
+/// // If you pass --test to `rustdoc`, it will even test it for you!
+/// # use in_toto::runlib::{in_toto_run};
+/// # use in_toto::crypto::PrivateKey;
+/// const ED25519_1_PRIVATE_KEY: &'static [u8] = include_bytes!("../tests/ed25519/ed25519-1");
+/// let key = PrivateKey::from_ed25519(ED25519_1_PRIVATE_KEY).unwrap();
+/// let link = in_toto_run("example", Some("tests"), &["tests/test_runlib"], &["tests/test_runlib"],  &["sh", "-c", "echo 'in_toto says hi' >> hello_intoto"], Some(key), Some(&["sha512", "sha256"]),).unwrap();
+/// let json = serde_json::to_value(&link).unwrap();
+/// println!("Generated link: {}", json);
+/// ```
 pub fn in_toto_run(
     name: &str,
     run_dir: Option<&str>,
@@ -198,18 +244,16 @@ pub fn in_toto_run(
         .byproducts(byproducts)
         .products(products);
 
-    // TODO Sign the link with key param supplied. If no key param supplied, build & return link
-    // If no key is found, return Metablock with no signatures (for inspection purposes)
+    // Sign the link with key param supplied. If no key is found, return Metablock with
+    // no signatures (for inspection purposes)
     match key {
         Some(k) => link_metadata_builder.signed::<Json>(&k),
         None => link_metadata_builder.unsigned::<Json>(),
     }
 }
 
-// Helper functions specific to the runlib goes here
-
-/// dir_entry_to_path is a function that, given a DirEntry, return the entry's path as a String
-/// wrapped in Result. If the entry's path is invalid, error is returned.
+/// A private helper function that, given a `DirEntry`, return the entry's path as a `String`
+/// wrapped in `Result`. If the entry's path is invalid, `Error` is returned.
 fn dir_entry_to_path(
     entry: std::result::Result<walkdir::DirEntry, walkdir::Error>,
 ) -> Result<String> {

@@ -224,7 +224,7 @@ pub fn in_toto_run(
     material_paths: &[&str],
     product_paths: &[&str],
     cmd_args: &[&str],
-    key: Option<PrivateKey>,
+    key: Option<&PrivateKey>,
     hash_algorithms: Option<&[&str]>,
     // env: Option<BTreeMap<String, String>>
 ) -> Result<Metablock<Json, LinkMetadata>> {
@@ -247,7 +247,7 @@ pub fn in_toto_run(
     // Sign the link with key param supplied. If no key is found, return Metablock with
     // no signatures (for inspection purposes)
     match key {
-        Some(k) => link_metadata_builder.signed::<Json>(&k),
+        Some(k) => link_metadata_builder.signed::<Json>(k),
         None => link_metadata_builder.unsigned::<Json>(),
     }
 }

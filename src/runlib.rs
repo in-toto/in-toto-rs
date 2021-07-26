@@ -73,6 +73,8 @@ pub fn record_artifacts(
     let mut artifacts: BTreeMap<VirtualTargetPath, TargetDescription> = BTreeMap::new();
     // For each path provided, walk the directory and add all files to artifacts
     for path in paths {
+        // Normalize path
+        let path = clean(path);
         let mut walker = WalkDir::new(path).follow_links(true).into_iter();
         let mut visited_sym_links = HashSet::new();
         loop {

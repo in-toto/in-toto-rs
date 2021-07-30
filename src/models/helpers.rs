@@ -1,16 +1,15 @@
 //! Supporting Functions and Types (VirtualTargetPath, safe_path)
 use serde::de::{Deserialize, Deserializer, Error as DeserializeError};
 use std::collections::{HashMap, HashSet};
-use std::fmt::{Debug};
+use std::fmt::Debug;
 use std::str;
 
-use serde_derive::{ Serialize};
+use serde_derive::Serialize;
 
 use crate::crypto::{HashAlgorithm, HashValue};
 use crate::Result;
 
 use crate::error::Error;
-
 
 #[rustfmt::skip]
 static PATH_ILLEGAL_COMPONENTS: &'static [&str] = &[
@@ -102,9 +101,9 @@ pub fn safe_path(path: &str) -> Result<()> {
         return Err(Error::IllegalArgument("Path cannot be empty".into()));
     }
 
-    if path.starts_with('/') {
+    /*if path.starts_with('/') {
         return Err(Error::IllegalArgument("Cannot start with '/'".into()));
-    }
+    }*/
 
     for bad_str in PATH_ILLEGAL_STRINGS {
         if path.contains(bad_str) {
@@ -138,9 +137,6 @@ pub fn safe_path(path: &str) -> Result<()> {
 
     Ok(())
 }
-
-
-
 
 /// Description of a target, used in verification.
 pub type TargetDescription = HashMap<HashAlgorithm, HashValue>;

@@ -116,7 +116,7 @@ fn in_toto_run_record_new_file() {
 
     // Expected value
     let expected = LinkMetadataBuilder::new()
-    .name(String::from("test"))
+        .name(String::from("test"))
         .add_material(VirtualTargetPath::new(format!("{}/foo.txt", dir_path)).unwrap())
         .add_product(VirtualTargetPath::new(format!("{}/foo.txt", dir_path)).unwrap())
         .add_product(VirtualTargetPath::new(format!("{}/bar.txt", dir_path)).unwrap())
@@ -174,11 +174,7 @@ fn in_toto_run_record_symlink_file() {
         None,
         &vec![dir_path],
         &vec![dir_path],
-        &[
-            "sh",
-            "-c",
-            "echo 'in_toto says hi'",
-        ],
+        &["sh", "-c", "echo 'in_toto says hi'"],
         Some(&TEST_PRIVATE_KEY),
         None,
     )

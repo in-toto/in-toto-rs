@@ -6,7 +6,6 @@ use serde_derive::{Deserialize, Serialize};
 
 use crate::crypto;
 
-
 #[derive(Serialize, Deserialize)]
 pub struct PublicKey {
     keytype: crypto::KeyType,
@@ -52,4 +51,3 @@ impl PublicKey {
 pub struct PublicKeyValue {
     public: String,
 }
-

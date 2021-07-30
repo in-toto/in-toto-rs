@@ -19,5 +19,4 @@ fn main() {
     let json = serde_json::to_value(&link).unwrap();
 
     println!("Generated link: {}", json)
-
 }

@@ -146,6 +146,8 @@ pub fn run_command(cmd_args: &[&str], run_dir: Option<&str>) -> Result<BTreeMap<
         })
         .collect::<Vec<&str>>();
 
+    // TODO: Validate executable
+
     let mut cmd = Command::new(executable);
     let mut cmd = cmd.args(args);
 
@@ -153,7 +155,13 @@ pub fn run_command(cmd_args: &[&str], run_dir: Option<&str>) -> Result<BTreeMap<
         cmd = cmd.current_dir(dir)
     }
 
-    let output = cmd.output()?;
+    let output = match cmd.output() {
+        Ok(out) => out,
+        Err(err) =>  return Err(Error::IllegalArgument(format!(
+            "Something went wrong with run_command inside in_toto_run. Error: {:?}",
+            err
+        ))),
+    };
 
     // Emit stdout, stderror
     io::stdout().write_all(&output.stdout)?;

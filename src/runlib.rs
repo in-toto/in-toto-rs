@@ -128,6 +128,13 @@ pub fn record_artifacts(
 /// let byproducts = run_command(&["sh", "-c", "printf hello"], Some("tests")).unwrap();
 /// ```
 pub fn run_command(cmd_args: &[&str], run_dir: Option<&str>) -> Result<BTreeMap<String, String>> {
+    // Format output into Byproduct
+    let mut byproducts: BTreeMap<String, String> = BTreeMap::new();
+
+    if cmd_args.len() == 0 {
+        return Ok(byproducts)
+    }
+
     let executable = cmd_args[0];
     let args = (&cmd_args[1..])
         .iter()
@@ -167,8 +174,7 @@ pub fn run_command(cmd_args: &[&str], run_dir: Option<&str>) -> Result<BTreeMap<
     io::stdout().write_all(&output.stdout)?;
     io::stderr().write_all(&output.stderr)?;
 
-    // Format output into Byproduct
-    let mut byproducts: BTreeMap<String, String> = BTreeMap::new();
+
     // Write to byproducts
     let stdout = match String::from_utf8(output.stdout) {
         Ok(output) => output,

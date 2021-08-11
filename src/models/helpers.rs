@@ -151,7 +151,6 @@ impl VirtualTargetPath {
     /// ```
     /// # use in_toto::models::{VirtualTargetPath};
     /// assert!(VirtualTargetPath::new("foo".into()).is_ok());
-    /// assert!(VirtualTargetPath::new("/foo".into()).is_err());
     /// assert!(VirtualTargetPath::new("../foo".into()).is_err());
     /// assert!(VirtualTargetPath::new("foo/..".into()).is_err());
     /// assert!(VirtualTargetPath::new("foo/../bar".into()).is_err());

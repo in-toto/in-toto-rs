@@ -35,8 +35,8 @@ use crate::models::{TargetDescription, VirtualTargetPath};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Link {
-    // Why is the type named as typ?
     #[serde(rename = "_type")]
+    typ: String,
     name: String,
     materials: BTreeMap<VirtualTargetPath, TargetDescription>,
     products: BTreeMap<VirtualTargetPath, TargetDescription>,
@@ -47,6 +47,7 @@ pub struct Link {
 impl Link {
     pub fn from(meta: &LinkMetadata) -> Result<Self> {
         Ok(Link {
+            typ: String::from("link"),
             name: meta.name().to_string(),
             materials: (*meta.materials()).clone(),
             products: (*meta.products()).clone(),

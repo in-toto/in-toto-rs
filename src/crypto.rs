@@ -132,7 +132,7 @@ fn shim_public_key(
     let key = match key_type {
         KeyType::Ed25519 => HEXLOWER.encode(public_key),
         KeyType::Rsa | KeyType::Unknown(_) => {
-            let bytes = write_spki(public_key, &key_type)?;
+            let bytes = write_spki(public_key, key_type)?;
             BASE64URL.encode(&bytes)
         }
     };

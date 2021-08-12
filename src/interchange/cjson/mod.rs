@@ -1,7 +1,5 @@
-use itoa;
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
-use serde_json;
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
 
@@ -62,7 +60,7 @@ pub use pretty::JsonPretty;
 /// }
 /// ```
 ///
-/// ## `SignedMetadata`
+/// ## `Metablock`
 ///
 /// ```bash
 /// {

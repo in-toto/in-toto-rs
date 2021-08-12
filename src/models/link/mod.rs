@@ -1,16 +1,16 @@
 //! in-toto link
 
-use std::collections::{BTreeMap};
-use std::fmt::{Debug};
+use std::collections::BTreeMap;
+use std::fmt::Debug;
 use std::str;
 
-use serde_derive::{Deserialize, Serialize};
 use crate::Result;
+use serde_derive::{Deserialize, Serialize};
 
 pub mod metadata;
 pub use metadata::{LinkMetadata, LinkMetadataBuilder};
 
-use crate::models::{VirtualTargetPath, TargetDescription};
+use crate::models::{TargetDescription, VirtualTargetPath};
 
 // FIXME, we need to tag a spec
 //const SPEC_VERSION: &str = "0.9-dev";
@@ -33,28 +33,26 @@ use crate::models::{VirtualTargetPath, TargetDescription};
 //     )
 // }
 
-pub const FILENAME_FORMAT: &str = "{step_name}.{keyid:.8}.link";
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Link {
-    // Why is the type named as typ?
     #[serde(rename = "_type")]
+    typ: String,
     name: String,
     materials: BTreeMap<VirtualTargetPath, TargetDescription>,
     products: BTreeMap<VirtualTargetPath, TargetDescription>,
     env: BTreeMap<String, String>,
     byproducts: BTreeMap<String, String>,
-
 }
 
 impl Link {
     pub fn from(meta: &LinkMetadata) -> Result<Self> {
         Ok(Link {
+            typ: String::from("link"),
             name: meta.name().to_string(),
             materials: (*meta.materials()).clone(),
             products: (*meta.products()).clone(),
             env: (*meta.env()).clone(),
-            byproducts: (*meta.byproducts()).clone()
+            byproducts: (*meta.byproducts()).clone(),
         })
     }
 
@@ -64,9 +62,7 @@ impl Link {
             self.materials,
             self.products,
             self.env,
-            self.byproducts
+            self.byproducts,
         )
     }
 }
-
-

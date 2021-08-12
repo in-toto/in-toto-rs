@@ -6,11 +6,11 @@
 // use chrono::offset::Utc;
 // use chrono::{DateTime, Duration};
 use log::{debug, warn};
-use serde::de::{Deserialize, DeserializeOwned, Deserializer, Error as DeserializeError};
-use serde::ser::{Serialize};
+use serde::de::DeserializeOwned;
+use serde::ser::Serialize;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use std::fmt::{self, Debug, Display};
+use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::str;
 
@@ -21,6 +21,7 @@ use crate::Result;
 
 use crate::models::safe_path;
 
+pub const FILENAME_FORMAT: &str = "{step_name}.{keyid:.8}.link";
 
 /// Top level trait used for role metadata.
 pub trait Metadata: Debug + PartialEq + Serialize + DeserializeOwned {
@@ -28,62 +29,31 @@ pub trait Metadata: Debug + PartialEq + Serialize + DeserializeOwned {
     fn version(&self) -> u32;
 }
 
-/// Unverified raw metadata with attached signatures and type information identifying the
-/// metadata's type and serialization format.
-#[derive(Debug, Clone, PartialEq)]
-pub struct RawSignedMetadata<D, M> {
-    bytes: Vec<u8>,
-    _marker: PhantomData<(D, M)>,
-}
-
-impl<D, M> RawSignedMetadata<D, M>
-where
-    D: DataInterchange,
-    M: Metadata,
-{
-    /// Create a new [`RawSignedMetadata`] using the provided `bytes`.
-    pub fn new(bytes: Vec<u8>) -> Self {
-        Self {
-            bytes,
-            _marker: PhantomData,
-        }
-    }
-
-    /// Access this metadata's inner raw bytes.
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.bytes
-    }
-
-    /// Parse this metadata.
-    pub fn parse(&self) -> Result<SignedMetadata<D, M>> {
-        D::from_slice(&self.bytes)
-    }
-}
-
-/// Helper to construct `SignedMetadata`.
+/// Helper to construct `Metablock`.
 #[derive(Debug, Clone)]
-pub struct SignedMetadataBuilder<D, M>
+pub struct MetablockBuilder<D, M>
 where
     D: DataInterchange,
 {
     signatures: HashMap<KeyId, Signature>,
+    // TODO: make Metablock & MetablockBuilder's metadata more specific to in-toto
     metadata: D::RawData,
     metadata_bytes: Vec<u8>,
     _marker: PhantomData<M>,
 }
 
-impl<D, M> SignedMetadataBuilder<D, M>
+impl<D, M> MetablockBuilder<D, M>
 where
     D: DataInterchange,
     M: Metadata,
 {
-    /// Create a new `SignedMetadataBuilder` from a given `Metadata`.
+    /// Create a new `MetablockBuilder` from a given `Metadata`.
     pub fn from_metadata(metadata: &M) -> Result<Self> {
         let metadata = D::serialize(metadata)?;
         Self::from_raw_metadata(metadata)
     }
 
-    /// Create a new `SignedMetadataBuilder` from manually serialized metadata to be signed.
+    /// Create a new `MetablockBuilder` from manually serialized metadata to be signed.
     /// Returns an error if `metadata` cannot be parsed into `M`.
     pub fn from_raw_metadata(metadata: D::RawData) -> Result<Self> {
         let _ensure_metadata_parses: M = D::deserialize(&metadata)?;
@@ -102,16 +72,16 @@ where
     /// **WARNING**: You should never have multiple TUF private keys on the same machine, so if
     /// you're using this to append several signatures at once, you are doing something wrong. The
     /// preferred method is to generate your copy of the metadata locally and use
-    /// `SignedMetadata::merge_signatures` to perform the "append" operations.
+    /// `Metablock::merge_signatures` to perform the "append" operations.
     pub fn sign(mut self, private_key: &PrivateKey) -> Result<Self> {
         let sig = private_key.sign(&self.metadata_bytes)?;
         let _ = self.signatures.insert(sig.key_id().clone(), sig);
         Ok(self)
     }
 
-    /// Construct a new `SignedMetadata` using the included signatures, sorting the signatures by
+    /// Construct a new `Metablock` using the included signatures, sorting the signatures by
     /// `KeyId`.
-    pub fn build(self) -> SignedMetadata<D, M> {
+    pub fn build(self) -> Metablock<D, M> {
         let mut signatures = self
             .signatures
             .into_iter()
@@ -119,7 +89,7 @@ where
             .collect::<Vec<_>>();
         signatures.sort_unstable_by(|a, b| a.key_id().cmp(b.key_id()));
 
-        SignedMetadata {
+        Metablock {
             signatures,
             metadata: self.metadata,
             _marker: PhantomData,
@@ -129,7 +99,7 @@ where
 
 /// Serialized metadata with attached unverified signatures.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SignedMetadata<D, M>
+pub struct Metablock<D, M>
 where
     D: DataInterchange,
 {
@@ -140,19 +110,19 @@ where
     _marker: PhantomData<M>,
 }
 
-impl<D, M> SignedMetadata<D, M>
+impl<D, M> Metablock<D, M>
 where
     D: DataInterchange,
     M: Metadata,
 {
-    /// Create a new `SignedMetadata`. The supplied private key is used to sign the canonicalized
+    /// Create a new `Metablock`. The supplied private key is used to sign the canonicalized
     /// bytes of the provided metadata with the provided scheme.
     ///
     /// ```
     /// # use chrono::prelude::*;
     /// # use in_toto::crypto::{PrivateKey, SignatureScheme, HashAlgorithm};
     /// # use in_toto::interchange::Json;
-    /// # use in_toto::models::{SignedMetadata};
+    /// # use in_toto::models::{Metablock};
     /// #
     /// # fn main() {
     /// # let key: &[u8] = include_bytes!("../../tests/ed25519/ed25519-1.pk8.der");
@@ -160,32 +130,24 @@ where
     ///
     /// # }
     /// ```
-    pub fn new(metadata: &M, private_key: &PrivateKey) -> Result<Self> {
+    pub fn new(metadata: &M, private_key: Option<&PrivateKey>) -> Result<Self> {
         let raw = D::serialize(metadata)?;
-        let bytes = D::canonicalize(&raw)?;
-        let sig = private_key.sign(&bytes)?;
+        let signatures = match private_key {
+            Some(key) => {
+                let bytes = D::canonicalize(&raw)?;
+                let sig = key.sign(&bytes)?;
+                vec![sig]
+            }
+            None => {
+                vec![]
+            }
+        };
+
         Ok(Self {
-            signatures: vec![sig],
+            signatures,
             metadata: raw,
             _marker: PhantomData,
         })
-    }
-
-    /// Serialize this metadata to canonical bytes suitable for serialization. Note that this
-    /// method is only intended to serialize signed metadata generated by this crate, not to
-    /// re-serialize metadata that was originally obtained from a remote source.
-    ///
-    /// TUF metadata hashes are on the raw bytes of the metadata, so it is not guaranteed that the
-    /// hash of the returned bytes will match a hash included in, for example, a snapshot metadata
-    /// file, as:
-    /// * Parsing metadata removes unknown fields, which would not be included in the returned
-    /// bytes,
-    /// * DataInterchange implementations only guarantee the bytes are canonical for the purpose of
-    /// a signature. Metadata obtained from a remote source may have included different whitespace
-    /// or ordered fields in a way that is not preserved when parsing that metadata.
-    pub fn to_raw(&self) -> Result<RawSignedMetadata<D, M>> {
-        let bytes = D::canonicalize(&D::serialize(self)?)?;
-        Ok(RawSignedMetadata::new(bytes))
     }
 
     /// Merge the singatures from `other` into `self` if and only if
@@ -220,7 +182,6 @@ where
         &self.signatures
     }
 
-
     /// Parse this metadata without verifying signatures.
     ///
     /// This operation is not safe to do with metadata obtained from an untrusted source.
@@ -234,7 +195,6 @@ where
     /// # use chrono::prelude::*;
     /// # use in_toto::crypto::{PrivateKey, SignatureScheme, HashAlgorithm};
     /// # use in_toto::interchange::Json;
-    /// # use in_toto::models::MetadataPath;
     ///
     /// # fn main() {
     /// let key_1: &[u8] = include_bytes!("../../tests/ed25519/ed25519-1.pk8.der");
@@ -309,57 +269,6 @@ where
         self.assume_valid()
     }
 }
-/// Wrapper for a path to metadata.
-///
-/// Note: This should **not** contain the file extension. This is automatically added by the
-/// library depending on what type of data interchange format is being used.
-///
-/// ```
-/// use in_toto::models::MetadataPath;
-///
-/// // right
-/// let _ = MetadataPath::new("root");
-///
-/// // wrong
-/// let _ = MetadataPath::new("root.json");
-/// ```
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-pub struct MetadataPath(String);
-
-impl MetadataPath {
-    /// Create a new `MetadataPath` from a `String`.
-    ///
-    /// ```
-    /// # use in_toto::models::MetadataPath;
-    /// assert!(MetadataPath::new("foo").is_ok());
-    /// assert!(MetadataPath::new("/foo").is_err());
-    /// assert!(MetadataPath::new("../foo").is_err());
-    /// assert!(MetadataPath::new("foo/..").is_err());
-    /// assert!(MetadataPath::new("foo/../bar").is_err());
-    /// assert!(MetadataPath::new("..foo").is_ok());
-    /// assert!(MetadataPath::new("foo/..bar").is_ok());
-    /// assert!(MetadataPath::new("foo/bar..").is_ok());
-    /// ```
-    pub fn new<P: Into<String>>(path: P) -> Result<Self> {
-        let path = path.into();
-        safe_path(&path)?;
-        Ok(MetadataPath(path))
-    }
-}
-
-impl Display for MetadataPath {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl<'de> Deserialize<'de> for MetadataPath {
-    fn deserialize<D: Deserializer<'de>>(de: D) -> ::std::result::Result<Self, D::Error> {
-        let s: String = Deserialize::deserialize(de)?;
-        MetadataPath::new(s).map_err(|e| DeserializeError::custom(format!("{:?}", e)))
-    }
-}
-
 
 /// Wrapper for the real path to a target.
 #[derive(Debug, Clone, PartialEq, Hash, Eq, PartialOrd, Ord, Serialize)]
@@ -401,4 +310,3 @@ impl TargetPath {
         TargetPath::new(components.join("/"))
     }
 }
-

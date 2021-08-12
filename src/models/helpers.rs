@@ -101,10 +101,6 @@ pub fn safe_path(path: &str) -> Result<()> {
         return Err(Error::IllegalArgument("Path cannot be empty".into()));
     }
 
-    /*if path.starts_with('/') {
-        return Err(Error::IllegalArgument("Cannot start with '/'".into()));
-    }*/
-
     for bad_str in PATH_ILLEGAL_STRINGS {
         if path.contains(bad_str) {
             return Err(Error::IllegalArgument(format!(

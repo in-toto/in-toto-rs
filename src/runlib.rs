@@ -277,7 +277,7 @@ fn dir_entry_to_path(
         Ok(dir_entry) => match dir_entry.path().to_str() {
             Some(str) => String::from(str),
             None => {
-                return Err(Error::Programming(format!(
+                return Err(Error::IllegalArgument(format!(
                     "Invalid Path {}; non-UTF-8 string",
                     dir_entry.path().display()
                 )))
@@ -306,7 +306,7 @@ fn dir_entry_to_path(
                         let sym_path = match error_path.to_str() {
                             Some(str) => String::from(str),
                             None => {
-                                return Err(Error::Programming(format!(
+                                return Err(Error::IllegalArgument(format!(
                                     "Invalid Path {}; non-UTF-8 string",
                                     error_path.display()
                                 )))
@@ -351,14 +351,6 @@ mod test {
     fn test_record_artifacts() {
         let mut expected: BTreeMap<VirtualTargetPath, TargetDescription> = BTreeMap::new();
         expected.insert(
-            VirtualTargetPath::new("tests/test_runlib/symbolic_to_license_file".to_string())
-                .unwrap(),
-            create_target_description(
-                crypto::HashAlgorithm::Sha256,
-                b"61ed40687d2656636a04680013dffe41d5c724201edaa84045e0677b8e2064d6",
-            ),
-        );
-        expected.insert(
             VirtualTargetPath::new("tests/test_runlib/.hidden/foo".to_string()).unwrap(),
             create_target_description(
                 crypto::HashAlgorithm::Sha256,
@@ -387,13 +379,6 @@ mod test {
             create_target_description(
                 crypto::HashAlgorithm::Sha256,
                 b"b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c",
-            ),
-        );
-        expected.insert(
-            VirtualTargetPath::new("tests/test_runlib/symbolic_to_file".to_string()).unwrap(),
-            create_target_description(
-                crypto::HashAlgorithm::Sha256,
-                b"25623b53e0984428da972f4c635706d32d01ec92dcd2ab39066082e0b9488c9d",
             ),
         );
         expected.insert(

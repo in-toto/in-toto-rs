@@ -23,7 +23,6 @@ pub struct LinkMetadataBuilder {
 }
 
 impl LinkMetadataBuilder {
-    // This should definitely be improved
     pub fn new() -> Self {
         LinkMetadataBuilder {
             name: String::new(),

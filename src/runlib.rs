@@ -77,11 +77,8 @@ pub fn record_artifacts(
         let path = clean(path);
         let mut walker = WalkDir::new(path).follow_links(true).into_iter();
         let mut visited_sym_links = HashSet::new();
-        loop {
-            let path = match walker.next() {
-                Some(entry) => dir_entry_to_path(entry)?,
-                None => break,
-            };
+        while let Some(entry) = walker.next() {
+            let path = dir_entry_to_path(entry)?;
             let file_type = std::fs::symlink_metadata(&path)?.file_type();
             // If entry is a symlink, check it's unvisited. If so, continue.
             if file_type.is_symlink() {
@@ -131,8 +128,8 @@ pub fn run_command(cmd_args: &[&str], run_dir: Option<&str>) -> Result<BTreeMap<
     // Format output into Byproduct
     let mut byproducts: BTreeMap<String, String> = BTreeMap::new();
 
-    if cmd_args.len() == 0 {
-        return Ok(byproducts)
+    if cmd_args.is_empty() {
+        return Ok(byproducts);
     }
 
     let executable = cmd_args[0];
@@ -164,16 +161,17 @@ pub fn run_command(cmd_args: &[&str], run_dir: Option<&str>) -> Result<BTreeMap<
 
     let output = match cmd.output() {
         Ok(out) => out,
-        Err(err) =>  return Err(Error::IllegalArgument(format!(
-            "Something went wrong with run_command inside in_toto_run. Error: {:?}",
-            err
-        ))),
+        Err(err) => {
+            return Err(Error::IllegalArgument(format!(
+                "Something went wrong with run_command inside in_toto_run. Error: {:?}",
+                err
+            )))
+        }
     };
 
     // Emit stdout, stderror
     io::stdout().write_all(&output.stdout)?;
     io::stderr().write_all(&output.stderr)?;
-
 
     // Write to byproducts
     let stdout = match String::from_utf8(output.stdout) {

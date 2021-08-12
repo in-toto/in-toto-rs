@@ -12,14 +12,14 @@ use crate::Result;
 use crate::error::Error;
 
 #[rustfmt::skip]
-static PATH_ILLEGAL_COMPONENTS: &'static [&str] = &[
+static PATH_ILLEGAL_COMPONENTS: &[&str] = &[
     ".", // current dir
     "..", // parent dir
          // TODO ? "0", // may translate to nul in windows
 ];
 
 #[rustfmt::skip]
-static PATH_ILLEGAL_COMPONENTS_CASE_INSENSITIVE: &'static [&str] = &[
+static PATH_ILLEGAL_COMPONENTS_CASE_INSENSITIVE: &[&str] = &[
     // DOS device files
     "CON",
     "PRN",
@@ -51,7 +51,7 @@ static PATH_ILLEGAL_COMPONENTS_CASE_INSENSITIVE: &'static [&str] = &[
 ];
 
 #[rustfmt::skip]
-static PATH_ILLEGAL_STRINGS: &'static [&str] = &[
+static PATH_ILLEGAL_STRINGS: &[&str] = &[
     ":", // for *nix compatibility
     "\\", // for windows compatibility
     "<",

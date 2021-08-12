@@ -22,6 +22,12 @@ pub struct LinkMetadataBuilder {
     byproducts: BTreeMap<String, String>,
 }
 
+impl Default for LinkMetadataBuilder {
+    fn default() -> Self {
+        LinkMetadataBuilder::new()
+    }
+}
+
 impl LinkMetadataBuilder {
     pub fn new() -> Self {
         LinkMetadataBuilder {

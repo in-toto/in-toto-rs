@@ -371,26 +371,6 @@ mod test {
                 b"25623b53e0984428da972f4c635706d32d01ec92dcd2ab39066082e0b9488c9d",
             ),
         );
-        expected.insert(
-            VirtualTargetPath::new(
-                "tests/test_runlib/hello./symbolic_to_nonparent_folder/.bar".to_string(),
-            )
-            .unwrap(),
-            create_target_description(
-                crypto::HashAlgorithm::Sha256,
-                b"b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c",
-            ),
-        );
-        expected.insert(
-            VirtualTargetPath::new(
-                "tests/test_runlib/hello./symbolic_to_nonparent_folder/foo".to_string(),
-            )
-            .unwrap(),
-            create_target_description(
-                crypto::HashAlgorithm::Sha256,
-                b"7d865e959b2466918c9863afca942d0fb89d7c9ac0c99bafc3749504ded97730",
-            ),
-        );
         assert_eq!(
             record_artifacts(&["tests/test_runlib"], None).unwrap(),
             expected

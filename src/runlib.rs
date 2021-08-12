@@ -17,8 +17,6 @@ use crate::{
 };
 use crate::{Error, Result};
 
-// TODO: improve doc comments :p
-
 /// Reads and hashes an artifact given its path as a string literal,
 /// returning the `VirtualTargetPath` and `TargetDescription` of the file as a tuple, wrapped in `Result`.
 pub fn record_artifact(
@@ -211,13 +209,13 @@ pub fn run_command(cmd_args: &[&str], run_dir: Option<&str>) -> Result<BTreeMap<
 /// If a symbolic link cycle is detected in the material or product paths, paths causing the cycle are skipped.
 /// # Arguments
 ///
-/// * `name` - TODO
-/// * `run_dir` - TODO
-/// * `material_paths` - TODO
-/// * `product_paths` - TODO
-/// * `cmd_args` - TODO
-/// * `key` - TODO
-/// * `hash_algorithms` - TODO
+/// * `name` - The unique string used to associate link metadata with a step or inspection.
+/// * `run_dir` - A string slice (`&str`) wrapped in an `Option` that holds the directory the commands are to be ran. If `None` is provided, the current directory is assumed as default.
+/// * `material_paths` - A string slice (`&str`) of artifact paths to be recorded before command execution. Directories are traversed recursively.
+/// * `product_paths` - A string slice (`&str`) of artifact paths to be recorded after command execution. Directories are traversed recursively.
+/// * `cmd_args` - A string slice (`&str`) where the first element is a command and the remaining elements are arguments passed to that command.
+/// * `key` -  A key used to sign the resulting link metadata.
+/// * `hash_algorithms` - An array of string slice (`&str`) wrapped in an `Option` that holds the hash algorithms to be used. If `None` is provided, Sha256 is assumed as default.
 ///
 /// # Examples
 ///

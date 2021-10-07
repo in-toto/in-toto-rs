@@ -31,9 +31,9 @@ pub fn record_artifact(
     Ok((VirtualTargetPath::new(lstripped_path)?, hashes))
 }
 
-/// Given an artifact path in &str format, left strip path for given artifact based a list of `lstrip_paths` provided,
-/// returning the stripped file path in String format wrapped in Result.
-pub fn apply_left_strip(path: &str, lstrip_paths: Option<&[&str]>) -> Result<String> {
+/// Given an artifact path in `&str` format, left strip path for given artifact based an optional array of `lstrip_paths` provided,
+/// returning the stripped file path in String format wrapped in `Result`.
+fn apply_left_strip(path: &str, lstrip_paths: Option<&[&str]>) -> Result<String> {
     // If lstrip_paths is None, skip strip.
     // Else, check if path starts with any given lstrip paths and strip
     if let Some(l_paths) = lstrip_paths {
@@ -62,6 +62,7 @@ pub fn apply_left_strip(path: &str, lstrip_paths: Option<&[&str]>) -> Result<Str
 ///
 /// * `paths` - An array of string slices (`&str`) that holds the paths to be traversed. If a symbolic link cycle is detected in the `paths` during traversal, it is skipped.
 /// * `hash_algorithms` - An array of string slice (`&str`) wrapped in an `Option` that holds the hash algorithms to be used. If `None` is provided, Sha256 is assumed as default.
+/// * `lstrip_paths` - An array of path prefixes (`&str`) wrapped in an `Option` used to left-strip artifact paths before storing them in the resulting link metadata.
 ///
 /// # Examples
 ///
@@ -244,6 +245,7 @@ pub fn run_command(cmd_args: &[&str], run_dir: Option<&str>) -> Result<BTreeMap<
 /// * `cmd_args` - A string slice (`&str`) where the first element is a command and the remaining elements are arguments passed to that command.
 /// * `key` -  A key used to sign the resulting link metadata.
 /// * `hash_algorithms` - An array of string slice (`&str`) wrapped in an `Option` that holds the hash algorithms to be used. If `None` is provided, Sha256 is assumed as default.
+/// * `lstrip_paths` - An array of path prefixes (`&str`) wrapped in an `Option` used to left-strip artifact paths before storing them in the resulting link metadata.
 ///
 /// # Examples
 ///

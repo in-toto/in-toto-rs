@@ -22,11 +22,37 @@ use crate::{Error, Result};
 pub fn record_artifact(
     path: &str,
     hash_algorithms: &[HashAlgorithm],
+    lstrip_paths: Option<&[&str]>,
 ) -> Result<(VirtualTargetPath, TargetDescription)> {
     let file = File::open(path)?;
     let mut reader = BufReader::new(file);
     let (_length, hashes) = crypto::calculate_hashes(&mut reader, hash_algorithms)?;
-    Ok((VirtualTargetPath::new(String::from(path))?, hashes))
+    let lstripped_path = apply_left_strip(path, lstrip_paths)?;
+    Ok((VirtualTargetPath::new(lstripped_path)?, hashes))
+}
+
+/// Given an artifact path in &str format, left strip path for given artifact based a list of `lstrip_paths` provided,
+/// returning the stripped file path in String format wrapped in Result.
+pub fn apply_left_strip(path: &str, lstrip_paths: Option<&[&str]>) -> Result<String> {
+    // If lstrip_paths is None, skip strip.
+    // Else, check if path starts with any given lstrip paths and strip
+    if let Some(l_paths) = lstrip_paths {
+        for l_path in l_paths.iter() {
+            if path.starts_with(l_path) {
+                let stripped_path = path.strip_prefix(l_path).ok_or_else(|| {
+                    Error::from(io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!(
+                            "Lstrip Error: error stripping {} from path {}",
+                            l_path, path
+                        ),
+                    ))
+                })?;
+                return Ok(String::from(stripped_path));
+            }
+        }
+    };
+    Ok(String::from(path))
 }
 
 /// Traverses through the passed array of paths, hashes the content of files
@@ -43,11 +69,12 @@ pub fn record_artifact(
 /// // You can have rust code between fences inside the comments
 /// // If you pass --test to `rustdoc`, it will even test it for you!
 /// # use in_toto::runlib::{record_artifacts};
-/// let materials = record_artifacts(&["tests/test_runlib"], None).unwrap();
+/// let materials = record_artifacts(&["tests/test_runlib"], None, None).unwrap();
 /// ```
 pub fn record_artifacts(
     paths: &[&str],
     hash_algorithms: Option<&[&str]>,
+    lstrip_paths: Option<&[&str]>,
 ) -> Result<BTreeMap<VirtualTargetPath, TargetDescription>> {
     // Verify hash_algorithms inputs are valid
     let available_algorithms = HashAlgorithm::return_all();
@@ -91,14 +118,15 @@ pub fn record_artifacts(
                     };
                     if symlink_metadata(&s_path)?.file_type().is_file() {
                         let (virtual_target_path, hashes) =
-                            record_artifact(&path, hash_algorithms)?;
+                            record_artifact(&path, hash_algorithms, lstrip_paths)?;
                         artifacts.insert(virtual_target_path, hashes);
                     }
                 }
             }
             // If entry is a file, open and hash the file
             if file_type.is_file() {
-                let (virtual_target_path, hashes) = record_artifact(&path, hash_algorithms)?;
+                let (virtual_target_path, hashes) =
+                    record_artifact(&path, hash_algorithms, lstrip_paths)?;
                 artifacts.insert(virtual_target_path, hashes);
             }
         }
@@ -226,7 +254,7 @@ pub fn run_command(cmd_args: &[&str], run_dir: Option<&str>) -> Result<BTreeMap<
 /// # use in_toto::crypto::PrivateKey;
 /// const ED25519_1_PRIVATE_KEY: &'static [u8] = include_bytes!("../tests/ed25519/ed25519-1");
 /// let key = PrivateKey::from_ed25519(ED25519_1_PRIVATE_KEY).unwrap();
-/// let link = in_toto_run("example", Some("tests"), &["tests/test_runlib"], &["tests/test_runlib"],  &["sh", "-c", "echo 'in_toto says hi' >> hello_intoto"], Some(&key), Some(&["sha512", "sha256"]),).unwrap();
+/// let link = in_toto_run("example", Some("tests"), &["tests/test_runlib"], &["tests/test_runlib"],  &["sh", "-c", "echo 'in_toto says hi' >> hello_intoto"], Some(&key), Some(&["sha512", "sha256"]), None).unwrap();
 /// let json = serde_json::to_value(&link).unwrap();
 /// println!("Generated link: {}", json);
 /// ```
@@ -238,16 +266,17 @@ pub fn in_toto_run(
     cmd_args: &[&str],
     key: Option<&PrivateKey>,
     hash_algorithms: Option<&[&str]>,
+    lstrip_paths: Option<&[&str]>,
     // env: Option<BTreeMap<String, String>>
 ) -> Result<Metablock<Json, LinkMetadata>> {
     // Record Materials: Given the material_paths, recursively traverse and record files in given path(s)
-    let materials = record_artifacts(material_paths, hash_algorithms)?;
+    let materials = record_artifacts(material_paths, hash_algorithms, lstrip_paths)?;
 
     // Execute commands provided in cmd_args
     let byproducts = run_command(cmd_args, run_dir)?;
 
     // Record Products: Given the product_paths, recursively traverse and record files in given path(s)
-    let products = record_artifacts(product_paths, hash_algorithms)?;
+    let products = record_artifacts(product_paths, hash_algorithms, lstrip_paths)?;
 
     // Create link based on values collected above
     let link_metadata_builder = LinkMetadataBuilder::new()
@@ -368,13 +397,48 @@ mod test {
             ),
         );
         assert_eq!(
-            record_artifacts(&["tests/test_runlib"], None).unwrap(),
+            record_artifacts(&["tests/test_runlib"], None, None).unwrap(),
             expected
         );
-        assert_eq!(record_artifacts(&["tests"], None).is_ok(), true);
+        assert_eq!(record_artifacts(&["tests"], None, None).is_ok(), true);
         assert_eq!(
-            record_artifacts(&["file-does-not-exist"], None).is_err(),
+            record_artifacts(&["file-does-not-exist"], None, None).is_err(),
             true
+        );
+    }
+
+    #[test]
+    fn test_lstrip_record_artifacts() {
+        let mut expected: BTreeMap<VirtualTargetPath, TargetDescription> = BTreeMap::new();
+        expected.insert(
+            VirtualTargetPath::new("foo".to_string()).unwrap(),
+            create_target_description(
+                crypto::HashAlgorithm::Sha256,
+                b"7d865e959b2466918c9863afca942d0fb89d7c9ac0c99bafc3749504ded97730",
+            ),
+        );
+        expected.insert(
+            VirtualTargetPath::new(".bar".to_string()).unwrap(),
+            create_target_description(
+                crypto::HashAlgorithm::Sha256,
+                b"b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c",
+            ),
+        );
+        expected.insert(
+            VirtualTargetPath::new("hello./world".to_string()).unwrap(),
+            create_target_description(
+                crypto::HashAlgorithm::Sha256,
+                b"25623b53e0984428da972f4c635706d32d01ec92dcd2ab39066082e0b9488c9d",
+            ),
+        );
+        assert_eq!(
+            record_artifacts(
+                &["tests/test_runlib"],
+                None,
+                Some(&["tests/test_runlib/.hidden/", "tests/test_runlib/"])
+            )
+            .unwrap(),
+            expected
         );
     }
 

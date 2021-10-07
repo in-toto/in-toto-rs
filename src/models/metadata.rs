@@ -138,9 +138,7 @@ where
                 let sig = key.sign(&bytes)?;
                 vec![sig]
             }
-            None => {
-                vec![]
-            }
+            None => vec![],
         };
 
         Ok(Self {

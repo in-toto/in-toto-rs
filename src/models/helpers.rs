@@ -52,7 +52,6 @@ static PATH_ILLEGAL_COMPONENTS_CASE_INSENSITIVE: &[&str] = &[
 
 #[rustfmt::skip]
 static PATH_ILLEGAL_STRINGS: &[&str] = &[
-    ":", // for *nix compatibility
     "\\", // for windows compatibility
     "<",
     ">",

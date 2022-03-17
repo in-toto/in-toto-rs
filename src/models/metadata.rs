@@ -11,10 +11,10 @@ use serde::ser::Serialize;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
-use std::marker::PhantomData;
-use std::str;
 use std::fs::canonicalize as canonicalize_path;
+use std::marker::PhantomData;
 use std::path::Path;
+use std::str;
 
 use crate::crypto::{HashValue, KeyId, PrivateKey, PublicKey, Signature};
 use crate::error::Error;
@@ -278,13 +278,13 @@ impl TargetPath {
     /// Create a new `TargetPath`.
     pub fn new(path: String) -> Result<Self> {
         let cleaned_path = match canonicalize_path(Path::new(path.as_str())) {
-            Ok(path_buf) => {
-                match path_buf.to_str() {
-                    Some(x) => x.to_string(),
-                    _ => "".to_string() // TODO
+            Ok(path_buf) => match path_buf.to_str() {
+                Some(x) => x.to_string(),
+                None => {
+                    return Err(Error::VerificationFailure("Couldn't find Path".to_string()));
                 }
             },
-            Err(e) => return Err(Error::from(e))
+            Err(e) => return Err(Error::from(e)),
         };
         Ok(TargetPath(cleaned_path))
     }

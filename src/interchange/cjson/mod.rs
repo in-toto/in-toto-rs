@@ -310,7 +310,7 @@ enum Value {
 }
 
 impl Value {
-    fn write(&self, mut buf: &mut Vec<u8>) -> std::result::Result<(), String> {
+    fn write(&self, buf: &mut Vec<u8>) -> std::result::Result<(), String> {
         match *self {
             Value::Null => {
                 buf.extend(b"null");
@@ -344,7 +344,7 @@ impl Value {
                     if !first {
                         buf.push(b',');
                     }
-                    a.write(&mut buf)?;
+                    a.write(buf)?;
                     first = false;
                 }
                 buf.push(b']');
@@ -365,7 +365,7 @@ impl Value {
                     buf.extend(k.as_bytes());
 
                     buf.push(b':');
-                    v.write(&mut buf)?;
+                    v.write(buf)?;
                 }
                 buf.push(b'}');
                 Ok(())
@@ -391,7 +391,7 @@ fn convert(jsn: &serde_json::Value) -> std::result::Result<Value, String> {
             .ok_or_else(|| String::from("only i64 and u64 are supported")),
         serde_json::Value::Array(ref arr) => {
             let mut out = Vec::new();
-            for res in arr.iter().map(|v| convert(v)) {
+            for res in arr.iter().map(convert) {
                 out.push(res?)
             }
             Ok(Value::Array(out))

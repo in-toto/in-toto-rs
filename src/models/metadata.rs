@@ -11,15 +11,15 @@ use serde::ser::Serialize;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
+use std::fs::canonicalize as canonicalize_path;
 use std::marker::PhantomData;
+use std::path::Path;
 use std::str;
 
 use crate::crypto::{HashValue, KeyId, PrivateKey, PublicKey, Signature};
 use crate::error::Error;
 use crate::interchange::DataInterchange;
 use crate::Result;
-
-use crate::models::safe_path;
 
 pub const FILENAME_FORMAT: &str = "{step_name}.{keyid:.8}.link";
 
@@ -277,18 +277,21 @@ pub struct TargetPath(String);
 impl TargetPath {
     /// Create a new `TargetPath`.
     pub fn new(path: String) -> Result<Self> {
-        safe_path(&path)?;
-        Ok(TargetPath(path))
+        let cleaned_path = match canonicalize_path(Path::new(path.as_str())) {
+            Ok(path_buf) => match path_buf.to_str() {
+                Some(x) => x.to_string(),
+                None => {
+                    return Err(Error::VerificationFailure("Couldn't find Path".to_string()));
+                }
+            },
+            Err(e) => return Err(Error::from(e)),
+        };
+        Ok(TargetPath(cleaned_path))
     }
 
     /// Split `TargetPath` into components that can be joined to create URL paths, Unix paths, or
     /// Windows paths.
     ///
-    /// ```
-    /// # use in_toto::models::TargetPath;
-    /// let path = TargetPath::new("foo/bar".into()).unwrap();
-    /// assert_eq!(path.components(), ["foo".to_string(), "bar".to_string()]);
-    /// ```
     pub fn components(&self) -> Vec<String> {
         self.0.split('/').map(|s| s.to_string()).collect()
     }
@@ -302,7 +305,7 @@ impl TargetPath {
     pub fn with_hash_prefix(&self, hash: &HashValue) -> Result<TargetPath> {
         let mut components = self.components();
 
-        // The unwrap here is safe because we checked in `safe_path` that the path is not empty.
+        // The unwrap here is safe because we checked in canonicalize_path that the path is valid (not empty string)
         let file_name = components.pop().unwrap();
 
         components.push(format!("{}.{}", hash, file_name));

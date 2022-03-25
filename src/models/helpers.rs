@@ -1,13 +1,10 @@
 //! Supporting Functions and Types (VirtualTargetPath)
 use crate::crypto::{HashAlgorithm, HashValue};
-use crate::error::Error;
 use crate::Result;
 use serde::de::{Deserialize, Deserializer, Error as DeserializeError};
 use serde_derive::Serialize;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::fs::canonicalize as canonicalize_path;
-use std::path::Path;
 use std::str;
 
 /// Description of a target, used in verification.
@@ -21,16 +18,7 @@ impl VirtualTargetPath {
     /// Create a new `VirtualTargetPath` from a `String`.
     ///
     pub fn new(path: String) -> Result<Self> {
-        let cleaned_path = match canonicalize_path(Path::new(path.as_str())) {
-            Ok(path_buf) => match path_buf.to_str() {
-                Some(x) => x.to_string(),
-                None => {
-                    return Err(Error::VerificationFailure("Couldn't find Path".to_string()));
-                }
-            },
-            Err(e) => return Err(Error::from(e)),
-        };
-        Ok(VirtualTargetPath(cleaned_path))
+        Ok(VirtualTargetPath(path))
     }
 
     /// The string value of the path.

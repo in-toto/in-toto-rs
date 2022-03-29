@@ -53,6 +53,9 @@ pub enum Error {
     /// The metadata or target failed to verify.
     #[error("verification failure: {0}")]
     VerificationFailure(String),
+
+    #[error("prefix selection failure: {0}")]
+    LinkGatheringError(String),
 }
 
 impl From<serde_json::error::Error> for Error {

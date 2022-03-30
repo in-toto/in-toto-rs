@@ -14,6 +14,7 @@ fn main() {
         &["sh", "-c", "echo 'in_toto says hi' >> hello_intoto"],
         Some(&key),
         Some(&["sha512", "sha256"]),
+        None,
     )
     .unwrap();
     let json = serde_json::to_value(&link).unwrap();

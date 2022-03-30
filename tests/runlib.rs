@@ -73,6 +73,7 @@ fn in_toto_run_record_file() {
         &["sh", "-c", "echo 'in_toto says hi'"],
         Some(&TEST_PRIVATE_KEY),
         None,
+        None,
     )
     .unwrap();
 
@@ -105,6 +106,7 @@ fn in_toto_run_record_new_file() {
             &format!("echo 'in_toto says hi' >> {}/bar.txt", dir_path),
         ],
         Some(&TEST_PRIVATE_KEY),
+        None,
         None,
     )
     .unwrap();
@@ -176,6 +178,7 @@ fn in_toto_run_record_symlink_file() {
         &vec![dir_path],
         &["sh", "-c", "echo 'in_toto says hi'"],
         Some(&TEST_PRIVATE_KEY),
+        None,
         None,
     )
     .unwrap();

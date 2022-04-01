@@ -1,7 +1,7 @@
 [package]
 name = "in-toto"
 edition = "2018"
-version = "0.1.2"
+version = "0.2.0"
 authors = ["Santiago Torres-Arias <santiagotorres@purdue.edu>",
            "Qijia 'Joy' Liu <joyliu.q@gmail.com>"]
 description = "Library for in-toto"

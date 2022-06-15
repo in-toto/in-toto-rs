@@ -15,24 +15,6 @@ use crate::models::{TargetDescription, VirtualTargetPath};
 // FIXME, we need to tag a spec
 //const SPEC_VERSION: &str = "0.9-dev";
 
-// FIXME: methods will be relevant for layout expiration
-// fn parse_datetime(ts: &str) -> Result<DateTime<Utc>> {
-//     Utc.datetime_from_str(ts, "%FT%TZ")
-//         .map_err(|e| Error::Encoding(format!("Can't parse DateTime: {:?}", e)))
-// }
-//
-// fn format_datetime(ts: &DateTime<Utc>) -> String {
-//     format!(
-//         "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
-//         ts.year(),
-//         ts.month(),
-//         ts.day(),
-//         ts.hour(),
-//         ts.minute(),
-//         ts.second()
-//     )
-// }
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Link {
     #[serde(rename = "_type")]

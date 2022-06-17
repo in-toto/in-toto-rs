@@ -66,13 +66,30 @@ fn parse_datetime(ts: &str) -> Result<DateTime<Utc>> {
 }
 
 fn format_datetime(ts: &DateTime<Utc>) -> String {
-    format!(
-        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
-        ts.year(),
-        ts.month(),
-        ts.day(),
-        ts.hour(),
-        ts.minute(),
-        ts.second()
-    )
+    ts.to_rfc3339_opts(SecondsFormat::Secs, true)
+}
+
+#[cfg(test)]
+mod test {
+    use chrono::{DateTime, NaiveDateTime, Utc};
+
+    use crate::models::layout::format_datetime;
+
+    use super::parse_datetime;
+
+    #[test]
+    fn parse_datetime_test() {
+        let time_str = "1970-01-01T00:00:00Z".to_string();
+        let parsed_dt = parse_datetime(&time_str[..]).unwrap();
+        let dt = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(0, 0), Utc);
+        assert_eq!(parsed_dt, dt);
+    }
+
+    #[test]
+    fn format_datetime_test() {
+        let dt = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(0, 0), Utc);
+        let generated_dt_str = format_datetime(&dt);
+        let dt_str = "1970-01-01T00:00:00Z".to_string();
+        assert_eq!(dt_str, generated_dt_str);
+    }
 }

@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 use chrono::prelude::*;
 use chrono::TimeZone;
 use chrono::{DateTime, Utc};
+use log::warn;
 use serde_derive::{Deserialize, Serialize};
 
 use crate::crypto::{KeyId, PublicKey};
@@ -44,10 +45,17 @@ impl Layout {
 
     pub fn try_into(self) -> Result<LayoutMetadata> {
         // Ignore all keys with incorrect key IDs.
+        // If a malformed key is used, there will be a warning
         let keys_with_correct_key_id = self
             .keys
             .into_iter()
-            .filter(|(key_id, pkey)| key_id == pkey.key_id())
+            .filter(|(key_id, pkey)| match key_id == pkey.key_id() {
+                true => true,
+                false => {
+                    warn!("Malformed key of ID {:?}", key_id);
+                    false
+                }
+            })
             .collect();
 
         Ok(LayoutMetadata::new(

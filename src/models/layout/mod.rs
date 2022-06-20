@@ -21,6 +21,8 @@ pub use metadata::{LayoutMetadata, LayoutMetadataBuilder};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Layout {
+    #[serde(rename = "_type")]
+    typ: String,
     expires: String,
     readme: String,
     keys: BTreeMap<KeyId, PublicKey>,
@@ -31,6 +33,7 @@ pub struct Layout {
 impl Layout {
     pub fn from(meta: &LayoutMetadata) -> Result<Self> {
         Ok(Layout {
+            typ: String::from("layout"),
             expires: format_datetime(meta.expires()),
             readme: meta.readme().to_string(),
             keys: meta

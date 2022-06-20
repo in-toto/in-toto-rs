@@ -17,6 +17,7 @@ pub struct ArtifactRule {}
 /// item types in Inspection and Step.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SupplyChainItem {
+    #[serde(rename = "_name")]
     name: String,
     expected_materials: Vec<ArtifactRule>,
     expected_products: Vec<ArtifactRule>,

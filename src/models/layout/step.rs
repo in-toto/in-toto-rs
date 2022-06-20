@@ -106,7 +106,7 @@ impl<'de> Deserialize<'de> for Command {
 /// expected_products fields.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Step {
-    #[serde(rename = "_type")]
+    #[serde(skip)]
     typ: String,
     pub_keys: Vec<KeyId>,
     expected_command: Vec<Command>,

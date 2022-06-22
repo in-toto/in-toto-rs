@@ -62,14 +62,18 @@ impl<'de> Deserialize<'de> for Command {
 /// expected_products fields.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Step {
-    #[serde(skip)]
+    #[serde(skip, default = "default_step")]
     typ: String,
+    threshold: u32,
     #[serde(flatten)]
     supply_chain_item: SupplyChainItem,
-    expected_command: Command,
     #[serde(rename = "pubkeys")]
     pub_keys: Vec<KeyId>,
-    threshold: u32,
+    expected_command: Command,
+}
+
+fn default_step() -> String {
+    "step".to_string()
 }
 
 impl Step {
@@ -163,7 +167,7 @@ mod test {
             )?)
             .threshold(1);
 
-        let json_serialize = serde_json::to_string(&step)?;
+        let json_serialize = serde_json::to_value(&step)?;
         let json = json!(
         {
             "_name": "package",
@@ -179,9 +183,50 @@ mod test {
             ],
             "threshold": 1
           }
-        )
-        .to_string();
-        assert_eq!(json, json_serialize);
+        );
+        assert_eq!(json, json_serialize, "{:#?} != {:#?}", json, json_serialize);
+        Ok(())
+    }
+
+    #[test]
+    fn deserialize_step() -> Result<()> {
+        let json = r#"
+        {
+            "_name": "package",
+            "expected_materials": [
+               ["MATCH", "foo.py", "WITH", "PRODUCTS", "FROM", "write-code"]
+            ],
+            "expected_products": [
+               ["CREATE", "foo.tar.gz"]
+            ],
+            "expected_command": "tar zcvf foo.tar.gz foo.py",
+            "pubkeys": [
+               "70ca5750c2eda80b18f41f4ec5f92146789b5d68dd09577be422a0159bd13680"
+            ],
+            "threshold": 1
+          }"#;
+        let step_parsed: Step = serde_json::from_str(json)?;
+        let step = Step::new("package")
+            .add_expected_material(
+                ArtifactRuleBuilder::new()
+                    .set_type("MATCH")
+                    .pattern("foo.py")
+                    .products()
+                    .step("write-code")
+                    .build()?,
+            )
+            .add_expected_products(
+                ArtifactRuleBuilder::new()
+                    .set_type("CREATE")
+                    .pattern("foo.tar.gz")
+                    .build()?,
+            )
+            .expected_command("tar zcvf foo.tar.gz foo.py".into())
+            .add_key(KeyId::from_str(
+                "70ca5750c2eda80b18f41f4ec5f92146789b5d68dd09577be422a0159bd13680",
+            )?)
+            .threshold(1);
+        assert_eq!(step_parsed, step);
         Ok(())
     }
 }

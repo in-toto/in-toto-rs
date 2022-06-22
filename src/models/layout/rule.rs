@@ -443,11 +443,10 @@ pub mod test {
             "dst",
             "FROM",
             "build"
-        ])
-        .to_string();
+        ]);
 
-        let json_generated = serde_json::to_string(&rule).unwrap();
-        assert_eq!(json, json_generated);
+        let json_serialize = serde_json::to_value(&rule).unwrap();
+        assert_eq!(json, json_serialize, "{:#?} != {:#?}", json, json_serialize);
     }
 
     #[test]
@@ -470,11 +469,10 @@ pub mod test {
             "dst",
             "FROM",
             "build"
-        ])
-        .to_string();
+        ]);
 
-        let json_generated = serde_json::to_string(&rule).unwrap();
-        assert_eq!(json, json_generated);
+        let json_serialize = serde_json::to_value(&rule).unwrap();
+        assert_eq!(json, json_serialize);
     }
 
     #[test]
@@ -497,11 +495,10 @@ pub mod test {
             "MATERIALS",
             "FROM",
             "build"
-        ])
-        .to_string();
+        ]);
 
-        let json_generated = serde_json::to_string(&rule).unwrap();
-        assert_eq!(json, json_generated);
+        let json_serialize = serde_json::to_value(&rule).unwrap();
+        assert_eq!(json, json_serialize, "{:#?} != {:#?}", json, json_serialize);
     }
 
     #[test]
@@ -512,9 +509,9 @@ pub mod test {
             .build()
             .unwrap();
 
-        let json = json!(["CREATE", "./artifact"]).to_string();
-        let json_generated = serde_json::to_string(&rule).unwrap();
-        assert_eq!(json, json_generated);
+        let json = json!(["CREATE", "./artifact"]);
+        let json_serialize = serde_json::to_value(&rule).unwrap();
+        assert_eq!(json, json_serialize, "{:#?} != {:#?}", json, json_serialize);
     }
 
     #[test]

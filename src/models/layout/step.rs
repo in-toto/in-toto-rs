@@ -22,6 +22,12 @@ impl From<String> for Command {
     }
 }
 
+impl From<&str> for Command {
+    fn from(str: &str) -> Self {
+        Command(str.to_string())
+    }
+}
+
 impl FromStr for Command {
     type Err = Error;
 
@@ -130,11 +136,7 @@ mod test {
 
     use serde_json::json;
 
-    use crate::{
-        crypto::KeyId,
-        models::{rule::ArtifactRuleBuilder, step::Command},
-        Result,
-    };
+    use crate::{crypto::KeyId, models::rule::ArtifactRuleBuilder, Result};
 
     use super::Step;
 
@@ -155,7 +157,7 @@ mod test {
                     .pattern("foo.tar.gz")
                     .build()?,
             )
-            .expected_command(Command::from_str("tar zcvf foo.tar.gz foo.py")?)
+            .expected_command("tar zcvf foo.tar.gz foo.py".into())
             .add_key(KeyId::from_str(
                 "70ca5750c2eda80b18f41f4ec5f92146789b5d68dd09577be422a0159bd13680",
             )?)

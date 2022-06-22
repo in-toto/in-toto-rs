@@ -56,15 +56,10 @@ impl Inspection {
 
 #[cfg(test)]
 mod test {
-    use std::str::FromStr;
-
     use serde_json::json;
 
     use super::Inspection;
-    use crate::models::{
-        rule::test::{generate_materials_rule, generate_products_rule},
-        step::Command,
-    };
+    use crate::models::rule::test::{generate_materials_rule, generate_products_rule};
 
     #[test]
     fn serialize_inspection() {
@@ -104,7 +99,7 @@ mod test {
         let inspection = Inspection::new("test_inspect")
             .add_expected_material(generate_materials_rule())
             .add_expected_products(generate_products_rule())
-            .run(Command::from_str("ls -al").unwrap());
+            .run("ls -al".into());
 
         let json_serialized = serde_json::to_string(&inspection).unwrap();
         assert_eq!(json, json_serialized);
@@ -148,7 +143,7 @@ mod test {
         let inspection = Inspection::new("test_inspect")
             .add_expected_material(generate_materials_rule())
             .add_expected_products(generate_products_rule())
-            .run(Command::from_str("ls -al").unwrap());
+            .run("ls -al".into());
         let inspection_parsed: Inspection = serde_json::from_str(json).unwrap();
         assert_eq!(inspection_parsed, inspection);
     }

@@ -2,7 +2,7 @@
 
 use serde_derive::{Deserialize, Serialize};
 
-use super::{step::Command, supply_chain_item::SupplyChainItem, rule::ArtifactRule};
+use super::{rule::ArtifactRule, step::Command, supply_chain_item::SupplyChainItem};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Inspection {
@@ -60,9 +60,11 @@ mod test {
 
     use serde_json::json;
 
-    use crate::models::{rule::test::{generate_materials_rule, generate_products_rule}, step::Command};
-
     use super::Inspection;
+    use crate::models::{
+        rule::test::{generate_materials_rule, generate_products_rule},
+        step::Command,
+    };
 
     #[test]
     fn serialize_inspection() {
@@ -70,41 +72,41 @@ mod test {
             "_name": "test_inspect",
             "expected_materials" : [
                 [
-                    "MATCH", 
-                    "pattern/", 
-                    "IN", 
-                    "src", 
-                    "WITH", 
-                    "MATERIALS", 
-                    "IN", 
-                    "dst", 
-                    "FROM", 
+                    "MATCH",
+                    "pattern/",
+                    "IN",
+                    "src",
+                    "WITH",
+                    "MATERIALS",
+                    "IN",
+                    "dst",
+                    "FROM",
                     "test_step"
-                ] 
+                ]
             ],
             "expected_products" : [
                 [
-                    "MATCH", 
-                    "pattern/", 
-                    "IN", 
-                    "src", 
-                    "WITH", 
-                    "PRODUCTS", 
-                    "IN", 
-                    "dst", 
-                    "FROM", 
+                    "MATCH",
+                    "pattern/",
+                    "IN",
+                    "src",
+                    "WITH",
+                    "PRODUCTS",
+                    "IN",
+                    "dst",
+                    "FROM",
                     "test_step"
-                ] 
+                ]
             ],
             "run" : "ls -al"
-        }).to_string();
+        })
+        .to_string();
         let inspection = Inspection::new("test_inspect")
             .add_expected_material(generate_materials_rule())
             .add_expected_products(generate_products_rule())
             .run(Command::from_str("ls -al").unwrap());
 
-        let json_serialized = serde_json::to_string(&inspection)
-            .unwrap();
+        let json_serialized = serde_json::to_string(&inspection).unwrap();
         assert_eq!(json, json_serialized);
     }
 

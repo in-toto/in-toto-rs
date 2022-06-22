@@ -136,7 +136,11 @@ mod test {
 
     use serde_json::json;
 
-    use crate::{Result, models::{rule::ArtifactRuleBuilder, step::Command}, crypto::KeyId};
+    use crate::{
+        crypto::KeyId,
+        models::{rule::ArtifactRuleBuilder, step::Command},
+        Result,
+    };
 
     use super::Step;
 
@@ -149,22 +153,20 @@ mod test {
                     .pattern("foo.py")
                     .products()
                     .step("write-code")
-                    .build()?
+                    .build()?,
             )
             .add_expected_products(
                 ArtifactRuleBuilder::new()
                     .set_type("CREATE")
                     .pattern("foo.tar.gz")
-                    .build()?
+                    .build()?,
             )
-            .expected_command(
-                Command::from_str("tar zcvf foo.tar.gz foo.py")?
-            )
-            .add_key(
-                KeyId::from_str("70ca5750c2eda80b18f41f4ec5f92146789b5d68dd09577be422a0159bd13680")?
-            )
+            .expected_command(Command::from_str("tar zcvf foo.tar.gz foo.py")?)
+            .add_key(KeyId::from_str(
+                "70ca5750c2eda80b18f41f4ec5f92146789b5d68dd09577be422a0159bd13680",
+            )?)
             .threshold(1);
-        
+
         let json_serialize = serde_json::to_string(&step)?;
         let json = json!(
         {
@@ -181,7 +183,8 @@ mod test {
             ],
             "threshold": 1
           }
-        ).to_string();
+        )
+        .to_string();
         assert_eq!(json, json_serialize);
         Ok(())
     }

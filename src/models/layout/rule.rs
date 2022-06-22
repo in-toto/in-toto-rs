@@ -2,7 +2,11 @@ use std::collections::HashMap;
 use std::result::Result as StdResult;
 
 use lazy_static::lazy_static;
-use serde::{ser::{Serialize, SerializeSeq}, Deserialize, de::{self, Visitor, SeqAccess, Unexpected}};
+use serde::{
+    de::{self, SeqAccess, Unexpected, Visitor},
+    ser::{Serialize, SerializeSeq},
+    Deserialize,
+};
 
 use crate::{Error, Result};
 
@@ -36,13 +40,13 @@ lazy_static! {
 
 /// Helper to build an ArtifactRule as in-toto spec v0.9
 pub struct ArtifactRuleBuilder {
-    inner: HashMap<String, String>
-} 
+    inner: HashMap<String, String>,
+}
 
 impl ArtifactRuleBuilder {
     pub fn new() -> Self {
-        Self { 
-            inner: HashMap::new() 
+        Self {
+            inner: HashMap::new(),
         }
     }
 
@@ -63,14 +67,18 @@ impl ArtifactRuleBuilder {
     /// Set `<source-path-prefix>` for the rule.
     /// Only works for `MATCH` rule
     pub fn source_path_prefix(mut self, source_path_prefix: &str) -> Self {
-        self.inner.insert(SOURCE_PATH_PREFIX.to_owned(), source_path_prefix.to_owned());
+        self.inner
+            .insert(SOURCE_PATH_PREFIX.to_owned(), source_path_prefix.to_owned());
         self
     }
-    
+
     /// Set `<destination-path-prefix>` for the rule.
     /// Only works for `MATCH` rule
     pub fn destination_path_prefix(mut self, destination_path_prefix: &str) -> Self {
-        self.inner.insert(DESTINATION_PATH_PREFIX.to_owned(), destination_path_prefix.to_owned());
+        self.inner.insert(
+            DESTINATION_PATH_PREFIX.to_owned(),
+            destination_path_prefix.to_owned(),
+        );
         self
     }
 
@@ -90,27 +98,26 @@ impl ArtifactRuleBuilder {
 
     /// Set `<step>` for the rule.
     /// Only works for `MATCH` rule
-    pub fn step(mut self, step: &str) -> Self{
+    pub fn step(mut self, step: &str) -> Self {
         self.inner.insert(STEP.to_owned(), step.to_owned());
         self
     }
 
-    /// Check the parameters input for the Builder and 
+    /// Check the parameters input for the Builder and
     /// build ArtifactRule
     pub fn build(self) -> Result<ArtifactRule> {
-        let typ = self.inner
+        let typ = self
+            .inner
             .get(TYPE)
-            .ok_or(Error::Programming(
-                "ArtifactRule should have type".into(),
-            ))?
+            .ok_or(Error::Programming("ArtifactRule should have type".into()))?
             .to_owned();
-        
+
         // Check whether type is allowed
         if !RULE_TYPES.contains(&typ) {
             return Err(Error::Programming(
                 r"ArtifactRule's type should be one of :
-`MATCH`, 'CREATE', 'DELETE', 'MODIFY', 'ALLOW', 'REQUIRE' or 'DISALLOW'".
-                into(),
+            `MATCH`, 'CREATE', 'DELETE', 'MODIFY', 'ALLOW', 'REQUIRE' or 'DISALLOW'"
+                    .into(),
             ));
         }
 
@@ -133,13 +140,11 @@ impl ArtifactRuleBuilder {
                         "A match rule should be either MATERIALS or PRODUCTS".into(),
                     ));
                 }
-            },
-            _ => {},
+            }
+            _ => {}
         }
-        
-        Ok(ArtifactRule { 
-            inner: self.inner 
-        })
+
+        Ok(ArtifactRule { inner: self.inner })
     }
 }
 
@@ -149,73 +154,60 @@ pub struct ArtifactRule {
     inner: HashMap<String, String>,
 }
 
-impl ArtifactRule {
-    
-}
+impl ArtifactRule {}
 
 impl Serialize for ArtifactRule {
     fn serialize<S>(&self, serializer: S) -> StdResult<S::Ok, S::Error>
     where
-        S: serde::Serializer {
-            let typ = self.inner
-            .get(TYPE)
-            .unwrap()
-            .to_owned();
-            // here use unwrap() because when an ArtifactRule is
-            // successfully built from ArtifactRuleBuilder, the key 'TYPE' is
-            // ensured to exist in the inner map.
-            let pattern = self.inner
-                .get(PATTERN)
-                .unwrap()
-                .to_owned();
-            let mut statement = vec![typ.clone(), pattern];
+        S: serde::Serializer,
+    {
+        let typ = self.inner.get(TYPE).unwrap().to_owned();
+        // here use unwrap() because when an ArtifactRule is
+        // successfully built from ArtifactRuleBuilder, the key 'TYPE' is
+        // ensured to exist in the inner map.
+        let pattern = self.inner.get(PATTERN).unwrap().to_owned();
+        let mut statement = vec![typ.clone(), pattern];
 
-            match &typ[..] {
-                "MATCH" => {
-                    match self.inner.get(SOURCE_PATH_PREFIX) {
-                        Some(src) => {
-                            statement.push(IN.into());
-                            statement.push(src.into());
-                        },
-                        None => {},
+        match &typ[..] {
+            "MATCH" => {
+                match self.inner.get(SOURCE_PATH_PREFIX) {
+                    Some(src) => {
+                        statement.push(IN.into());
+                        statement.push(src.into());
                     }
+                    None => {}
+                }
 
-                    let target = self.inner
-                        .get(TARGET)
-                        .unwrap()
-                        .to_owned();
-                    statement.push(WITH.into());
-                    statement.push(target);
+                let target = self.inner.get(TARGET).unwrap().to_owned();
+                statement.push(WITH.into());
+                statement.push(target);
 
-                    match self.inner.get(DESTINATION_PATH_PREFIX) {
-                        Some(dst) => {
-                            statement.push("IN".into());
-                            statement.push(dst.into());
-                        },
-                        None => {},
+                match self.inner.get(DESTINATION_PATH_PREFIX) {
+                    Some(dst) => {
+                        statement.push("IN".into());
+                        statement.push(dst.into());
                     }
+                    None => {}
+                }
 
-                    let step = self.inner
-                        .get(STEP)
-                        .unwrap()
-                        .to_owned();
-                    statement.push(FROM.into());
-                    statement.push(step);
-                },
-                _ => {},
+                let step = self.inner.get(STEP).unwrap().to_owned();
+                statement.push(FROM.into());
+                statement.push(step);
             }
+            _ => {}
+        }
 
-            let len = Some(statement.len());
+        let len = Some(statement.len());
 
-            let mut seq = serializer.serialize_seq(len)?;
-            for e in statement {
-                seq.serialize_element(&e)?;
-            }
-            seq.end()
+        let mut seq = serializer.serialize_seq(len)?;
+        for e in statement {
+            seq.serialize_element(&e)?;
+        }
+        seq.end()
     }
 }
 
-struct ArtifactRuleVisitor{}
+struct ArtifactRuleVisitor {}
 
 impl ArtifactRuleVisitor {
     pub fn new() -> Self {
@@ -223,94 +215,113 @@ impl ArtifactRuleVisitor {
     }
 }
 
-impl <'de>Visitor<'de> for ArtifactRuleVisitor {
+impl<'de> Visitor<'de> for ArtifactRuleVisitor {
     type Value = ArtifactRule;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("An Artifact Rule for in-toto")
     }
 
-    fn visit_seq<V>(self, mut seq: V) -> StdResult<ArtifactRule, V::Error> 
+    fn visit_seq<V>(self, mut seq: V) -> StdResult<ArtifactRule, V::Error>
     where
-        V: SeqAccess<'de>
+        V: SeqAccess<'de>,
     {
         let mut len = 0;
-        let typ: String = seq.next_element()?
+        let typ: String = seq
+            .next_element()?
             .ok_or_else(|| de::Error::invalid_length(len, &self))?;
-        len+=1;
+        len += 1;
 
-        let pattern: String = seq.next_element()?
+        let pattern: String = seq
+            .next_element()?
             .ok_or_else(|| de::Error::invalid_length(len, &self))?;
-        len+=1;
-        let mut builder = ArtifactRuleBuilder::new()
-            .set_type(&typ)
-            .pattern(&pattern);
-        
+        len += 1;
+        let mut builder = ArtifactRuleBuilder::new().set_type(&typ).pattern(&pattern);
+
         match &typ[..] {
             "MATCH" => {
-                let in_or_with: String = seq.next_element()?
+                let in_or_with: String = seq
+                    .next_element()?
                     .ok_or_else(|| de::Error::invalid_length(len, &self))?;
-                len+=1;
+                len += 1;
 
                 match &in_or_with[..] {
                     "IN" => {
-                        let source_path_prefix: String = seq.next_element()?
+                        let source_path_prefix: String = seq
+                            .next_element()?
                             .ok_or_else(|| de::Error::invalid_length(len, &self))?;
-                        len+=1;
+                        len += 1;
                         builder = builder.source_path_prefix(&source_path_prefix);
 
-                        let in_: String = seq.next_element()?
+                        let in_: String = seq
+                            .next_element()?
                             .ok_or_else(|| de::Error::invalid_length(len, &self))?;
-                        len+=1;
+                        len += 1;
 
                         if in_ != WITH {
                             Err(de::Error::invalid_value(Unexpected::Str(&in_), &"IN"))?
                         }
-                    },
-                    "WITH" => {},
-                    _ => Err(de::Error::invalid_value(Unexpected::Str(&in_or_with), &"WITH or IN"))?
+                    }
+                    "WITH" => {}
+                    _ => {
+                        return Err(de::Error::invalid_value(
+                            Unexpected::Str(&in_or_with),
+                            &"WITH or IN",
+                        ))
+                    }
                 }
-                
-                let target: String = seq.next_element()?
+
+                let target: String = seq
+                    .next_element()?
                     .ok_or_else(|| de::Error::invalid_length(len, &self))?;
-                len+=1;
+                len += 1;
 
                 match &target[..] {
-                    "MATERIALS" => 
-                        builder = builder.materials(),
-                    "PRODUCTS" =>
-                        builder = builder.products(),
-                    _ => Err(de::Error::invalid_value(Unexpected::Str(&target), &"MATERIALS or PRODUCTS"))?
+                    "MATERIALS" => builder = builder.materials(),
+                    "PRODUCTS" => builder = builder.products(),
+                    _ => Err(de::Error::invalid_value(
+                        Unexpected::Str(&target),
+                        &"MATERIALS or PRODUCTS",
+                    ))?,
                 };
 
-                let in_or_from: String = seq.next_element()?
+                let in_or_from: String = seq
+                    .next_element()?
                     .ok_or_else(|| de::Error::invalid_length(len, &self))?;
-                len+=1;
+                len += 1;
 
                 match &in_or_from[..] {
                     "IN" => {
-                        let destination_path_prefix: String = seq.next_element()?
+                        let destination_path_prefix: String = seq
+                            .next_element()?
                             .ok_or_else(|| de::Error::invalid_length(len, &self))?;
-                        len+=1;
+                        len += 1;
                         builder = builder.destination_path_prefix(&destination_path_prefix);
 
-                        let from_: String = seq.next_element()?
+                        let from_: String = seq
+                            .next_element()?
                             .ok_or_else(|| de::Error::invalid_length(len, &self))?;
-                        len+=1;
+                        len += 1;
 
                         if from_ != FROM {
-                            Err(de::Error::invalid_value(Unexpected::Str(&from_), &"FROM"))?
+                            return Err(de::Error::invalid_value(Unexpected::Str(&from_), &"FROM"));
                         }
-                    },
-                    "FROM" => {},
-                    _ => Err(de::Error::invalid_value(Unexpected::Str(&in_or_from), &"IN or FROM"))?
+                    }
+                    "FROM" => {}
+                    _ => {
+                        return Err(de::Error::invalid_value(
+                            Unexpected::Str(&in_or_from),
+                            &"IN or FROM",
+                        ));
+                    }
                 };
 
-                let step: String = seq.next_element()?
+                let step: String = seq
+                    .next_element()?
                     .ok_or_else(|| de::Error::invalid_length(len, &self))?;
 
                 builder = builder.step(&step);
-            },
+            }
             _ => {}
         }
 
@@ -321,10 +332,11 @@ impl <'de>Visitor<'de> for ArtifactRuleVisitor {
     }
 }
 
-impl <'de>Deserialize<'de> for ArtifactRule {
+impl<'de> Deserialize<'de> for ArtifactRule {
     fn deserialize<D>(deserializer: D) -> StdResult<Self, D::Error>
     where
-        D: serde::Deserializer<'de> {
+        D: serde::Deserializer<'de>,
+    {
         deserializer.deserialize_struct("ArtifactRule", &["inner"], ArtifactRuleVisitor::new())
     }
 }
@@ -333,7 +345,7 @@ impl <'de>Deserialize<'de> for ArtifactRule {
 pub mod test {
     use serde_json::json;
 
-    use super::{ArtifactRuleBuilder, ArtifactRule};
+    use super::{ArtifactRule, ArtifactRuleBuilder};
 
     /// generate a ARTIFACT_RULE as json:
     /// `[
@@ -422,7 +434,7 @@ pub mod test {
             .step("build")
             .build()
             .unwrap();
-        
+
         let json = json!([
             "MATCH",
             "./",
@@ -434,7 +446,8 @@ pub mod test {
             "dst",
             "FROM",
             "build"
-        ]).to_string();
+        ])
+        .to_string();
 
         let json_generated = serde_json::to_string(&rule).unwrap();
         assert_eq!(json, json_generated);
@@ -450,7 +463,7 @@ pub mod test {
             .step("build")
             .build()
             .unwrap();
-        
+
         let json = json!([
             "MATCH",
             "./",
@@ -460,7 +473,8 @@ pub mod test {
             "dst",
             "FROM",
             "build"
-        ]).to_string();
+        ])
+        .to_string();
 
         let json_generated = serde_json::to_string(&rule).unwrap();
         assert_eq!(json, json_generated);
@@ -476,7 +490,7 @@ pub mod test {
             .step("build")
             .build()
             .unwrap();
-        
+
         let json = json!([
             "MATCH",
             "./",
@@ -486,7 +500,8 @@ pub mod test {
             "MATERIALS",
             "FROM",
             "build"
-        ]).to_string();
+        ])
+        .to_string();
 
         let json_generated = serde_json::to_string(&rule).unwrap();
         assert_eq!(json, json_generated);
@@ -499,13 +514,10 @@ pub mod test {
             .pattern("./artifact")
             .build()
             .unwrap();
-        
-        let json = json!([
-                "CREATE",
-                "./artifact",
-        ]).to_string();
+
+        let json = json!(["CREATE", "./artifact"]).to_string();
         let json_generated = serde_json::to_string(&rule).unwrap();
-            assert_eq!(json, json_generated);
+        assert_eq!(json, json_generated);
     }
 
     #[test]
@@ -531,7 +543,7 @@ pub mod test {
             .step("package")
             .build()
             .unwrap();
-        
+
         let rule_parsed: ArtifactRule = serde_json::from_str(json).unwrap();
         assert_eq!(rule, rule_parsed);
     }
@@ -556,7 +568,7 @@ pub mod test {
             .step("package")
             .build()
             .unwrap();
-        
+
         let rule_parsed: ArtifactRule = serde_json::from_str(json).unwrap();
         assert_eq!(rule, rule_parsed);
     }
@@ -581,7 +593,7 @@ pub mod test {
             .step("package")
             .build()
             .unwrap();
-        
+
         let rule_parsed: ArtifactRule = serde_json::from_str(json).unwrap();
         assert_eq!(rule, rule_parsed);
     }
@@ -597,7 +609,7 @@ pub mod test {
             .pattern("foo.pyc")
             .build()
             .unwrap();
-        
+
         let rule_parsed: ArtifactRule = serde_json::from_str(json).unwrap();
         assert_eq!(rule, rule_parsed);
     }

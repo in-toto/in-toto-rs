@@ -87,9 +87,12 @@ mod test {
     use chrono::{DateTime, NaiveDateTime, Utc};
     use serde_json::json;
 
-    use crate::{models::layout::format_datetime, crypto::PublicKey};
+    use crate::{crypto::PublicKey, models::layout::format_datetime};
 
-    use super::{parse_datetime, LayoutMetadataBuilder, step::Step, rule::ArtifactRuleBuilder, inspection::Inspection, Layout, LayoutMetadata};
+    use super::{
+        inspection::Inspection, parse_datetime, rule::ArtifactRuleBuilder, step::Step, Layout,
+        LayoutMetadataBuilder,
+    };
 
     const ALICE_PUB_KEY: &'static [u8] = include_bytes!("../../../tests/ed25519/ed25519-1.pub");
     const BOB_PUB_KEY: &'static [u8] = include_bytes!("../../../tests/rsa/rsa-4096.spki.der");
@@ -112,9 +115,14 @@ mod test {
 
     fn get_example_layout_metadata() -> Layout {
         let alice_key = PublicKey::from_ed25519(ALICE_PUB_KEY).unwrap();
-        let bob_key = PublicKey::from_spki(BOB_PUB_KEY, crate::crypto::SignatureScheme::RsaSsaPssSha256).unwrap();
+        let bob_key =
+            PublicKey::from_spki(BOB_PUB_KEY, crate::crypto::SignatureScheme::RsaSsaPssSha256)
+                .unwrap();
         let metadata = LayoutMetadataBuilder::new()
-            .expires(DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(0, 0), Utc))
+            .expires(DateTime::<Utc>::from_utc(
+                NaiveDateTime::from_timestamp(0, 0),
+                Utc,
+            ))
             .add_key(alice_key.clone())
             .add_key(bob_key.clone())
             .add_step(
@@ -125,10 +133,10 @@ mod test {
                             .set_type("CREATE")
                             .pattern("foo.py")
                             .build()
-                            .unwrap()
+                            .unwrap(),
                     )
                     .add_key(alice_key.key_id().to_owned())
-                    .expected_command("vi".into())
+                    .expected_command("vi".into()),
             )
             .add_step(
                 Step::new("package")
@@ -140,17 +148,17 @@ mod test {
                             .products()
                             .step("write-code")
                             .build()
-                            .unwrap()
+                            .unwrap(),
                     )
                     .add_expected_product(
                         ArtifactRuleBuilder::new()
                             .set_type("CREATE")
                             .pattern("foo.tar.gz")
                             .build()
-                            .unwrap()
+                            .unwrap(),
                     )
                     .add_key(bob_key.key_id().to_owned())
-                    .expected_command("tar zcvf foo.tar.gz foo.py".into())
+                    .expected_command("tar zcvf foo.tar.gz foo.py".into()),
             )
             .add_inspect(
                 Inspection::new("inspect_tarball")
@@ -161,7 +169,7 @@ mod test {
                             .products()
                             .step("package")
                             .build()
-                            .unwrap()
+                            .unwrap(),
                     )
                     .add_expected_product(
                         ArtifactRuleBuilder::new()
@@ -170,9 +178,9 @@ mod test {
                             .products()
                             .step("write-code")
                             .build()
-                            .unwrap()
+                            .unwrap(),
                     )
-                    .run("inspect_tarball.sh foo.tar.gz".into())
+                    .run("inspect_tarball.sh foo.tar.gz".into()),
             )
             .readme("".into())
             .build()
@@ -183,7 +191,7 @@ mod test {
     #[test]
     fn serialize_layout() {
         let layout = get_example_layout_metadata();
-        let json = json!({ 
+        let json = json!({
             "_type" : "layout",
             "expires" : "1970-01-01T00:00:00Z",
             "keys" : {
@@ -249,7 +257,7 @@ mod test {
         });
 
         let json_serialize = serde_json::to_value(&layout).unwrap();
-        assert_eq!(json, json_serialize, "{:#?} != {:#?}", json, json_serialize);    
+        assert_eq!(json, json_serialize, "{:#?} != {:#?}", json, json_serialize);
     }
 
     #[test]

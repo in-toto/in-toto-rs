@@ -48,7 +48,7 @@ impl LayoutMetadataBuilder {
         self.expires = expires;
         self
     }
-    
+
     /// Set readme field fot this layout
     pub fn readme(mut self, readme: String) -> Self {
         self.readme = readme;

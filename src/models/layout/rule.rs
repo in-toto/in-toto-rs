@@ -152,6 +152,23 @@ impl ArtifactRuleBuilder {
 }
 
 /// ARTIFACT_RULE in section 4.3.3 of in-toto spec v0.9
+/// # Instantiation and Deserialization
+/// ```no_run
+/// # use serde_json::Error;
+/// # use in_toto::models::rule::{ArtifactRule, ArtifactRuleBuilder};
+///
+/// # fn main() {
+/// let rule = ArtifactRuleBuilder::new()
+///     .set_type("CREATE")
+///     .pattern("foo.py")
+///     .build()
+///     .unwrap();
+///
+/// let rule_raw = r#"[["CREATE"], ["foo.py"]]"#;
+/// let rule_parsed: ArtifactRule = serde_json::from_str(rule_raw).unwrap();
+/// assert_eq!(rule, rule_parsed);
+/// # }
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct ArtifactRule {
     inner: HashMap<String, String>,
@@ -207,6 +224,7 @@ impl Serialize for ArtifactRule {
     }
 }
 
+/// Visitor helps to deserialize `ArtifactRule`
 struct ArtifactRuleVisitor {}
 
 impl ArtifactRuleVisitor {
@@ -222,6 +240,7 @@ impl<'de> Visitor<'de> for ArtifactRuleVisitor {
         formatter.write_str("An Artifact Rule for in-toto")
     }
 
+    /// Deserialize a sequence to an `ArtifactRule`.
     fn visit_seq<V>(self, mut seq: V) -> StdResult<ArtifactRule, V::Error>
     where
         V: SeqAccess<'de>,

@@ -120,9 +120,9 @@ impl Step {
     }
 
     /// Add an expected product artifact rule to this Step
-    pub fn add_expected_products(mut self, expected_product: ArtifactRule) -> Self {
+    pub fn add_expected_product(mut self, expected_product: ArtifactRule) -> Self {
         self.supply_chain_item
-            .add_expected_products(expected_product);
+            .add_expected_product(expected_product);
         self
     }
 
@@ -155,7 +155,7 @@ mod test {
                     .step("write-code")
                     .build()?,
             )
-            .add_expected_products(
+            .add_expected_product(
                 ArtifactRuleBuilder::new()
                     .set_type("CREATE")
                     .pattern("foo.tar.gz")
@@ -215,7 +215,7 @@ mod test {
                     .step("write-code")
                     .build()?,
             )
-            .add_expected_products(
+            .add_expected_product(
                 ArtifactRuleBuilder::new()
                     .set_type("CREATE")
                     .pattern("foo.tar.gz")

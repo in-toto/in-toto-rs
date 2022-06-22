@@ -34,7 +34,7 @@ impl SupplyChainItem {
     }
 
     /// Add an expected product artifact rule to this SupplyChainItem
-    pub fn add_expected_products(&mut self, expected_product: ArtifactRule) {
+    pub fn add_expected_product(&mut self, expected_product: ArtifactRule) {
         self.expected_products.push(expected_product);
     }
 

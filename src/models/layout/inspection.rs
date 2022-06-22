@@ -40,9 +40,9 @@ impl Inspection {
     }
 
     /// Add an expected product artifact rule to this Inspection
-    pub fn add_expected_products(mut self, expected_product: ArtifactRule) -> Self {
+    pub fn add_expected_product(mut self, expected_product: ArtifactRule) -> Self {
         self.supply_chain_item
-            .add_expected_products(expected_product);
+            .add_expected_product(expected_product);
         self
     }
 
@@ -98,7 +98,7 @@ mod test {
         .to_string();
         let inspection = Inspection::new("test_inspect")
             .add_expected_material(generate_materials_rule())
-            .add_expected_products(generate_products_rule())
+            .add_expected_product(generate_products_rule())
             .run("ls -al".into());
 
         let json_serialized = serde_json::to_string(&inspection).unwrap();
@@ -142,7 +142,7 @@ mod test {
 
         let inspection = Inspection::new("test_inspect")
             .add_expected_material(generate_materials_rule())
-            .add_expected_products(generate_products_rule())
+            .add_expected_product(generate_products_rule())
             .run("ls -al".into());
         let inspection_parsed: Inspection = serde_json::from_str(json).unwrap();
         assert_eq!(inspection_parsed, inspection);

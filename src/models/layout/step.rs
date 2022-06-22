@@ -13,18 +13,12 @@ use super::rule::ArtifactRule;
 use super::supply_chain_item::SupplyChainItem;
 
 /// Wrapper type for a command in step.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 pub struct Command(String);
 
-impl Default for Command {
-    fn default() -> Self {
-        Self(Default::default())
-    }
-}
-
-impl Into<String> for Command {
-    fn into(self) -> String {
-        String::from(self.0)
+impl From<String> for Command {
+    fn from(str: String) -> Self {
+        Command(str)
     }
 }
 

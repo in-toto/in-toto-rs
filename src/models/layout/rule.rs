@@ -43,6 +43,12 @@ pub struct ArtifactRuleBuilder {
     inner: HashMap<String, String>,
 }
 
+impl Default for ArtifactRuleBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ArtifactRuleBuilder {
     pub fn new() -> Self {
         Self {
@@ -109,7 +115,7 @@ impl ArtifactRuleBuilder {
         let typ = self
             .inner
             .get(TYPE)
-            .ok_or(Error::Programming("ArtifactRule should have type".into()))?
+            .ok_or_else(|| Error::Programming("ArtifactRule should have type".into()))?
             .to_owned();
 
         // Check whether type is allowed
@@ -127,21 +133,18 @@ impl ArtifactRuleBuilder {
             ));
         }
 
-        match &typ[..] {
-            "MATCH" => {
-                if !self.inner.contains_key(STEP) {
-                    return Err(Error::Programming(
-                        "A match rule should have a <step> field".into(),
-                    ));
-                }
-
-                if !self.inner.contains_key(TARGET) {
-                    return Err(Error::Programming(
-                        "A match rule should be either MATERIALS or PRODUCTS".into(),
-                    ));
-                }
+        if &typ[..] == "MATCH" {
+            if !self.inner.contains_key(STEP) {
+                return Err(Error::Programming(
+                    "A match rule should have a <step> field".into(),
+                ));
             }
-            _ => {}
+
+            if !self.inner.contains_key(TARGET) {
+                return Err(Error::Programming(
+                    "A match rule should be either MATERIALS or PRODUCTS".into(),
+                ));
+            }
         }
 
         Ok(ArtifactRule { inner: self.inner })
@@ -168,33 +171,30 @@ impl Serialize for ArtifactRule {
         let pattern = self.inner.get(PATTERN).unwrap().to_owned();
         let mut statement = vec![typ.clone(), pattern];
 
-        match &typ[..] {
-            "MATCH" => {
-                match self.inner.get(SOURCE_PATH_PREFIX) {
-                    Some(src) => {
-                        statement.push(IN.into());
-                        statement.push(src.into());
-                    }
-                    None => {}
+        if &typ[..] == "MATCH" {
+            match self.inner.get(SOURCE_PATH_PREFIX) {
+                Some(src) => {
+                    statement.push(IN.into());
+                    statement.push(src.into());
                 }
-
-                let target = self.inner.get(TARGET).unwrap().to_owned();
-                statement.push(WITH.into());
-                statement.push(target);
-
-                match self.inner.get(DESTINATION_PATH_PREFIX) {
-                    Some(dst) => {
-                        statement.push("IN".into());
-                        statement.push(dst.into());
-                    }
-                    None => {}
-                }
-
-                let step = self.inner.get(STEP).unwrap().to_owned();
-                statement.push(FROM.into());
-                statement.push(step);
+                None => {}
             }
-            _ => {}
+
+            let target = self.inner.get(TARGET).unwrap().to_owned();
+            statement.push(WITH.into());
+            statement.push(target);
+
+            match self.inner.get(DESTINATION_PATH_PREFIX) {
+                Some(dst) => {
+                    statement.push("IN".into());
+                    statement.push(dst.into());
+                }
+                None => {}
+            }
+
+            let step = self.inner.get(STEP).unwrap().to_owned();
+            statement.push(FROM.into());
+            statement.push(step);
         }
 
         let len = Some(statement.len());
@@ -238,91 +238,88 @@ impl<'de> Visitor<'de> for ArtifactRuleVisitor {
         len += 1;
         let mut builder = ArtifactRuleBuilder::new().set_type(&typ).pattern(&pattern);
 
-        match &typ[..] {
-            "MATCH" => {
-                let in_or_with: String = seq
-                    .next_element()?
-                    .ok_or_else(|| de::Error::invalid_length(len, &self))?;
-                len += 1;
+        if &typ[..] == "MATCH" {
+            let in_or_with: String = seq
+                .next_element()?
+                .ok_or_else(|| de::Error::invalid_length(len, &self))?;
+            len += 1;
 
-                match &in_or_with[..] {
-                    "IN" => {
-                        let source_path_prefix: String = seq
-                            .next_element()?
-                            .ok_or_else(|| de::Error::invalid_length(len, &self))?;
-                        len += 1;
-                        builder = builder.source_path_prefix(&source_path_prefix);
+            match &in_or_with[..] {
+                "IN" => {
+                    let source_path_prefix: String = seq
+                        .next_element()?
+                        .ok_or_else(|| de::Error::invalid_length(len, &self))?;
+                    len += 1;
+                    builder = builder.source_path_prefix(&source_path_prefix);
 
-                        let in_: String = seq
-                            .next_element()?
-                            .ok_or_else(|| de::Error::invalid_length(len, &self))?;
-                        len += 1;
+                    let in_: String = seq
+                        .next_element()?
+                        .ok_or_else(|| de::Error::invalid_length(len, &self))?;
+                    len += 1;
 
-                        if in_ != WITH {
-                            Err(de::Error::invalid_value(Unexpected::Str(&in_), &"IN"))?
-                        }
-                    }
-                    "WITH" => {}
-                    _ => {
-                        return Err(de::Error::invalid_value(
-                            Unexpected::Str(&in_or_with),
-                            &"WITH or IN",
-                        ))
+                    if in_ != WITH {
+                        Err(de::Error::invalid_value(Unexpected::Str(&in_), &"IN"))?
                     }
                 }
-
-                let target: String = seq
-                    .next_element()?
-                    .ok_or_else(|| de::Error::invalid_length(len, &self))?;
-                len += 1;
-
-                match &target[..] {
-                    "MATERIALS" => builder = builder.materials(),
-                    "PRODUCTS" => builder = builder.products(),
-                    _ => Err(de::Error::invalid_value(
-                        Unexpected::Str(&target),
-                        &"MATERIALS or PRODUCTS",
-                    ))?,
-                };
-
-                let in_or_from: String = seq
-                    .next_element()?
-                    .ok_or_else(|| de::Error::invalid_length(len, &self))?;
-                len += 1;
-
-                match &in_or_from[..] {
-                    "IN" => {
-                        let destination_path_prefix: String = seq
-                            .next_element()?
-                            .ok_or_else(|| de::Error::invalid_length(len, &self))?;
-                        len += 1;
-                        builder = builder.destination_path_prefix(&destination_path_prefix);
-
-                        let from_: String = seq
-                            .next_element()?
-                            .ok_or_else(|| de::Error::invalid_length(len, &self))?;
-                        len += 1;
-
-                        if from_ != FROM {
-                            return Err(de::Error::invalid_value(Unexpected::Str(&from_), &"FROM"));
-                        }
-                    }
-                    "FROM" => {}
-                    _ => {
-                        return Err(de::Error::invalid_value(
-                            Unexpected::Str(&in_or_from),
-                            &"IN or FROM",
-                        ));
-                    }
-                };
-
-                let step: String = seq
-                    .next_element()?
-                    .ok_or_else(|| de::Error::invalid_length(len, &self))?;
-
-                builder = builder.step(&step);
+                "WITH" => {}
+                _ => {
+                    return Err(de::Error::invalid_value(
+                        Unexpected::Str(&in_or_with),
+                        &"WITH or IN",
+                    ))
+                }
             }
-            _ => {}
+
+            let target: String = seq
+                .next_element()?
+                .ok_or_else(|| de::Error::invalid_length(len, &self))?;
+            len += 1;
+
+            match &target[..] {
+                "MATERIALS" => builder = builder.materials(),
+                "PRODUCTS" => builder = builder.products(),
+                _ => Err(de::Error::invalid_value(
+                    Unexpected::Str(&target),
+                    &"MATERIALS or PRODUCTS",
+                ))?,
+            };
+
+            let in_or_from: String = seq
+                .next_element()?
+                .ok_or_else(|| de::Error::invalid_length(len, &self))?;
+            len += 1;
+
+            match &in_or_from[..] {
+                "IN" => {
+                    let destination_path_prefix: String = seq
+                        .next_element()?
+                        .ok_or_else(|| de::Error::invalid_length(len, &self))?;
+                    len += 1;
+                    builder = builder.destination_path_prefix(&destination_path_prefix);
+
+                    let from_: String = seq
+                        .next_element()?
+                        .ok_or_else(|| de::Error::invalid_length(len, &self))?;
+                    len += 1;
+
+                    if from_ != FROM {
+                        return Err(de::Error::invalid_value(Unexpected::Str(&from_), &"FROM"));
+                    }
+                }
+                "FROM" => {}
+                _ => {
+                    return Err(de::Error::invalid_value(
+                        Unexpected::Str(&in_or_from),
+                        &"IN or FROM",
+                    ));
+                }
+            };
+
+            let step: String = seq
+                .next_element()?
+                .ok_or_else(|| de::Error::invalid_length(len, &self))?;
+
+            builder = builder.step(&step);
         }
 
         match builder.build() {

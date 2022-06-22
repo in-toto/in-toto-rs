@@ -49,6 +49,12 @@ impl LayoutMetadataBuilder {
         self
     }
     
+    /// Set readme field fot this layout
+    pub fn readme(mut self, readme: String) -> Self {
+        self.readme = readme;
+        self
+    }
+
     /// Add new step to this layout
     pub fn add_step(mut self, step: Step) -> Self {
         self.steps.push(step);

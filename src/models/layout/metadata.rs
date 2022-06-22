@@ -43,6 +43,12 @@ impl LayoutMetadataBuilder {
         }
     }
 
+    /// Set expire time for this layout
+    pub fn expires(mut self, expires: DateTime<Utc>) -> Self {
+        self.expires = expires;
+        self
+    }
+    
     /// Add new step to this layout
     pub fn add_step(mut self, step: Step) -> Self {
         self.steps.push(step);

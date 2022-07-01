@@ -9,68 +9,24 @@ use serde_derive::{Deserialize, Serialize};
 use crate::crypto::KeyId;
 use crate::{Error, Result};
 
-/// TODO ArtifactRule
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct ArtifactRule {}
-
-/// SupplyChainItem summarizes common fields of the two available supply chain
-/// item types in Inspection and Step.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct SupplyChainItem {
-    name: String,
-    expected_materials: Vec<ArtifactRule>,
-    expected_products: Vec<ArtifactRule>,
-}
-
-impl SupplyChainItem {
-    /// Create new `SupplyChainItem`.
-    pub fn new(name: String) -> Self {
-        SupplyChainItem {
-            name,
-            expected_materials: Vec::new(),
-            expected_products: Vec::new(),
-        }
-    }
-
-    /// Add an expected material artifact rule to this SupplyChainItem
-    pub fn add_expected_material(&mut self, expected_material: ArtifactRule) {
-        self.expected_materials.push(expected_material);
-    }
-
-    /// Set expected materials for this SupplyChainItem
-    pub fn set_expected_materials(&mut self, expected_materials: Vec<ArtifactRule>) {
-        self.expected_materials = expected_materials;
-    }
-
-    /// Add an expected product artifact rule to this SupplyChainItem
-    pub fn add_expected_products(&mut self, expected_product: ArtifactRule) {
-        self.expected_products.push(expected_product);
-    }
-
-    /// Set expected products for this SupplyChainItem
-    pub fn set_expected_products(&mut self, expected_products: Vec<ArtifactRule>) {
-        self.expected_products = expected_products;
-    }
-
-    /// Artifact name of this SupplyChainItem
-    pub fn name(&self) -> &String {
-        &self.name
-    }
-
-    /// Expected materials of this SupplyChainItem
-    pub fn expected_materials(&self) -> &Vec<ArtifactRule> {
-        &self.expected_materials
-    }
-
-    /// Expected products of this SupplyChainItem
-    pub fn expected_products(&self) -> &Vec<ArtifactRule> {
-        &self.expected_products
-    }
-}
+use super::rule::ArtifactRule;
+use super::supply_chain_item::SupplyChainItem;
 
 /// Wrapper type for a command in step.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 pub struct Command(String);
+
+impl From<String> for Command {
+    fn from(str: String) -> Self {
+        Command(str)
+    }
+}
+
+impl From<&str> for Command {
+    fn from(str: &str) -> Self {
+        Command(str.to_string())
+    }
+}
 
 impl FromStr for Command {
     type Err = Error;
@@ -106,13 +62,18 @@ impl<'de> Deserialize<'de> for Command {
 /// expected_products fields.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Step {
-    #[serde(rename = "_type")]
+    #[serde(skip, default = "default_step")]
     typ: String,
-    pub_keys: Vec<KeyId>,
-    expected_command: Vec<Command>,
     threshold: u32,
     #[serde(flatten)]
     supply_chain_item: SupplyChainItem,
+    #[serde(rename = "pubkeys")]
+    pub_keys: Vec<KeyId>,
+    expected_command: Command,
+}
+
+fn default_step() -> String {
+    "step".to_string()
 }
 
 impl Step {
@@ -120,7 +81,7 @@ impl Step {
         Step {
             typ: "step".into(),
             pub_keys: Vec::new(),
-            expected_command: Vec::new(),
+            expected_command: Command::default(),
             threshold: 0,
             supply_chain_item: SupplyChainItem::new(name.into()),
         }
@@ -132,9 +93,9 @@ impl Step {
         self
     }
 
-    /// Add a expected command for this Step
-    pub fn add_expected_command(mut self, command: Command) -> Self {
-        self.expected_command.push(command);
+    /// Set expected command for this Step
+    pub fn expected_command(mut self, command: Command) -> Self {
+        self.expected_command = command;
         self
     }
 
@@ -159,9 +120,9 @@ impl Step {
     }
 
     /// Add an expected product artifact rule to this Step
-    pub fn add_expected_products(mut self, expected_product: ArtifactRule) -> Self {
+    pub fn add_expected_product(mut self, expected_product: ArtifactRule) -> Self {
         self.supply_chain_item
-            .add_expected_products(expected_product);
+            .add_expected_product(expected_product);
         self
     }
 
@@ -170,5 +131,102 @@ impl Step {
         self.supply_chain_item
             .set_expected_products(expected_products);
         self
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::str::FromStr;
+
+    use serde_json::json;
+
+    use crate::{crypto::KeyId, models::rule::ArtifactRuleBuilder, Result};
+
+    use super::Step;
+
+    #[test]
+    fn serialize_step() -> Result<()> {
+        let step = Step::new("package")
+            .add_expected_material(
+                ArtifactRuleBuilder::new()
+                    .rule("MATCH")
+                    .pattern("foo.py")
+                    .with_products()
+                    .from_step("write-code")
+                    .build()?,
+            )
+            .add_expected_product(
+                ArtifactRuleBuilder::new()
+                    .rule("CREATE")
+                    .pattern("foo.tar.gz")
+                    .build()?,
+            )
+            .expected_command("tar zcvf foo.tar.gz foo.py".into())
+            .add_key(KeyId::from_str(
+                "70ca5750c2eda80b18f41f4ec5f92146789b5d68dd09577be422a0159bd13680",
+            )?)
+            .threshold(1);
+
+        let json_serialize = serde_json::to_value(&step)?;
+        let json = json!(
+        {
+            "_name": "package",
+            "expected_materials": [
+               ["MATCH", "foo.py", "WITH", "PRODUCTS", "FROM", "write-code"]
+            ],
+            "expected_products": [
+               ["CREATE", "foo.tar.gz"]
+            ],
+            "expected_command": "tar zcvf foo.tar.gz foo.py",
+            "pubkeys": [
+               "70ca5750c2eda80b18f41f4ec5f92146789b5d68dd09577be422a0159bd13680"
+            ],
+            "threshold": 1
+          }
+        );
+        assert_eq!(json, json_serialize, "{:#?} != {:#?}", json, json_serialize);
+        Ok(())
+    }
+
+    #[test]
+    fn deserialize_step() -> Result<()> {
+        let json = r#"
+        {
+            "_name": "package",
+            "expected_materials": [
+               ["MATCH", "foo.py", "WITH", "PRODUCTS", "FROM", "write-code"]
+            ],
+            "expected_products": [
+               ["CREATE", "foo.tar.gz"]
+            ],
+            "expected_command": "tar zcvf foo.tar.gz foo.py",
+            "pubkeys": [
+               "70ca5750c2eda80b18f41f4ec5f92146789b5d68dd09577be422a0159bd13680"
+            ],
+            "threshold": 1
+          }"#;
+        let step_parsed: Step = serde_json::from_str(json)?;
+        let step = Step::new("package")
+            .add_expected_material(
+                ArtifactRuleBuilder::new()
+                    .rule("MATCH")
+                    .pattern("foo.py")
+                    .with_products()
+                    .from_step("write-code")
+                    .build()?,
+            )
+            .add_expected_product(
+                ArtifactRuleBuilder::new()
+                    .rule("CREATE")
+                    .pattern("foo.tar.gz")
+                    .build()?,
+            )
+            .expected_command("tar zcvf foo.tar.gz foo.py".into())
+            .add_key(KeyId::from_str(
+                "70ca5750c2eda80b18f41f4ec5f92146789b5d68dd09577be422a0159bd13680",
+            )?)
+            .threshold(1);
+        assert_eq!(step_parsed, step);
+        Ok(())
     }
 }

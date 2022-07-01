@@ -1,5 +1,6 @@
 //! Models used in in-toto
 
+mod envelope;
 mod helpers;
 mod layout;
 mod link;

@@ -130,7 +130,7 @@ mod test {
                     .threshold(1)
                     .add_expected_product(
                         ArtifactRuleBuilder::new()
-                            .set_type("CREATE")
+                            .rule("CREATE")
                             .pattern("foo.py")
                             .build()
                             .unwrap(),
@@ -143,16 +143,16 @@ mod test {
                     .threshold(1)
                     .add_expected_material(
                         ArtifactRuleBuilder::new()
-                            .set_type("MATCH")
+                            .rule("MATCH")
                             .pattern("foo.py")
-                            .products()
-                            .step("write-code")
+                            .with_products()
+                            .from_step("write-code")
                             .build()
                             .unwrap(),
                     )
                     .add_expected_product(
                         ArtifactRuleBuilder::new()
-                            .set_type("CREATE")
+                            .rule("CREATE")
                             .pattern("foo.tar.gz")
                             .build()
                             .unwrap(),
@@ -164,19 +164,19 @@ mod test {
                 Inspection::new("inspect_tarball")
                     .add_expected_material(
                         ArtifactRuleBuilder::new()
-                            .set_type("MATCH")
+                            .rule("MATCH")
                             .pattern("foo.tar.gz")
-                            .products()
-                            .step("package")
+                            .with_products()
+                            .from_step("package")
                             .build()
                             .unwrap(),
                     )
                     .add_expected_product(
                         ArtifactRuleBuilder::new()
-                            .set_type("MATCH")
+                            .rule("MATCH")
                             .pattern("foo.py")
-                            .products()
-                            .step("write-code")
+                            .with_products()
+                            .from_step("write-code")
                             .build()
                             .unwrap(),
                     )

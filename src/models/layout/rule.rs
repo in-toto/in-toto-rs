@@ -59,7 +59,7 @@ impl ArtifactRuleBuilder {
     /// Set Rule type for the rule.
     /// Can be one of `MATCH`, `CREATE`, `DELETE`
     /// `MODIFY`, `ALLOW`, `REQUIRE` or `DISALLOW`
-    pub fn set_type(mut self, typ: &str) -> Self {
+    pub fn rule(mut self, typ: &str) -> Self {
         self.inner.insert(TYPE.to_owned(), typ.to_owned());
         self
     }
@@ -72,7 +72,7 @@ impl ArtifactRuleBuilder {
 
     /// Set `<source-path-prefix>` for the rule.
     /// Only works for `MATCH` rule
-    pub fn source_path_prefix(mut self, source_path_prefix: &str) -> Self {
+    pub fn in_source_path_prefix(mut self, source_path_prefix: &str) -> Self {
         self.inner
             .insert(SOURCE_PATH_PREFIX.to_owned(), source_path_prefix.to_owned());
         self
@@ -80,7 +80,7 @@ impl ArtifactRuleBuilder {
 
     /// Set `<destination-path-prefix>` for the rule.
     /// Only works for `MATCH` rule
-    pub fn destination_path_prefix(mut self, destination_path_prefix: &str) -> Self {
+    pub fn in_destination_path_prefix(mut self, destination_path_prefix: &str) -> Self {
         self.inner.insert(
             DESTINATION_PATH_PREFIX.to_owned(),
             destination_path_prefix.to_owned(),
@@ -90,21 +90,21 @@ impl ArtifactRuleBuilder {
 
     /// Set thr rule's check target is `MATERIALS`.
     /// Only works for `MATCH` rule
-    pub fn materials(mut self) -> Self {
+    pub fn with_materials(mut self) -> Self {
         self.inner.insert(TARGET.to_owned(), MATERIALS.to_owned());
         self
     }
 
     /// Set thr rule's check target is `PRODUCTS`.
     /// Only works for `MATCH` rule
-    pub fn products(mut self) -> Self {
+    pub fn with_products(mut self) -> Self {
         self.inner.insert(TARGET.to_owned(), PRODUCTS.to_owned());
         self
     }
 
     /// Set `<step>` for the rule.
     /// Only works for `MATCH` rule
-    pub fn step(mut self, step: &str) -> Self {
+    pub fn from_step(mut self, step: &str) -> Self {
         self.inner.insert(STEP.to_owned(), step.to_owned());
         self
     }
@@ -159,7 +159,7 @@ impl ArtifactRuleBuilder {
 ///
 /// # fn main() {
 /// let rule = ArtifactRuleBuilder::new()
-///     .set_type("CREATE")
+///     .rule("CREATE")
 ///     .pattern("foo.py")
 ///     .build()
 ///     .unwrap();
@@ -255,7 +255,7 @@ impl<'de> Visitor<'de> for ArtifactRuleVisitor {
             .next_element()?
             .ok_or_else(|| de::Error::invalid_length(len, &self))?;
         len += 1;
-        let mut builder = ArtifactRuleBuilder::new().set_type(&typ).pattern(&pattern);
+        let mut builder = ArtifactRuleBuilder::new().rule(&typ).pattern(&pattern);
 
         if &typ[..] == "MATCH" {
             let in_or_with: String = seq
@@ -269,7 +269,7 @@ impl<'de> Visitor<'de> for ArtifactRuleVisitor {
                         .next_element()?
                         .ok_or_else(|| de::Error::invalid_length(len, &self))?;
                     len += 1;
-                    builder = builder.source_path_prefix(&source_path_prefix);
+                    builder = builder.in_source_path_prefix(&source_path_prefix);
 
                     let in_: String = seq
                         .next_element()?
@@ -295,8 +295,8 @@ impl<'de> Visitor<'de> for ArtifactRuleVisitor {
             len += 1;
 
             match &target[..] {
-                "MATERIALS" => builder = builder.materials(),
-                "PRODUCTS" => builder = builder.products(),
+                "MATERIALS" => builder = builder.with_materials(),
+                "PRODUCTS" => builder = builder.with_products(),
                 _ => Err(de::Error::invalid_value(
                     Unexpected::Str(&target),
                     &"MATERIALS or PRODUCTS",
@@ -314,7 +314,7 @@ impl<'de> Visitor<'de> for ArtifactRuleVisitor {
                         .next_element()?
                         .ok_or_else(|| de::Error::invalid_length(len, &self))?;
                     len += 1;
-                    builder = builder.destination_path_prefix(&destination_path_prefix);
+                    builder = builder.in_destination_path_prefix(&destination_path_prefix);
 
                     let from_: String = seq
                         .next_element()?
@@ -338,7 +338,7 @@ impl<'de> Visitor<'de> for ArtifactRuleVisitor {
                 .next_element()?
                 .ok_or_else(|| de::Error::invalid_length(len, &self))?;
 
-            builder = builder.step(&step);
+            builder = builder.from_step(&step);
         }
 
         match builder.build() {
@@ -378,12 +378,12 @@ pub mod test {
     /// ]`
     pub fn generate_materials_rule() -> ArtifactRule {
         ArtifactRuleBuilder::new()
-            .set_type("MATCH")
+            .rule("MATCH")
             .pattern("pattern/")
-            .source_path_prefix("src")
-            .materials()
-            .destination_path_prefix("dst")
-            .step("test_step")
+            .in_source_path_prefix("src")
+            .with_materials()
+            .in_destination_path_prefix("dst")
+            .from_step("test_step")
             .build()
             .unwrap()
     }
@@ -403,12 +403,12 @@ pub mod test {
     /// ]`
     pub fn generate_products_rule() -> ArtifactRule {
         ArtifactRuleBuilder::new()
-            .set_type("MATCH")
+            .rule("MATCH")
             .pattern("pattern/")
-            .source_path_prefix("src")
-            .products()
-            .destination_path_prefix("dst")
-            .step("test_step")
+            .in_source_path_prefix("src")
+            .with_products()
+            .in_destination_path_prefix("dst")
+            .from_step("test_step")
             .build()
             .unwrap()
     }
@@ -416,12 +416,12 @@ pub mod test {
     #[test]
     fn success_build_rule() {
         let res = ArtifactRuleBuilder::new()
-            .set_type("MATCH")
+            .rule("MATCH")
             .pattern("a.out")
-            .source_path_prefix("./src")
-            .materials()
-            .destination_path_prefix("./dst")
-            .step("build")
+            .in_source_path_prefix("./src")
+            .with_materials()
+            .in_destination_path_prefix("./dst")
+            .from_step("build")
             .build();
         assert!(res.is_ok());
     }
@@ -429,11 +429,11 @@ pub mod test {
     #[test]
     fn fail_build_rule() {
         let res = ArtifactRuleBuilder::new()
-            .set_type("MATCH")
-            .source_path_prefix("./src")
-            .materials()
-            .destination_path_prefix("./dst")
-            .step("build")
+            .rule("MATCH")
+            .in_source_path_prefix("./src")
+            .with_materials()
+            .in_destination_path_prefix("./dst")
+            .from_step("build")
             .build();
         // No pattern here is illegal
         assert!(res.is_err());
@@ -442,12 +442,12 @@ pub mod test {
     #[test]
     fn serialize_match_full() {
         let rule = ArtifactRuleBuilder::new()
-            .set_type("MATCH")
+            .rule("MATCH")
             .pattern("./")
-            .source_path_prefix("pre")
-            .materials()
-            .destination_path_prefix("dst")
-            .step("build")
+            .in_source_path_prefix("pre")
+            .with_materials()
+            .in_destination_path_prefix("dst")
+            .from_step("build")
             .build()
             .unwrap();
 
@@ -471,11 +471,11 @@ pub mod test {
     #[test]
     fn serialize_match_without_source() {
         let rule = ArtifactRuleBuilder::new()
-            .set_type("MATCH")
+            .rule("MATCH")
             .pattern("./")
-            .materials()
-            .destination_path_prefix("dst")
-            .step("build")
+            .with_materials()
+            .in_destination_path_prefix("dst")
+            .from_step("build")
             .build()
             .unwrap();
 
@@ -497,11 +497,11 @@ pub mod test {
     #[test]
     fn serialize_match_without_dest() {
         let rule = ArtifactRuleBuilder::new()
-            .set_type("MATCH")
+            .rule("MATCH")
             .pattern("./")
-            .source_path_prefix("pre")
-            .materials()
-            .step("build")
+            .in_source_path_prefix("pre")
+            .with_materials()
+            .from_step("build")
             .build()
             .unwrap();
 
@@ -523,7 +523,7 @@ pub mod test {
     #[test]
     fn serialize_other() {
         let rule = ArtifactRuleBuilder::new()
-            .set_type("CREATE")
+            .rule("CREATE")
             .pattern("./artifact")
             .build()
             .unwrap();
@@ -548,12 +548,12 @@ pub mod test {
             "package"
         ]"#;
         let rule = ArtifactRuleBuilder::new()
-            .set_type("MATCH")
+            .rule("MATCH")
             .pattern("foo.tar.gz")
-            .source_path_prefix("./src")
-            .products()
-            .destination_path_prefix("./dst")
-            .step("package")
+            .in_source_path_prefix("./src")
+            .with_products()
+            .in_destination_path_prefix("./dst")
+            .from_step("package")
             .build()
             .unwrap();
 
@@ -574,11 +574,11 @@ pub mod test {
             "package"
         ]"#;
         let rule = ArtifactRuleBuilder::new()
-            .set_type("MATCH")
+            .rule("MATCH")
             .pattern("foo.tar.gz")
-            .products()
-            .destination_path_prefix("./dst")
-            .step("package")
+            .with_products()
+            .in_destination_path_prefix("./dst")
+            .from_step("package")
             .build()
             .unwrap();
 
@@ -599,11 +599,11 @@ pub mod test {
             "package"
         ]"#;
         let rule = ArtifactRuleBuilder::new()
-            .set_type("MATCH")
+            .rule("MATCH")
             .pattern("foo.tar.gz")
-            .source_path_prefix("./src")
-            .products()
-            .step("package")
+            .in_source_path_prefix("./src")
+            .with_products()
+            .from_step("package")
             .build()
             .unwrap();
 
@@ -618,7 +618,7 @@ pub mod test {
             "foo.pyc"
         ]"#;
         let rule = ArtifactRuleBuilder::new()
-            .set_type("DELETE")
+            .rule("DELETE")
             .pattern("foo.pyc")
             .build()
             .unwrap();

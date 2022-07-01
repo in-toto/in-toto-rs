@@ -149,15 +149,15 @@ mod test {
         let step = Step::new("package")
             .add_expected_material(
                 ArtifactRuleBuilder::new()
-                    .set_type("MATCH")
+                    .rule("MATCH")
                     .pattern("foo.py")
-                    .products()
-                    .step("write-code")
+                    .with_products()
+                    .from_step("write-code")
                     .build()?,
             )
             .add_expected_product(
                 ArtifactRuleBuilder::new()
-                    .set_type("CREATE")
+                    .rule("CREATE")
                     .pattern("foo.tar.gz")
                     .build()?,
             )
@@ -209,15 +209,15 @@ mod test {
         let step = Step::new("package")
             .add_expected_material(
                 ArtifactRuleBuilder::new()
-                    .set_type("MATCH")
+                    .rule("MATCH")
                     .pattern("foo.py")
-                    .products()
-                    .step("write-code")
+                    .with_products()
+                    .from_step("write-code")
                     .build()?,
             )
             .add_expected_product(
                 ArtifactRuleBuilder::new()
-                    .set_type("CREATE")
+                    .rule("CREATE")
                     .pattern("foo.tar.gz")
                     .build()?,
             )

@@ -1,3 +1,137 @@
+//! # Artifact Rules
+//!
+//! Artifact rules are used to connect steps together through their
+//! materials or products. When connecting steps together, in-toto
+//! allows the project owner to enforce the existence of certain
+//! artifacts within a step (e.g., the README can only be created
+//! in the create-documentation step) and authorize operations on
+//! artifacts (e.g., the compile step can use the materials from
+//! the checkout-vcs).
+//!
+//! # Format of Artifact Rule
+//!
+//! Format of an Artifact Rule is the following:
+//! ```plaintext
+//! {MATCH <pattern> [IN <source-path-prefix>] WITH (MATERIALS|PRODUCTS) [IN <destination-path-prefix>] FROM <step> ||
+//! CREATE <pattern> ||
+//! DELETE <pattern> ||
+//! MODIFY <pattern> ||
+//! ALLOW <pattern> ||
+//! REQUIRE <pattern> ||
+//! DISALLOW <pattern>}
+//! ```
+//!
+//! Please refer to [`in-toto v0.9 spec`] for concrete functions
+//! for different rules (e.g., `MATCH`, `CREATE`, etc.)
+//!
+//! ## Instantialize
+//!
+//! As the format given in [`in-toto v0.9 spec`], rule types include
+//! `MATCH`, `CREATE`, `DELETE`, `MODIFY`, `ALLOW`, `REQUIRE` and
+//! `DISALLOW`.
+//!
+//! ### MATCH Rule
+//!
+//! A `MATCH` rule consists of a `<pattern>`,
+//! an `IN <source-path-prefix>` (optional), a `WITH (MATERIALS|PRODUCTS)`
+//! (must), an `IN <destination-path-prefix>` (optional) and a `FROM <step>`
+//! (must).
+//!
+//! We can build a MATCH rule like this
+//! ```
+//! # use in_toto::{models::rule::ArtifactRuleBuilder, Result};
+//!
+//! # fn main() -> Result<()> {
+//!     let _match_rule = ArtifactRuleBuilder::new()
+//!         .rule("MATCH")
+//!         .pattern("foo.py")
+//! //       .in_source_path_prefix("src/")
+//!         .with_materials() // or .with_products()
+//! //       .in_destination_path_prefix("dst/")
+//!         .from_step("code")
+//!         .build()?;
+//!
+//!     Ok(())
+//! # }
+//!
+//! ```
+//!
+//! Here, optional fields of the rule is also optional when
+//! use `ArtifactRuleBuilder`, but `rule()`, `pattern()` and
+//! `from_step()` are required. If they are not provided,
+//! the `build()` function will return an error.
+//!
+//! ### Other Rules
+//!
+//! The other rules (s.t. `CREATE`, `DELETE`, `MODIFY`, `ALLOW`,
+//!  `REQUIRE` and `DISALLOW`) only need one parameter `<pattern>`.
+//!
+//! For example, we can build a CREATE rule like this
+//!
+//! ```
+//! # use in_toto::{models::rule::ArtifactRuleBuilder, Result};
+//!
+//! # fn main() -> Result<()> {
+//!     let _create_rule = ArtifactRuleBuilder::new()
+//!         .rule("CREATE")
+//!         .pattern("foo.py")
+//!         .build()?;
+//!
+//!     Ok(())
+//! # }
+//!
+//! ```
+//!
+//! If any other fields like `<source-path-prefix>` is set via related
+//! function (in this case, `in_source_path_prefix()`), the build
+//! process will succeed, ignoring them and only set `<pattern>` field.
+//!
+//! ## Deserialize and Serialize
+//!
+//! To make it easy to parse `.layout` files, format in [`in-toto v0.9 spec`]
+//! is supported when a `.layout` file is being deserialized.
+//!
+//! For example
+//!
+//! ```
+//! # use serde_json::Error;
+//! # use in_toto::models::rule::{ArtifactRule, ArtifactRuleBuilder};
+//!
+//! # fn main() {
+//! let rule = ArtifactRuleBuilder::new()
+//!     .rule("CREATE")
+//!     .pattern("foo.py")
+//!     .build()
+//!     .unwrap();
+//!
+//! let rule_raw = r#"["CREATE", "foo.py"]"#;
+//! let rule_parsed: ArtifactRule = serde_json::from_str(rule_raw).unwrap();
+//! assert_eq!(rule, rule_parsed);
+//! # }
+//! ```
+//!
+//! Also, when being serialized, an Artifact Rule will be converted
+//! to the format as [`in-toto v0.9 spec`] gives
+//!
+//! ```
+//! # use serde_json::{Error, json};
+//! # use in_toto::models::rule::{ArtifactRule, ArtifactRuleBuilder};
+//!
+//! # fn main() {
+//! let rule = ArtifactRuleBuilder::new()
+//!     .rule("CREATE")
+//!     .pattern("foo.py")
+//!     .build()
+//!     .unwrap();
+//!
+//! let rule_value = json!(["CREATE", "foo.py"]);
+//! let rule_serialized = serde_json::to_value(&rule).unwrap();
+//! assert_eq!(rule_serialized, rule_value);
+//! # }
+//! ```
+//!
+//! [`in-toto v0.9 spec`]: https://github.com/in-toto/docs/blob/v0.9/in-toto-spec.md#433-artifact-rules
+
 use std::collections::HashMap;
 use std::result::Result as StdResult;
 
@@ -151,24 +285,6 @@ impl ArtifactRuleBuilder {
     }
 }
 
-/// ARTIFACT_RULE in section 4.3.3 of in-toto spec v0.9
-/// # Instantiation and Deserialization
-/// ```no_run
-/// # use serde_json::Error;
-/// # use in_toto::models::rule::{ArtifactRule, ArtifactRuleBuilder};
-///
-/// # fn main() {
-/// let rule = ArtifactRuleBuilder::new()
-///     .rule("CREATE")
-///     .pattern("foo.py")
-///     .build()
-///     .unwrap();
-///
-/// let rule_raw = r#"[["CREATE"], ["foo.py"]]"#;
-/// let rule_parsed: ArtifactRule = serde_json::from_str(rule_raw).unwrap();
-/// assert_eq!(rule, rule_parsed);
-/// # }
-/// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct ArtifactRule {
     inner: HashMap<String, String>,

@@ -3,6 +3,7 @@
 use data_encoding::DecodeError;
 use std::io;
 use std::path::Path;
+use std::str;
 use thiserror::Error;
 
 /// Error type for all in-toto related errors.
@@ -56,6 +57,9 @@ pub enum Error {
 
     #[error("prefix selection failure: {0}")]
     LinkGatheringError(String),
+
+    #[error("do Pre-Authentication Encoding failed: {0}")]
+    PAEParseFailed(String),
 }
 
 impl From<serde_json::error::Error> for Error {
@@ -107,6 +111,12 @@ impl From<derp::Error> for Error {
 impl From<tempfile::PersistError> for Error {
     fn from(err: tempfile::PersistError) -> Error {
         Error::Opaque(format!("Error persisting temp file: {:?}", err))
+    }
+}
+
+impl From<str::Utf8Error> for Error {
+    fn from(err: str::Utf8Error) -> Error {
+        Error::Opaque(format!("Parse utf8: {:?}", err))
     }
 }
 

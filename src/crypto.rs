@@ -969,7 +969,7 @@ fn extract_rsa_pub_from_pkcs8(der_key: &[u8]) -> ::std::result::Result<Vec<u8>, 
 
                     let n = derp::positive_integer(input)?;
                     let e = derp::positive_integer(input)?;
-                    let _ = input.skip_to_end();
+                    input.skip_to_end();
                     write_pkcs1(n.as_slice_less_safe(), e.as_slice_less_safe())
                 })
             })

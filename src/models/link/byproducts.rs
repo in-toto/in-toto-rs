@@ -87,3 +87,43 @@ impl ByProducts {
         &self.other_fields
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::ByProducts;
+
+    #[test]
+    fn serialize_byproducts() {
+        let byproducts = ByProducts::new()
+            .set_return_value(0)
+            .set_stderr("a foo.py\n".into())
+            .set_stdout("".into());
+
+        let serialized_byproducts = serde_json::to_value(byproducts).unwrap();
+        let json = json!({
+            "return-value": 0,
+            "stderr": "a foo.py\n",
+            "stdout": ""
+        });
+        assert_eq!(json, serialized_byproducts);
+    }
+
+    #[test]
+    fn deserialize_byproducts() {
+        let json = r#"{
+            "return-value": 0,
+            "stderr": "a foo.py\n",
+            "stdout": ""
+        }"#;
+
+        let byproducts = ByProducts::new()
+            .set_return_value(0)
+            .set_stderr("a foo.py\n".into())
+            .set_stdout("".into());
+
+        let deserialized_byproducts: ByProducts = serde_json::from_str(json).unwrap();
+        assert_eq!(byproducts, deserialized_byproducts);
+    }
+}

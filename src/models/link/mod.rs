@@ -25,7 +25,7 @@ pub struct Link {
     name: String,
     materials: BTreeMap<VirtualTargetPath, TargetDescription>,
     products: BTreeMap<VirtualTargetPath, TargetDescription>,
-    env: BTreeMap<String, String>,
+    env: Option<BTreeMap<String, String>>,
     byproducts: ByProducts,
 }
 

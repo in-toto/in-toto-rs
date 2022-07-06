@@ -20,7 +20,7 @@ pub struct LinkMetadataBuilder {
     name: String,
     materials: BTreeMap<VirtualTargetPath, TargetDescription>,
     products: BTreeMap<VirtualTargetPath, TargetDescription>,
-    env: BTreeMap<String, String>,
+    env: Option<BTreeMap<String, String>>,
     byproducts: ByProducts,
 }
 
@@ -36,7 +36,7 @@ impl LinkMetadataBuilder {
             name: String::new(),
             materials: BTreeMap::new(),
             products: BTreeMap::new(),
-            env: BTreeMap::new(),
+            env: None,
             byproducts: ByProducts::new(),
         }
     }
@@ -78,7 +78,7 @@ impl LinkMetadataBuilder {
     }
 
     /// Set the products for this metadata
-    pub fn env(mut self, env: BTreeMap<String, String>) -> Self {
+    pub fn env(mut self, env: Option<BTreeMap<String, String>>) -> Self {
         self.env = env;
         self
     }
@@ -122,7 +122,7 @@ pub struct LinkMetadata {
     name: String,
     materials: BTreeMap<VirtualTargetPath, TargetDescription>,
     products: BTreeMap<VirtualTargetPath, TargetDescription>,
-    env: BTreeMap<String, String>,
+    env: Option<BTreeMap<String, String>>,
     byproducts: ByProducts,
 }
 
@@ -132,7 +132,7 @@ impl LinkMetadata {
         name: String,
         materials: BTreeMap<VirtualTargetPath, TargetDescription>,
         products: BTreeMap<VirtualTargetPath, TargetDescription>,
-        env: BTreeMap<String, String>,
+        env: Option<BTreeMap<String, String>>,
         byproducts: ByProducts,
     ) -> Result<Self> {
         Ok(LinkMetadata {
@@ -160,7 +160,7 @@ impl LinkMetadata {
     }
 
     // The Environment where things were built
-    pub fn env(&self) -> &BTreeMap<String, String> {
+    pub fn env(&self) -> &Option<BTreeMap<String, String>> {
         &self.env
     }
 

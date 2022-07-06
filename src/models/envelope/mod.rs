@@ -4,6 +4,7 @@ use strum_macros::EnumIter;
 use self::pae_v1::PaeV1;
 use crate::{Error, Result};
 
+mod envelope_file;
 mod pae_v1;
 
 pub trait DSSEParser {

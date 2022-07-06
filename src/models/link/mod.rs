@@ -27,6 +27,7 @@ pub struct Link {
     name: String,
     materials: BTreeMap<VirtualTargetPath, TargetDescription>,
     products: BTreeMap<VirtualTargetPath, TargetDescription>,
+    #[serde(rename = "environment")]
     env: Option<BTreeMap<String, String>>,
     byproducts: ByProducts,
     command: Command,

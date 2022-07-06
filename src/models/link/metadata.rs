@@ -213,3 +213,85 @@ impl<'de> Deserialize<'de> for LinkMetadata {
             .map_err(|e| DeserializeError::custom(format!("{:?}", e)))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use serde_json::json;
+
+    use crate::models::{
+        byproducts::ByProducts, step::Command, LinkMetadata, LinkMetadataBuilder, VirtualTargetPath,
+    };
+
+    #[test]
+    fn serialize_linkmetadata() {
+        let link_metadata = LinkMetadataBuilder::new()
+            .name("".into())
+            .add_product(VirtualTargetPath::new("tests/test_link/foo.tar.gz".into()).unwrap())
+            .byproducts(
+                ByProducts::new()
+                    .set_return_value(0)
+                    .set_stderr("a foo.py\n".into())
+                    .set_stdout("".into()),
+            )
+            .command(Command::from("tar zcvf foo.tar.gz foo.py"))
+            .build()
+            .unwrap();
+
+        let serialized_linkmetadata = serde_json::to_value(link_metadata).unwrap();
+        let json = json!({
+            "_type": "link",
+            "name": "",
+            "materials": {},
+            "products": {
+                "tests/test_link/foo.tar.gz": {
+                    "sha256": "52947cb78b91ad01fe81cd6aef42d1f6817e92b9e6936c1e5aabb7c98514f355"
+                }
+            },
+            "byproducts": {
+                "return-value": 0,
+                "stderr": "a foo.py\n",
+                "stdout": ""
+            },
+            "command": "tar zcvf foo.tar.gz foo.py",
+            "environment": null
+        });
+        assert_eq!(json, serialized_linkmetadata);
+    }
+
+    #[test]
+    fn deserialize_linkmetadata() {
+        let json = r#"{
+            "_type": "link",
+            "name": "",
+            "materials": {},
+            "products": {
+                "tests/test_link/foo.tar.gz": {
+                    "sha256": "52947cb78b91ad01fe81cd6aef42d1f6817e92b9e6936c1e5aabb7c98514f355"
+                }
+            },
+            "byproducts": {
+                "return-value": 0,
+                "stderr": "a foo.py\n",
+                "stdout": ""
+            },
+            "command": "tar zcvf foo.tar.gz foo.py",
+            "environment": null
+        }"#;
+
+        let link_metadata = LinkMetadataBuilder::new()
+            .name("".into())
+            .add_product(VirtualTargetPath::new("tests/test_link/foo.tar.gz".into()).unwrap())
+            .byproducts(
+                ByProducts::new()
+                    .set_return_value(0)
+                    .set_stderr("a foo.py\n".into())
+                    .set_stdout("".into()),
+            )
+            .command(Command::from("tar zcvf foo.tar.gz foo.py"))
+            .build()
+            .unwrap();
+
+        let deserialized_link_metadata: LinkMetadata = serde_json::from_str(json).unwrap();
+        assert_eq!(link_metadata, deserialized_link_metadata);
+    }
+}

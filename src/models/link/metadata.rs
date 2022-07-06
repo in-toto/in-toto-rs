@@ -11,6 +11,7 @@ use crate::crypto::{self, PrivateKey};
 use crate::interchange::DataInterchange;
 use crate::Result;
 
+use crate::models::step::Command;
 use crate::models::{Link, Metablock, Metadata, TargetDescription, VirtualTargetPath};
 
 use super::byproducts::ByProducts;
@@ -22,6 +23,7 @@ pub struct LinkMetadataBuilder {
     products: BTreeMap<VirtualTargetPath, TargetDescription>,
     env: Option<BTreeMap<String, String>>,
     byproducts: ByProducts,
+    command: Command,
 }
 
 impl Default for LinkMetadataBuilder {
@@ -38,6 +40,7 @@ impl LinkMetadataBuilder {
             products: BTreeMap::new(),
             env: None,
             byproducts: ByProducts::new(),
+            command: Command::default(),
         }
     }
 
@@ -89,6 +92,12 @@ impl LinkMetadataBuilder {
         self
     }
 
+    /// Set the command for this metadata
+    pub fn command(mut self, command: Command) -> Self {
+        self.command = command;
+        self
+    }
+
     pub fn build(self) -> Result<LinkMetadata> {
         LinkMetadata::new(
             self.name,
@@ -96,6 +105,7 @@ impl LinkMetadataBuilder {
             self.products,
             self.env,
             self.byproducts,
+            self.command,
         )
     }
 
@@ -124,6 +134,7 @@ pub struct LinkMetadata {
     products: BTreeMap<VirtualTargetPath, TargetDescription>,
     env: Option<BTreeMap<String, String>>,
     byproducts: ByProducts,
+    command: Command,
 }
 
 impl LinkMetadata {
@@ -134,6 +145,7 @@ impl LinkMetadata {
         products: BTreeMap<VirtualTargetPath, TargetDescription>,
         env: Option<BTreeMap<String, String>>,
         byproducts: ByProducts,
+        command: Command,
     ) -> Result<Self> {
         Ok(LinkMetadata {
             name,
@@ -141,6 +153,7 @@ impl LinkMetadata {
             products,
             env,
             byproducts,
+            command,
         })
     }
 
@@ -167,6 +180,11 @@ impl LinkMetadata {
     // The Environment where things were built
     pub fn byproducts(&self) -> &ByProducts {
         &self.byproducts
+    }
+
+    // The command of the link
+    pub fn command(&self) -> &Command {
+        &self.command
     }
 }
 

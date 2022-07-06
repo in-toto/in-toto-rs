@@ -15,6 +15,8 @@ use crate::models::{TargetDescription, VirtualTargetPath};
 
 use self::byproducts::ByProducts;
 
+use super::step::Command;
+
 // FIXME, we need to tag a spec
 //const SPEC_VERSION: &str = "0.9-dev";
 
@@ -27,6 +29,7 @@ pub struct Link {
     products: BTreeMap<VirtualTargetPath, TargetDescription>,
     env: Option<BTreeMap<String, String>>,
     byproducts: ByProducts,
+    command: Command,
 }
 
 impl Link {
@@ -38,6 +41,7 @@ impl Link {
             products: (*meta.products()).clone(),
             env: (*meta.env()).clone(),
             byproducts: (*meta.byproducts()).clone(),
+            command: (*meta.command()).clone(),
         })
     }
 
@@ -48,6 +52,7 @@ impl Link {
             self.products,
             self.env,
             self.byproducts,
+            self.command,
         )
     }
 }

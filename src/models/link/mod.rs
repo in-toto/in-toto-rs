@@ -7,10 +7,13 @@ use std::str;
 use crate::Result;
 use serde_derive::{Deserialize, Serialize};
 
+pub mod byproducts;
 pub mod metadata;
 pub use metadata::{LinkMetadata, LinkMetadataBuilder};
 
 use crate::models::{TargetDescription, VirtualTargetPath};
+
+use self::byproducts::ByProducts;
 
 // FIXME, we need to tag a spec
 //const SPEC_VERSION: &str = "0.9-dev";
@@ -23,7 +26,7 @@ pub struct Link {
     materials: BTreeMap<VirtualTargetPath, TargetDescription>,
     products: BTreeMap<VirtualTargetPath, TargetDescription>,
     env: BTreeMap<String, String>,
-    byproducts: BTreeMap<String, String>,
+    byproducts: ByProducts,
 }
 
 impl Link {

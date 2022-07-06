@@ -60,6 +60,9 @@ pub enum Error {
 
     #[error("do Pre-Authentication Encoding failed: {0}")]
     PAEParseFailed(String),
+
+    #[error("runlib failed: {0}")]
+    RunLibError(String),
 }
 
 impl From<serde_json::error::Error> for Error {

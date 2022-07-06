@@ -13,13 +13,15 @@ use crate::Result;
 
 use crate::models::{Link, Metablock, Metadata, TargetDescription, VirtualTargetPath};
 
+use super::byproducts::ByProducts;
+
 /// Helper to construct `LinkMetadata`.
 pub struct LinkMetadataBuilder {
     name: String,
     materials: BTreeMap<VirtualTargetPath, TargetDescription>,
     products: BTreeMap<VirtualTargetPath, TargetDescription>,
     env: BTreeMap<String, String>,
-    byproducts: BTreeMap<String, String>,
+    byproducts: ByProducts,
 }
 
 impl Default for LinkMetadataBuilder {
@@ -35,7 +37,7 @@ impl LinkMetadataBuilder {
             materials: BTreeMap::new(),
             products: BTreeMap::new(),
             env: BTreeMap::new(),
-            byproducts: BTreeMap::new(),
+            byproducts: ByProducts::new(),
         }
     }
 
@@ -82,7 +84,7 @@ impl LinkMetadataBuilder {
     }
 
     /// Set the products for this metadata
-    pub fn byproducts(mut self, byproducts: BTreeMap<String, String>) -> Self {
+    pub fn byproducts(mut self, byproducts: ByProducts) -> Self {
         self.byproducts = byproducts;
         self
     }
@@ -121,7 +123,7 @@ pub struct LinkMetadata {
     materials: BTreeMap<VirtualTargetPath, TargetDescription>,
     products: BTreeMap<VirtualTargetPath, TargetDescription>,
     env: BTreeMap<String, String>,
-    byproducts: BTreeMap<String, String>,
+    byproducts: ByProducts,
 }
 
 impl LinkMetadata {
@@ -131,7 +133,7 @@ impl LinkMetadata {
         materials: BTreeMap<VirtualTargetPath, TargetDescription>,
         products: BTreeMap<VirtualTargetPath, TargetDescription>,
         env: BTreeMap<String, String>,
-        byproducts: BTreeMap<String, String>,
+        byproducts: ByProducts,
     ) -> Result<Self> {
         Ok(LinkMetadata {
             name,
@@ -163,7 +165,7 @@ impl LinkMetadata {
     }
 
     // The Environment where things were built
-    pub fn byproducts(&self) -> &BTreeMap<String, String> {
+    pub fn byproducts(&self) -> &ByProducts {
         &self.byproducts
     }
 }

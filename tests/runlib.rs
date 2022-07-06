@@ -1,10 +1,9 @@
 use in_toto::{
     crypto::{KeyType, PrivateKey, SignatureScheme},
     interchange::Json,
-    models::{LinkMetadataBuilder, VirtualTargetPath},
+    models::{byproducts::ByProducts, LinkMetadataBuilder, VirtualTargetPath},
     runlib::in_toto_run,
 };
-use std::collections::BTreeMap;
 use std::fs::{canonicalize, write};
 use std::os::unix::fs;
 use tempfile::tempdir;
@@ -52,10 +51,10 @@ fn in_toto_run_record_file() {
     print!("Path: {}\n", dir_path);
 
     // Expected value
-    let mut byproducts = BTreeMap::new();
-    byproducts.insert(String::from("return-value"), String::from("0"));
-    byproducts.insert(String::from("stderr"), String::from(""));
-    byproducts.insert(String::from("stdout"), String::from("in_toto says hi\n"));
+    let byproducts = ByProducts::new()
+        .set_return_value(0)
+        .set_stderr(String::from(""))
+        .set_stdout(String::from("in_toto says hi\n"));
     let expected = LinkMetadataBuilder::new()
         .name(String::from("test"))
         .byproducts(byproducts)
@@ -111,10 +110,10 @@ fn in_toto_run_record_new_file() {
     )
     .unwrap();
 
-    let mut byproducts = BTreeMap::new();
-    byproducts.insert(String::from("return-value"), String::from("0"));
-    byproducts.insert(String::from("stderr"), String::from(""));
-    byproducts.insert(String::from("stdout"), String::from(""));
+    let byproducts = ByProducts::new()
+        .set_return_value(0)
+        .set_stderr(String::from(""))
+        .set_stdout(String::from(""));
 
     // Expected value
     let expected = LinkMetadataBuilder::new()
@@ -154,10 +153,10 @@ fn in_toto_run_record_symlink_file() {
 
     print!("Path: {}\n", dir_path);
 
-    let mut byproducts = BTreeMap::new();
-    byproducts.insert(String::from("return-value"), String::from("0"));
-    byproducts.insert(String::from("stderr"), String::from(""));
-    byproducts.insert(String::from("stdout"), String::from("in_toto says hi\n"));
+    let byproducts = ByProducts::new()
+        .set_return_value(0)
+        .set_stderr(String::from(""))
+        .set_stdout(String::from("in_toto says hi\n"));
 
     // Expected value
     let expected = LinkMetadataBuilder::new()

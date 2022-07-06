@@ -24,7 +24,7 @@ pub struct ByProducts {
     stderr: String,
     stdout: String,
     #[serde(flatten)]
-    _byproducts: BTreeMap<String, String>,
+    other_fields: BTreeMap<String, String>,
 }
 
 impl ByProducts {
@@ -33,7 +33,7 @@ impl ByProducts {
             return_value: 0,
             stderr: "".into(),
             stdout: "".into(),
-            _byproducts: BTreeMap::new(),
+            other_fields: BTreeMap::new(),
         }
     }
 
@@ -55,9 +55,15 @@ impl ByProducts {
         self
     }
 
-    /// Set byproducts
-    pub fn set_other_set_byproducts(mut self, byproducts: BTreeMap<String, String>) -> Self {
-        self._byproducts = byproducts;
+    /// Set other fields
+    pub fn set_other_fields(mut self, other_fields: BTreeMap<String, String>) -> Self {
+        self.other_fields = other_fields;
+        self
+    }
+
+    /// Insert another field
+    pub fn set_other_field(mut self, key: String, value: String) -> Self {
+        self.other_fields.insert(key, value);
         self
     }
 
@@ -76,8 +82,8 @@ impl ByProducts {
         &self.stdout
     }
 
-    /// Get byproducts
-    pub fn other_byproducts(&self) -> &BTreeMap<String, String> {
-        &self._byproducts
+    /// Get other fields
+    pub fn other_fields(&self) -> &BTreeMap<String, String> {
+        &self.other_fields
     }
 }

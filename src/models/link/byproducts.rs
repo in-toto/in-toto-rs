@@ -15,7 +15,22 @@ use serde_derive::{Deserialize, Serialize};
 ///     .set_return_value(0)
 ///     .set_stderr("".into())
 ///     .set_stdout("".into());
-/// //  .set_other_set_byproducts(other_byproducts);
+/// //  .set_other_fields(other_byproducts);
+/// ```
+///
+/// Also, can directly set a whole BTree<String, String> as other_fields
+///
+/// ```
+/// use std::collections::BTreeMap;
+/// use in_toto::models::byproducts::ByProducts;
+/// let mut other_byproducts: BTreeMap<String, String> = BTreeMap::new();
+/// other_byproducts.insert("key".into(), "value".into());
+///
+/// let byproducts = ByProducts::new()
+///     .set_return_value(0)
+///     .set_stderr("".into())
+///     .set_stdout("".into())
+///     .set_other_fields(other_byproducts);
 /// ```
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct ByProducts {
@@ -55,7 +70,9 @@ impl ByProducts {
         self
     }
 
-    /// Set other fields
+    /// Set other fields.
+    /// Warning: This operation will overwrite all the present other-field
+    /// set by `set_other_field` or `set_other_fields` before.
     pub fn set_other_fields(mut self, other_fields: BTreeMap<String, String>) -> Self {
         self.other_fields = other_fields;
         self

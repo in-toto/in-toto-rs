@@ -107,38 +107,95 @@ impl ByProducts {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use serde_json::json;
 
     use super::ByProducts;
 
     #[test]
-    fn serialize_byproducts() {
+    fn serialize_byproducts_other_field() {
         let byproducts = ByProducts::new()
             .set_return_value(0)
             .set_stderr("a foo.py\n".into())
-            .set_stdout("".into());
+            .set_stdout("".into())
+            .set_other_field("key1".into(), "value1".into())
+            .set_other_field("key2".into(), "value2".into());
 
         let serialized_byproducts = serde_json::to_value(byproducts).unwrap();
         let json = json!({
             "return-value": 0,
             "stderr": "a foo.py\n",
-            "stdout": ""
+            "stdout": "",
+            "key1": "value1",
+            "key2": "value2"
         });
         assert_eq!(json, serialized_byproducts);
     }
 
     #[test]
-    fn deserialize_byproducts() {
+    fn serialize_byproducts_other_fields() {
+        let mut other_fields = BTreeMap::new();
+        other_fields.insert("key1".into(), "value1".into());
+        other_fields.insert("key2".into(), "value2".into());
+
+        let byproducts = ByProducts::new()
+            .set_return_value(0)
+            .set_stderr("a foo.py\n".into())
+            .set_stdout("".into())
+            .set_other_fields(other_fields);
+
+        let serialized_byproducts = serde_json::to_value(byproducts).unwrap();
+        let json = json!({
+            "return-value": 0,
+            "stderr": "a foo.py\n",
+            "stdout": "",
+            "key1": "value1",
+            "key2": "value2"
+        });
+        assert_eq!(json, serialized_byproducts);
+    }
+
+    #[test]
+    fn deserialize_byproducts_other_field() {
         let json = r#"{
             "return-value": 0,
             "stderr": "a foo.py\n",
-            "stdout": ""
+            "stdout": "",
+            "key1": "value1",
+            "key2": "value2"
         }"#;
 
         let byproducts = ByProducts::new()
             .set_return_value(0)
             .set_stderr("a foo.py\n".into())
-            .set_stdout("".into());
+            .set_stdout("".into())
+            .set_other_field("key1".into(), "value1".into())
+            .set_other_field("key2".into(), "value2".into());
+
+        let deserialized_byproducts: ByProducts = serde_json::from_str(json).unwrap();
+        assert_eq!(byproducts, deserialized_byproducts);
+    }
+
+    #[test]
+    fn deserialize_byproducts_other_fields() {
+        let json = r#"{
+            "return-value": 0,
+            "stderr": "a foo.py\n",
+            "stdout": "",
+            "key1": "value1",
+            "key2": "value2"
+        }"#;
+
+        let mut other_fields = BTreeMap::new();
+        other_fields.insert("key1".into(), "value1".into());
+        other_fields.insert("key2".into(), "value2".into());
+
+        let byproducts = ByProducts::new()
+            .set_return_value(0)
+            .set_stderr("a foo.py\n".into())
+            .set_stdout("".into())
+            .set_other_fields(other_fields);
 
         let deserialized_byproducts: ByProducts = serde_json::from_str(json).unwrap();
         assert_eq!(byproducts, deserialized_byproducts);

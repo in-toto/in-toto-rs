@@ -11,15 +11,19 @@ use crate::crypto::{self, PrivateKey};
 use crate::interchange::DataInterchange;
 use crate::Result;
 
+use crate::models::step::Command;
 use crate::models::{Link, Metablock, Metadata, TargetDescription, VirtualTargetPath};
+
+use super::byproducts::ByProducts;
 
 /// Helper to construct `LinkMetadata`.
 pub struct LinkMetadataBuilder {
     name: String,
     materials: BTreeMap<VirtualTargetPath, TargetDescription>,
     products: BTreeMap<VirtualTargetPath, TargetDescription>,
-    env: BTreeMap<String, String>,
-    byproducts: BTreeMap<String, String>,
+    env: Option<BTreeMap<String, String>>,
+    byproducts: ByProducts,
+    command: Command,
 }
 
 impl Default for LinkMetadataBuilder {
@@ -34,8 +38,9 @@ impl LinkMetadataBuilder {
             name: String::new(),
             materials: BTreeMap::new(),
             products: BTreeMap::new(),
-            env: BTreeMap::new(),
-            byproducts: BTreeMap::new(),
+            env: None,
+            byproducts: ByProducts::new(),
+            command: Command::default(),
         }
     }
 
@@ -76,14 +81,20 @@ impl LinkMetadataBuilder {
     }
 
     /// Set the products for this metadata
-    pub fn env(mut self, env: BTreeMap<String, String>) -> Self {
+    pub fn env(mut self, env: Option<BTreeMap<String, String>>) -> Self {
         self.env = env;
         self
     }
 
     /// Set the products for this metadata
-    pub fn byproducts(mut self, byproducts: BTreeMap<String, String>) -> Self {
+    pub fn byproducts(mut self, byproducts: ByProducts) -> Self {
         self.byproducts = byproducts;
+        self
+    }
+
+    /// Set the command for this metadata
+    pub fn command(mut self, command: Command) -> Self {
+        self.command = command;
         self
     }
 
@@ -94,6 +105,7 @@ impl LinkMetadataBuilder {
             self.products,
             self.env,
             self.byproducts,
+            self.command,
         )
     }
 
@@ -120,8 +132,9 @@ pub struct LinkMetadata {
     name: String,
     materials: BTreeMap<VirtualTargetPath, TargetDescription>,
     products: BTreeMap<VirtualTargetPath, TargetDescription>,
-    env: BTreeMap<String, String>,
-    byproducts: BTreeMap<String, String>,
+    env: Option<BTreeMap<String, String>>,
+    byproducts: ByProducts,
+    command: Command,
 }
 
 impl LinkMetadata {
@@ -130,8 +143,9 @@ impl LinkMetadata {
         name: String,
         materials: BTreeMap<VirtualTargetPath, TargetDescription>,
         products: BTreeMap<VirtualTargetPath, TargetDescription>,
-        env: BTreeMap<String, String>,
-        byproducts: BTreeMap<String, String>,
+        env: Option<BTreeMap<String, String>>,
+        byproducts: ByProducts,
+        command: Command,
     ) -> Result<Self> {
         Ok(LinkMetadata {
             name,
@@ -139,6 +153,7 @@ impl LinkMetadata {
             products,
             env,
             byproducts,
+            command,
         })
     }
 
@@ -158,13 +173,18 @@ impl LinkMetadata {
     }
 
     // The Environment where things were built
-    pub fn env(&self) -> &BTreeMap<String, String> {
+    pub fn env(&self) -> &Option<BTreeMap<String, String>> {
         &self.env
     }
 
     // The Environment where things were built
-    pub fn byproducts(&self) -> &BTreeMap<String, String> {
+    pub fn byproducts(&self) -> &ByProducts {
         &self.byproducts
+    }
+
+    // The command of the link
+    pub fn command(&self) -> &Command {
+        &self.command
     }
 }
 
@@ -191,5 +211,87 @@ impl<'de> Deserialize<'de> for LinkMetadata {
         intermediate
             .try_into()
             .map_err(|e| DeserializeError::custom(format!("{:?}", e)))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use serde_json::json;
+
+    use crate::models::{
+        byproducts::ByProducts, step::Command, LinkMetadata, LinkMetadataBuilder, VirtualTargetPath,
+    };
+
+    #[test]
+    fn serialize_linkmetadata() {
+        let link_metadata = LinkMetadataBuilder::new()
+            .name("".into())
+            .add_product(VirtualTargetPath::new("tests/test_link/foo.tar.gz".into()).unwrap())
+            .byproducts(
+                ByProducts::new()
+                    .set_return_value(0)
+                    .set_stderr("a foo.py\n".into())
+                    .set_stdout("".into()),
+            )
+            .command(Command::from("tar zcvf foo.tar.gz foo.py"))
+            .build()
+            .unwrap();
+
+        let serialized_linkmetadata = serde_json::to_value(link_metadata).unwrap();
+        let json = json!({
+            "_type": "link",
+            "name": "",
+            "materials": {},
+            "products": {
+                "tests/test_link/foo.tar.gz": {
+                    "sha256": "52947cb78b91ad01fe81cd6aef42d1f6817e92b9e6936c1e5aabb7c98514f355"
+                }
+            },
+            "byproducts": {
+                "return-value": 0,
+                "stderr": "a foo.py\n",
+                "stdout": ""
+            },
+            "command": "tar zcvf foo.tar.gz foo.py",
+            "environment": null
+        });
+        assert_eq!(json, serialized_linkmetadata);
+    }
+
+    #[test]
+    fn deserialize_linkmetadata() {
+        let json = r#"{
+            "_type": "link",
+            "name": "",
+            "materials": {},
+            "products": {
+                "tests/test_link/foo.tar.gz": {
+                    "sha256": "52947cb78b91ad01fe81cd6aef42d1f6817e92b9e6936c1e5aabb7c98514f355"
+                }
+            },
+            "byproducts": {
+                "return-value": 0,
+                "stderr": "a foo.py\n",
+                "stdout": ""
+            },
+            "command": "tar zcvf foo.tar.gz foo.py",
+            "environment": null
+        }"#;
+
+        let link_metadata = LinkMetadataBuilder::new()
+            .name("".into())
+            .add_product(VirtualTargetPath::new("tests/test_link/foo.tar.gz".into()).unwrap())
+            .byproducts(
+                ByProducts::new()
+                    .set_return_value(0)
+                    .set_stderr("a foo.py\n".into())
+                    .set_stdout("".into()),
+            )
+            .command(Command::from("tar zcvf foo.tar.gz foo.py"))
+            .build()
+            .unwrap();
+
+        let deserialized_link_metadata: LinkMetadata = serde_json::from_str(json).unwrap();
+        assert_eq!(link_metadata, deserialized_link_metadata);
     }
 }

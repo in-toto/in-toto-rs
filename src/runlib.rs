@@ -9,6 +9,7 @@ use walkdir::WalkDir;
 
 use crate::crypto::HashAlgorithm;
 use crate::interchange::Json;
+use crate::models::byproducts::ByProducts;
 use crate::models::{LinkMetadata, Metablock, TargetDescription};
 use crate::{
     crypto,
@@ -157,7 +158,7 @@ pub fn record_artifacts(
 }
 
 /// Given command arguments, executes commands on a software supply chain step
-/// and returns the `stdout`, `stderr`, and `return valid` as `byproducts` in `Result<BTreeMap<String, String>>` format.
+/// and returns the `stdout`, `stderr`, and `return-value` as `byproducts` in `Result<ByProducts>` format.
 /// If a commands in run_command fails to execute, `Error` is returned.
 /// # Arguments
 ///
@@ -172,12 +173,11 @@ pub fn record_artifacts(
 /// # use in_toto::runlib::{run_command};
 /// let byproducts = run_command(&["sh", "-c", "printf hello"], Some("tests")).unwrap();
 /// ```
-pub fn run_command(cmd_args: &[&str], run_dir: Option<&str>) -> Result<BTreeMap<String, String>> {
+pub fn run_command(cmd_args: &[&str], run_dir: Option<&str>) -> Result<ByProducts> {
     // Format output into Byproduct
-    let mut byproducts: BTreeMap<String, String> = BTreeMap::new();
 
     if cmd_args.is_empty() {
-        return Ok(byproducts);
+        return Ok(ByProducts::new());
     }
 
     let executable = cmd_args[0];
@@ -240,14 +240,15 @@ pub fn run_command(cmd_args: &[&str], run_dir: Option<&str>) -> Result<BTreeMap<
             )))
         }
     };
-    let status = match output.status.code() {
-        Some(code) => code.to_string(),
-        None => "Process terminated by signal".to_string(),
-    };
+    let status = output
+        .status
+        .code()
+        .ok_or_else(|| Error::RunLibError("Process terminated by signal".to_string()))?;
 
-    byproducts.insert("stdout".to_string(), stdout);
-    byproducts.insert("stderr".to_string(), stderr);
-    byproducts.insert("return-value".to_string(), status);
+    let byproducts = ByProducts::new()
+        .set_stdout(stdout)
+        .set_stderr(stderr)
+        .set_return_value(status);
 
     Ok(byproducts)
 }
@@ -511,10 +512,10 @@ mod test {
     #[test]
     fn test_run_command() {
         let byproducts = run_command(&["sh", "-c", "printf hello"], Some("tests")).unwrap();
-        let mut expected = BTreeMap::new();
-        expected.insert("stdout".to_string(), "hello".to_string());
-        expected.insert("stderr".to_string(), "".to_string());
-        expected.insert("return-value".to_string(), "0".to_string());
+        let expected = ByProducts::new()
+            .set_stderr("".to_string())
+            .set_stdout("hello".to_string())
+            .set_return_value(0);
 
         assert_eq!(byproducts, expected);
 

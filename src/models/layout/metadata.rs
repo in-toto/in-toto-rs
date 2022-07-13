@@ -7,8 +7,10 @@ use serde::ser::{Error as SerializeError, Serialize, Serializer};
 use std::collections::HashMap;
 
 use crate::crypto::KeyId;
+use crate::crypto::PublicKey;
+use crate::interchange::{DataInterchange, Json};
+use crate::models::{Metadata, MetadataType, MetadataWrapper};
 use crate::Result;
-use crate::{crypto::PublicKey, models::Metadata};
 
 use super::Layout;
 use super::{inspection::Inspection, step::Step};
@@ -162,9 +164,16 @@ impl LayoutMetadata {
 }
 
 impl Metadata for LayoutMetadata {
-    // Follow in-toto spec v0.9
-    fn version(&self) -> u32 {
-        0u32
+    fn typ(&self) -> MetadataType {
+        MetadataType::Layout
+    }
+
+    fn into_enum(self: Box<Self>) -> MetadataWrapper {
+        MetadataWrapper::Layout(*self)
+    }
+
+    fn to_bytes(&self) -> Result<Vec<u8>> {
+        Json::canonicalize(&Json::serialize(self)?)
     }
 }
 

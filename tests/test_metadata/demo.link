@@ -1,0 +1,20 @@
+{
+    "signed": {
+            "_type": "link",
+            "name": "",
+            "materials": {},
+            "products": {
+                "tests/test_link/foo.tar.gz": {
+                    "sha256": "52947cb78b91ad01fe81cd6aef42d1f6817e92b9e6936c1e5aabb7c98514f355"
+                }
+            },
+            "byproducts": {
+                "return-value": 0,
+                "stderr": "a foo.py\n",
+                "stdout": ""
+            },
+            "command": "tar zcvf foo.tar.gz foo.py",
+            "environment": null
+        }, 
+    "signatures": []
+}

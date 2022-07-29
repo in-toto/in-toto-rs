@@ -40,7 +40,7 @@ impl DSSEVersion {
         Ok((payload, payload_ver))
     }
 
-    /// Use Pre-Authentication Encoding to auto unpack a possiable version.
+    /// Use Pre-Authentication Encoding to auto unpack a possible version.
     #[allow(dead_code)]
     // TODO: remove #[allow(dead_code)] after metadata deploy
     pub fn try_unpack(bytes: &[u8]) -> Result<(Vec<u8>, String)> {
@@ -81,7 +81,7 @@ mod pae_test {
             EnvelopeFileTuple {
                 name: "blank_envelope_v01_test".to_string(),
                 inner_payload: "{\"payload\":[],\"payload_type\":\"link\",\"signatures\":[]}",
-                payload_ver: "https://in-toto.io/payloadment/v0.1".to_string(),
+                payload_ver: "https://in-toto.io/statement/v0.1".to_string(),
             },
         ]
     });

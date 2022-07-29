@@ -92,7 +92,7 @@ mod pae_test {
             ),
             (
                 "blank_envelope_v01_test".to_string(),
-                "DSSEv1 35 https://in-toto.io/payloadment/v0.1 52 {\"payload\":[],\"payload_type\":\"link\",\"signatures\":[]}",
+                "DSSEv1 33 https://in-toto.io/statement/v0.1 52 {\"payload\":[],\"payload_type\":\"link\",\"signatures\":[]}",
             ),
         ]);
         real_serialized_file

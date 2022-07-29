@@ -147,6 +147,7 @@ pub mod test {
     use chrono::DateTime;
     use once_cell::sync::Lazy;
     use serde_json::json;
+    use strum::IntoEnumIterator;
 
     use super::{Builder, Completeness, Material, Metadata, ProvenV01, Recipe, TimeStamp, TypeURI};
     use crate::{
@@ -276,23 +277,12 @@ pub mod test {
 
     #[test]
     fn deserialize_dismatch() {
-        let predicate = PredicateWrapper::from_bytes(
-            STR_PREDICATE_PROVEN_V01.as_bytes(),
-            PredicateVersion::ProvenV0_2,
-        );
-
-        assert!(predicate.is_err());
-    }
-
-    #[test]
-    fn deserialize_wrong_patterns() {
-        let wrong_patterns = vec!["{", "{}"];
-        let wrong_inputs: Vec<Vec<u8>> = wrong_patterns
-            .iter()
-            .map(|e| e.as_bytes().to_vec())
-            .collect();
-        for inp in wrong_inputs {
-            let predicate = PredicateWrapper::from_bytes(&inp, PredicateVersion::ProvenV0_1);
+        for version in PredicateVersion::iter() {
+            if version == PredicateVersion::ProvenV0_1 {
+                continue;
+            }
+            let predicate =
+                PredicateWrapper::from_bytes(STR_PREDICATE_PROVEN_V01.as_bytes(), version);
 
             assert!(predicate.is_err());
         }

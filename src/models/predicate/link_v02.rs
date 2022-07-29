@@ -56,6 +56,7 @@ pub mod test {
 
     use once_cell::sync::Lazy;
     use serde_json::json;
+    use strum::IntoEnumIterator;
 
     use super::LinkV02;
     use crate::{
@@ -140,14 +141,13 @@ pub mod test {
     }
 
     #[test]
-    fn deserialize_wrong_patterns() {
-        let wrong_patterns = vec!["{", "{}"];
-        let wrong_inputs: Vec<Vec<u8>> = wrong_patterns
-            .iter()
-            .map(|e| e.as_bytes().to_vec())
-            .collect();
-        for inp in wrong_inputs {
-            let predicate = PredicateWrapper::from_bytes(&inp, PredicateVersion::LinkV0_2);
+    fn deserialize_dismatch() {
+        for version in PredicateVersion::iter() {
+            if version == PredicateVersion::LinkV0_2 {
+                continue;
+            }
+            let predicate =
+                PredicateWrapper::from_bytes(STR_PREDICATE_LINK_V02.as_bytes(), version);
 
             assert!(predicate.is_err());
         }

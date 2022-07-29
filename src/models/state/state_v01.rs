@@ -78,6 +78,7 @@ pub mod test {
 
     use once_cell::sync::Lazy;
     use serde_json::json;
+    use strum::IntoEnumIterator;
 
     use super::StateV01;
 
@@ -159,26 +160,13 @@ pub mod test {
 
     #[test]
     fn deserialize_dismatch() {
-        let link = StateWrapper::from_bytes(STR_V01.as_bytes().to_vec(), StateVersion::Naive);
+        for version in StateVersion::iter() {
+            if version == StateVersion::V0_1 {
+                continue;
+            }
+            let state = StateWrapper::from_bytes(STR_V01.as_bytes().to_vec(), version);
 
-        assert!(link.is_err());
-    }
-
-    #[test]
-    fn deserialize_wrong_patterns() {
-        let wrong_patterns = vec![
-            "{",
-            "{\"_type\":\"link\",\"name\":\"blank_test\",\
-        \"materials\":{},\"products\":{},\"env\":{},\"byproducts\":{}}",
-        ];
-        let wrong_inputs: Vec<Vec<u8>> = wrong_patterns
-            .iter()
-            .map(|e| e.as_bytes().to_vec())
-            .collect();
-        for inp in wrong_inputs {
-            let link = StateWrapper::from_bytes(inp.clone(), StateVersion::V0_1);
-
-            assert!(link.is_err());
+            assert!(state.is_err());
         }
     }
 }

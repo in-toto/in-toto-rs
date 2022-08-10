@@ -6,7 +6,7 @@ use super::{PredicateLayout, PredicateVersion, PredicateWrapper};
 use crate::interchange::{DataInterchange, Json};
 use crate::models::byproducts::ByProducts;
 use crate::models::step::Command;
-use crate::models::{LinkMetadata, TargetDescription, VirtualTargetPath};
+use crate::models::{TargetDescription, VirtualTargetPath};
 use crate::Result;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -21,18 +21,6 @@ pub struct LinkV02 {
     env: Option<BTreeMap<String, String>>,
     command: Command,
     byproducts: ByProducts,
-}
-
-impl From<LinkMetadata> for LinkV02 {
-    fn from(meta: LinkMetadata) -> LinkV02 {
-        LinkV02 {
-            name: meta.name().to_string(),
-            materials: meta.materials().clone(),
-            env: meta.env().clone(),
-            command: meta.command().clone(),
-            byproducts: meta.byproducts().clone(),
-        }
-    }
 }
 
 impl PredicateLayout for LinkV02 {
@@ -61,10 +49,7 @@ pub mod test {
     use super::LinkV02;
     use crate::{
         interchange::{DataInterchange, Json},
-        models::{
-            byproducts::ByProducts, test::BLANK_META, PredicateLayout, PredicateVersion,
-            PredicateWrapper,
-        },
+        models::{byproducts::ByProducts, PredicateLayout, PredicateVersion, PredicateWrapper},
     };
 
     pub static STR_PREDICATE_LINK_V02: Lazy<String> = Lazy::new(|| {
@@ -104,10 +89,7 @@ pub mod test {
 
     #[test]
     fn create_predicate_from_meta() {
-        let predicate = PredicateWrapper::from_meta(BLANK_META.clone(), PredicateVersion::LinkV0_2);
-        let real = Box::new(PREDICATE_LINK_V02.clone()).into_enum();
-
-        assert_eq!(predicate, real);
+        // TODO: convert from metadata is no supported recentely
     }
 
     #[test]

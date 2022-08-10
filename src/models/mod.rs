@@ -13,7 +13,7 @@ pub use layout::*;
 pub use link::*;
 pub use metadata::*;
 pub use predicate::{PredicateLayout, PredicateVersion, PredicateWrapper};
-pub use state::{StateLayout, StateVersion, StateWrapper};
+pub use state::{StateLayout, StateWrapper, StatementVer};
 
 #[cfg(test)]
 mod test {

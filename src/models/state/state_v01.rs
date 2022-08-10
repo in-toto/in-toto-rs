@@ -11,7 +11,7 @@ use crate::{
     Error,
 };
 
-use super::{FromMerge, StateLayout, StateVersion, StateWrapper};
+use super::{FromMerge, StateLayout, StateWrapper, StatementVer};
 use crate::Result;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
@@ -32,13 +32,13 @@ impl FromMerge for StateV01 {
     fn merge(meta: LinkMetadata, predicate: Option<Box<dyn PredicateLayout>>) -> Result<StateV01> {
         if predicate.is_none() {
             return Err(Error::AttestationFormatDismatch(
-                StateVersion::V0_1.to_string(),
+                StatementVer::V0_1.to_string(),
                 "None".to_string(),
             ));
         }
         let p = predicate
             .ok_or_else(|| Error::Programming("match rules failed for StateV01".to_string()))?;
-        let version = StateVersion::V0_1.try_into()?;
+        let version = StatementVer::V0_1.try_into()?;
         Ok(StateV01 {
             typ: version,
             subject: meta.products().clone(),
@@ -49,8 +49,8 @@ impl FromMerge for StateV01 {
 }
 
 impl StateLayout for StateV01 {
-    fn version(&self) -> StateVersion {
-        StateVersion::V0_1
+    fn version(&self) -> StatementVer {
+        StatementVer::V0_1
     }
 
     fn into_enum(self: Box<Self>) -> StateWrapper {
@@ -68,7 +68,7 @@ pub mod test {
         interchange::{DataInterchange, Json},
         models::{
             predicate::link_v02::test::PREDICATE_LINK_V02,
-            state::{StateLayout, StateVersion, StateWrapper},
+            state::{StateLayout, StateWrapper, StatementVer},
             test::BLANK_META,
             Convert, PredicateLayout, PredicateVersion,
         },
@@ -106,7 +106,7 @@ pub mod test {
     });
 
     pub static STATE_V01: Lazy<StateV01> = Lazy::new(|| StateV01 {
-        typ: StateVersion::V0_1.try_into().unwrap(),
+        typ: StatementVer::V0_1.try_into().unwrap(),
         subject: BTreeMap::new(),
         predicate_type: PredicateVersion::LinkV0_2,
         predicate: Box::new(PREDICATE_LINK_V02.clone()).into_enum(),
@@ -125,7 +125,7 @@ pub mod test {
         let link = StateWrapper::from_meta(
             BLANK_META.clone(),
             Some(Box::new(PREDICATE_LINK_V02.clone())),
-            StateVersion::V0_1,
+            StatementVer::V0_1,
         );
         let real = Box::new(STATE_V01.clone()).into_enum();
 
@@ -144,7 +144,7 @@ pub mod test {
     #[test]
     fn deserialize_state() {
         let link =
-            StateWrapper::from_bytes(STR_V01.as_bytes().to_vec(), StateVersion::V0_1).unwrap();
+            StateWrapper::from_bytes(STR_V01.as_bytes().to_vec(), StatementVer::V0_1).unwrap();
         let real = Box::new(STATE_V01.clone()).into_enum();
 
         assert_eq!(link, real);
@@ -160,8 +160,8 @@ pub mod test {
 
     #[test]
     fn deserialize_dismatch() {
-        for version in StateVersion::iter() {
-            if version == StateVersion::V0_1 {
+        for version in StatementVer::iter() {
+            if version == StatementVer::V0_1 {
                 continue;
             }
             let state = StateWrapper::from_bytes(STR_V01.as_bytes().to_vec(), version);

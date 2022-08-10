@@ -16,29 +16,29 @@ use crate::Error;
 use crate::Result;
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Copy, EnumIter)]
-pub enum StateVersion {
+pub enum StatementVer {
     Naive,
     V0_1,
 }
 
-impl Convert<String> for StateVersion {
+impl Convert<String> for StatementVer {
     fn try_from(target: String) -> Result<Self> {
         match target.as_str() {
-            "link" => Ok(StateVersion::Naive),
-            "https://in-toto.io/Statement/v0.1" => Ok(StateVersion::V0_1),
+            "link" => Ok(StatementVer::Naive),
+            "https://in-toto.io/Statement/v0.1" => Ok(StatementVer::V0_1),
             _ => Err(Error::StringConvertFailed(target)),
         }
     }
 
     fn try_into(self) -> Result<String> {
         match self {
-            StateVersion::Naive => Ok("link".to_string()),
-            StateVersion::V0_1 => Ok("https://in-toto.io/Statement/v0.1".to_string()),
+            StatementVer::Naive => Ok("link".to_string()),
+            StatementVer::V0_1 => Ok("https://in-toto.io/Statement/v0.1".to_string()),
         }
     }
 }
 
-impl Serialize for StateVersion {
+impl Serialize for StatementVer {
     fn serialize<S>(&self, ser: S) -> ::std::result::Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -50,18 +50,18 @@ impl Serialize for StateVersion {
     }
 }
 
-impl<'de> Deserialize<'de> for StateVersion {
+impl<'de> Deserialize<'de> for StatementVer {
     fn deserialize<D: Deserializer<'de>>(de: D) -> ::std::result::Result<Self, D::Error> {
         let target: String = Deserialize::deserialize(de)?;
-        StateVersion::try_from(target).map_err(|e| DeserializeError::custom(format!("{:?}", e)))
+        StatementVer::try_from(target).map_err(|e| DeserializeError::custom(format!("{:?}", e)))
     }
 }
 
-impl Display for StateVersion {
+impl Display for StatementVer {
     fn fmt(&self, fmt: &mut Formatter) -> FmtResult {
         match self {
-            StateVersion::V0_1 => fmt.write_str("v0.1")?,
-            StateVersion::Naive => fmt.write_str("naive")?,
+            StatementVer::V0_1 => fmt.write_str("v0.1")?,
+            StatementVer::Naive => fmt.write_str("naive")?,
         }
         Ok(())
     }
@@ -88,27 +88,27 @@ impl StateWrapper {
     pub fn from_meta(
         meta: LinkMetadata,
         predicate: Option<Box<dyn PredicateLayout>>,
-        version: StateVersion,
+        version: StatementVer,
     ) -> Self {
         match version {
-            StateVersion::Naive => Self::Naive(StateNaive::merge(meta, predicate).unwrap()),
-            StateVersion::V0_1 => Self::V0_1(StateV01::merge(meta, predicate).unwrap()),
+            StatementVer::Naive => Self::Naive(StateNaive::merge(meta, predicate).unwrap()),
+            StatementVer::V0_1 => Self::V0_1(StateV01::merge(meta, predicate).unwrap()),
         }
     }
 
-    pub fn from_bytes(bytes: Vec<u8>, version: StateVersion) -> Result<Self> {
+    pub fn from_bytes(bytes: Vec<u8>, version: StatementVer) -> Result<Self> {
         match version {
-            StateVersion::Naive => serde_json::from_slice(&bytes)
+            StatementVer::Naive => serde_json::from_slice(&bytes)
                 .map(Self::Naive)
                 .map_err(|e| e.into()),
-            StateVersion::V0_1 => serde_json::from_slice(&bytes)
+            StatementVer::V0_1 => serde_json::from_slice(&bytes)
                 .map(Self::V0_1)
                 .map_err(|e| e.into()),
         }
     }
 
-    pub fn judge_from_bytes(bytes: Vec<u8>) -> Result<StateVersion> {
-        StateVersion::iter()
+    pub fn judge_from_bytes(bytes: Vec<u8>) -> Result<StatementVer> {
+        StatementVer::iter()
             .find(|ver| StateWrapper::from_bytes(bytes.clone(), *ver).is_ok())
             .ok_or_else(|| Error::Programming("no available bytes parser".to_string()))
     }
@@ -121,7 +121,7 @@ impl StateWrapper {
 }
 
 pub trait StateLayout {
-    fn version(&self) -> StateVersion;
+    fn version(&self) -> StatementVer;
     fn into_enum(self: Box<Self>) -> StateWrapper;
     fn to_bytes(&self) -> Result<Vec<u8>>;
 }

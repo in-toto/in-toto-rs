@@ -7,11 +7,10 @@ use serde_derive::{Deserialize, Serialize};
 
 use super::{PredicateLayout, PredicateVersion, PredicateWrapper};
 use crate::interchange::{DataInterchange, Json};
-use crate::models::LinkMetadata;
 use crate::Result;
 
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) struct TimeStamp(pub(crate) DateTime<FixedOffset>);
+pub struct TimeStamp(pub DateTime<FixedOffset>);
 
 impl Serialize for TimeStamp {
     fn serialize<S>(&self, ser: S) -> ::std::result::Result<S::Ok, S::Error>
@@ -34,40 +33,40 @@ impl<'de> Deserialize<'de> for TimeStamp {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct TypeURI(pub(crate) String);
+pub struct TypeURI(pub String);
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct Builder {
-    pub(crate) id: TypeURI,
+pub struct Builder {
+    pub id: TypeURI,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct Completeness {
+pub struct Completeness {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) arguments: Option<bool>,
+    pub arguments: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) environment: Option<bool>,
+    pub environment: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) materials: Option<bool>,
+    pub materials: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct Recipe {
+pub struct Recipe {
     #[serde(rename = "type")]
-    pub(crate) typ: TypeURI,
+    pub typ: TypeURI,
     #[serde(rename = "definedInMaterial")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) defined_in_material: Option<usize>,
+    pub defined_in_material: Option<usize>,
     #[serde(rename = "entryPoint")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) entry_point: Option<String>,
+    pub entry_point: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) arguments: Option<String>,
+    pub arguments: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) environment: Option<String>,
+    pub environment: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -75,17 +74,17 @@ pub(crate) struct Recipe {
 pub struct Metadata {
     #[serde(rename = "buildInvocationId")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) build_invocation_id: Option<String>,
+    pub build_invocation_id: Option<String>,
     #[serde(rename = "buildStartedOn")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) build_started_on: Option<TimeStamp>,
+    pub build_started_on: Option<TimeStamp>,
     #[serde(rename = "buildFinishedOn")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) build_finished_on: Option<TimeStamp>,
+    pub build_finished_on: Option<TimeStamp>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) completeness: Option<Completeness>,
+    pub completeness: Option<Completeness>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) reproducible: Option<bool>,
+    pub reproducible: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -99,11 +98,11 @@ pub struct Material {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 #[serde(deny_unknown_fields)]
-/// Predicate `ProvenV01` means the predicate of SLSA format.
+/// Predicate `SLSAProvenanceV01` means the predicate of SLSA format.
 ///
-/// [ProvenV01](https://slsa.dev/provenance/v0.1)
+/// [SLSAProvenanceV01](https://slsa.dev/provenance/v0.1)
 /// can be used together with most states.
-pub struct ProvenV01 {
+pub struct SLSAProvenanceV01 {
     builder: Builder,
     #[serde(skip_serializing_if = "Option::is_none")]
     recipe: Option<Recipe>,
@@ -113,30 +112,17 @@ pub struct ProvenV01 {
     materials: Option<Vec<Material>>,
 }
 
-impl From<LinkMetadata> for ProvenV01 {
-    fn from(meta: LinkMetadata) -> ProvenV01 {
-        ProvenV01 {
-            builder: Builder {
-                id: TypeURI(meta.name().to_string()),
-            },
-            recipe: None,
-            metadata: None,
-            materials: None,
-        }
-    }
-}
-
-impl PredicateLayout for ProvenV01 {
+impl PredicateLayout for SLSAProvenanceV01 {
     fn to_bytes(&self) -> Result<Vec<u8>> {
         Json::canonicalize(&Json::serialize(self)?)
     }
 
     fn into_enum(self: Box<Self>) -> PredicateWrapper {
-        PredicateWrapper::ProvenV0_1(*self)
+        PredicateWrapper::SLSAProvenanceV0_1(*self)
     }
 
     fn version(&self) -> PredicateVersion {
-        PredicateVersion::LinkV0_2
+        PredicateVersion::SLSAProvenanceV0_1
     }
 }
 
@@ -149,7 +135,9 @@ pub mod test {
     use serde_json::json;
     use strum::IntoEnumIterator;
 
-    use super::{Builder, Completeness, Material, Metadata, ProvenV01, Recipe, TimeStamp, TypeURI};
+    use super::{
+        Builder, Completeness, Material, Metadata, Recipe, SLSAProvenanceV01, TimeStamp, TypeURI,
+    };
     use crate::{
         interchange::{DataInterchange, Json},
         models::{PredicateLayout, PredicateVersion, PredicateWrapper},
@@ -186,9 +174,9 @@ pub mod test {
         data.to_string()
     });
 
-    pub static PREDICATE_PROVEN_V01: Lazy<ProvenV01> = Lazy::new(|| {
+    pub static PREDICATE_PROVEN_V01: Lazy<SLSAProvenanceV01> = Lazy::new(|| {
         let build_started_on = DateTime::parse_from_rfc3339("2020-08-19T08:38:00Z").unwrap();
-        ProvenV01 {
+        SLSAProvenanceV01 {
             builder: Builder {
                 id: TypeURI("https://github.com/Attestations/GitHubHostedActions@v1".to_string()),
             },
@@ -234,7 +222,7 @@ pub mod test {
 
     #[test]
     fn into_trait_equal() {
-        let predicate = PredicateWrapper::ProvenV0_1(PREDICATE_PROVEN_V01.clone());
+        let predicate = PredicateWrapper::SLSAProvenanceV0_1(PREDICATE_PROVEN_V01.clone());
         let real = Box::new(PREDICATE_PROVEN_V01.clone()).into_enum();
 
         assert_eq!(predicate, real);
@@ -258,7 +246,7 @@ pub mod test {
     fn deserialize_predicate() {
         let predicate = PredicateWrapper::from_bytes(
             STR_PREDICATE_PROVEN_V01.as_bytes(),
-            PredicateVersion::ProvenV0_1,
+            PredicateVersion::SLSAProvenanceV0_1,
         )
         .unwrap();
         let real = Box::new(PREDICATE_PROVEN_V01.clone()).into_enum();
@@ -278,7 +266,7 @@ pub mod test {
     #[test]
     fn deserialize_dismatch() {
         for version in PredicateVersion::iter() {
-            if version == PredicateVersion::ProvenV0_1 {
+            if version == PredicateVersion::SLSAProvenanceV0_1 {
                 continue;
             }
             let predicate =

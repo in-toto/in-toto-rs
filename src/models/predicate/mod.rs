@@ -1,11 +1,11 @@
 //! in-toto link
 
 pub mod link_v02;
-pub mod proven_v01;
-pub mod proven_v02;
+pub mod slsa_provenance_v01;
+pub mod slsa_provenance_v02;
 pub use link_v02::LinkV02;
-pub use proven_v01::ProvenV01;
-pub use proven_v02::ProvenV02;
+pub use slsa_provenance_v01::SLSAProvenanceV01;
+pub use slsa_provenance_v02::SLSAProvenanceV02;
 
 use serde::de::{Deserialize, Deserializer, Error as DeserializeError};
 use serde::ser::{Error as SerializeError, Serialize, Serializer};
@@ -14,22 +14,21 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 use super::Convert;
-use super::LinkMetadata;
 use crate::{Error, Result};
 
 #[derive(Debug, Hash, PartialEq, EnumIter, Clone, Copy)]
 pub enum PredicateVersion {
     LinkV0_2,
-    ProvenV0_1,
-    ProvenV0_2,
+    SLSAProvenanceV0_1,
+    SLSAProvenanceV0_2,
 }
 
 impl Convert<String> for PredicateVersion {
     fn try_from(target: String) -> Result<Self> {
         match target.as_str() {
             "https://in-toto.io/Link/v0.2" => Ok(PredicateVersion::LinkV0_2),
-            "https://slsa.dev/provenance/v0.1" => Ok(PredicateVersion::ProvenV0_1),
-            "https://slsa.dev/provenance/v0.2" => Ok(PredicateVersion::ProvenV0_2),
+            "https://slsa.dev/provenance/v0.1" => Ok(PredicateVersion::SLSAProvenanceV0_1),
+            "https://slsa.dev/provenance/v0.2" => Ok(PredicateVersion::SLSAProvenanceV0_2),
             _ => Err(Error::StringConvertFailed(target)),
         }
     }
@@ -37,8 +36,12 @@ impl Convert<String> for PredicateVersion {
     fn try_into(self) -> Result<String> {
         match self {
             PredicateVersion::LinkV0_2 => Ok("https://in-toto.io/Link/v0.2".to_string()),
-            PredicateVersion::ProvenV0_1 => Ok("https://slsa.dev/provenance/v0.1".to_string()),
-            PredicateVersion::ProvenV0_2 => Ok("https://slsa.dev/provenance/v0.2".to_string()),
+            PredicateVersion::SLSAProvenanceV0_1 => {
+                Ok("https://slsa.dev/provenance/v0.1".to_string())
+            }
+            PredicateVersion::SLSAProvenanceV0_2 => {
+                Ok("https://slsa.dev/provenance/v0.2".to_string())
+            }
         }
     }
 }
@@ -66,8 +69,8 @@ impl<'de> Deserialize<'de> for PredicateVersion {
 #[serde(untagged)]
 pub enum PredicateWrapper {
     LinkV0_2(LinkV02),
-    ProvenV0_1(ProvenV01),
-    ProvenV0_2(ProvenV02),
+    SLSAProvenanceV0_1(SLSAProvenanceV01),
+    SLSAProvenanceV0_2(SLSAProvenanceV02),
 }
 
 impl PredicateWrapper {
@@ -75,17 +78,8 @@ impl PredicateWrapper {
     pub fn into_trait(self) -> Box<dyn PredicateLayout> {
         match self {
             PredicateWrapper::LinkV0_2(link) => Box::new(link),
-            PredicateWrapper::ProvenV0_1(proven) => Box::new(proven),
-            PredicateWrapper::ProvenV0_2(proven) => Box::new(proven),
-        }
-    }
-
-    /// Construct `PredicateWrapper` from MetaData
-    pub fn from_meta(meta: LinkMetadata, version: PredicateVersion) -> Self {
-        match version {
-            PredicateVersion::LinkV0_2 => Self::LinkV0_2(LinkV02::from(meta)),
-            PredicateVersion::ProvenV0_1 => Self::ProvenV0_1(ProvenV01::from(meta)),
-            PredicateVersion::ProvenV0_2 => Self::ProvenV0_2(ProvenV02::from(meta)),
+            PredicateWrapper::SLSAProvenanceV0_1(proven) => Box::new(proven),
+            PredicateWrapper::SLSAProvenanceV0_2(proven) => Box::new(proven),
         }
     }
 
@@ -95,11 +89,11 @@ impl PredicateWrapper {
             PredicateVersion::LinkV0_2 => serde_json::from_slice(bytes)
                 .map(Self::LinkV0_2)
                 .map_err(|e| e.into()),
-            PredicateVersion::ProvenV0_1 => serde_json::from_slice(bytes)
-                .map(Self::ProvenV0_1)
+            PredicateVersion::SLSAProvenanceV0_1 => serde_json::from_slice(bytes)
+                .map(Self::SLSAProvenanceV0_1)
                 .map_err(|e| e.into()),
-            PredicateVersion::ProvenV0_2 => serde_json::from_slice(bytes)
-                .map(Self::ProvenV0_2)
+            PredicateVersion::SLSAProvenanceV0_2 => serde_json::from_slice(bytes)
+                .map(Self::SLSAProvenanceV0_2)
                 .map_err(|e| e.into()),
         }
     }

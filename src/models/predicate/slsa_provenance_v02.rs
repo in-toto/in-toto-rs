@@ -2,82 +2,66 @@ use std::collections::HashMap;
 
 use serde_derive::{Deserialize, Serialize};
 
-use super::proven_v01::{Builder, Material, Metadata, TypeURI};
+use super::slsa_provenance_v01::{Builder, Material, Metadata, TypeURI};
 use super::{PredicateLayout, PredicateVersion, PredicateWrapper};
 use crate::interchange::{DataInterchange, Json};
-use crate::models::LinkMetadata;
 use crate::Result;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct ConfigSource {
-    pub(crate) uri: Option<TypeURI>,
+pub struct ConfigSource {
+    pub uri: Option<TypeURI>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) digest: Option<HashMap<String, String>>,
+    pub digest: Option<HashMap<String, String>>,
     #[serde(rename = "entryPoint")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) entry_point: Option<String>,
+    pub entry_point: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct Invocation {
+pub struct Invocation {
     #[serde(rename = "configSource")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) config_source: Option<ConfigSource>,
+    pub config_source: Option<ConfigSource>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) parameters: Option<String>,
+    pub parameters: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) environment: Option<String>,
+    pub environment: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 #[serde(deny_unknown_fields)]
-/// Predicate `ProvenV02` means the predicate of SLSA format.
+/// Predicate `SLSAProvenanceV02` means the predicate of SLSA format.
 ///
-/// [ProvenV02](https://slsa.dev/provenance/v0.2)
+/// [SLSAProvenanceV02](https://slsa.dev/provenance/v0.2)
 /// can be used together with most states.
-pub struct ProvenV02 {
-    builder: Builder,
+pub struct SLSAProvenanceV02 {
+    pub builder: Builder,
     #[serde(rename = "buildType")]
-    build_type: TypeURI,
+    pub build_type: TypeURI,
     #[serde(skip_serializing_if = "Option::is_none")]
-    invocation: Option<Invocation>,
+    pub invocation: Option<Invocation>,
     #[serde(rename = "buildConfig")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    build_config: Option<String>,
+    pub build_config: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    metadata: Option<Metadata>,
+    pub metadata: Option<Metadata>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    materials: Option<Vec<Material>>,
+    pub materials: Option<Vec<Material>>,
 }
 
-impl From<LinkMetadata> for ProvenV02 {
-    fn from(meta: LinkMetadata) -> ProvenV02 {
-        ProvenV02 {
-            builder: Builder {
-                id: TypeURI(meta.name().to_string()),
-            },
-            build_type: TypeURI("".to_string()),
-            invocation: None,
-            build_config: None,
-            metadata: None,
-            materials: None,
-        }
-    }
-}
-
-impl PredicateLayout for ProvenV02 {
+impl PredicateLayout for SLSAProvenanceV02 {
     fn to_bytes(&self) -> Result<Vec<u8>> {
         Json::canonicalize(&Json::serialize(self)?)
     }
 
     fn into_enum(self: Box<Self>) -> PredicateWrapper {
-        PredicateWrapper::ProvenV0_2(*self)
+        PredicateWrapper::SLSAProvenanceV0_2(*self)
     }
 
     fn version(&self) -> PredicateVersion {
-        PredicateVersion::ProvenV0_2
+        PredicateVersion::SLSAProvenanceV0_2
     }
 }
 
@@ -91,11 +75,11 @@ pub mod test {
     use serde_json::json;
     use strum::IntoEnumIterator;
 
-    use super::{ConfigSource, Invocation, ProvenV02};
+    use super::{ConfigSource, Invocation, SLSAProvenanceV02};
     use crate::{
         interchange::{DataInterchange, Json},
         models::{
-            predicate::proven_v01::{
+            predicate::slsa_provenance_v01::{
                 Builder, Completeness, Material, Metadata, TimeStamp, TypeURI,
             },
             PredicateLayout, PredicateVersion, PredicateWrapper,
@@ -138,13 +122,13 @@ pub mod test {
         data.to_string()
     });
 
-    pub static PREDICATE_PROVEN_V02: Lazy<ProvenV02> = Lazy::new(|| {
+    pub static PREDICATE_PROVEN_V02: Lazy<SLSAProvenanceV02> = Lazy::new(|| {
         let build_started_on = DateTime::parse_from_rfc3339("2020-08-19T08:38:00Z").unwrap();
         let digest = HashMap::from([(
             "sha1".to_string(),
             "d6525c840a62b398424a78d792f457477135d0cf".to_string(),
         )]);
-        ProvenV02 {
+        SLSAProvenanceV02 {
             builder: Builder {
                 id: TypeURI("https://github.com/Attestations/GitHubHostedActions@v1".to_string()),
             },
@@ -196,7 +180,7 @@ pub mod test {
 
     #[test]
     fn into_trait_equal() {
-        let predicate = PredicateWrapper::ProvenV0_2(PREDICATE_PROVEN_V02.clone());
+        let predicate = PredicateWrapper::SLSAProvenanceV0_2(PREDICATE_PROVEN_V02.clone());
         let real = Box::new(PREDICATE_PROVEN_V02.clone()).into_enum();
 
         assert_eq!(predicate, real);
@@ -220,7 +204,7 @@ pub mod test {
     fn deserialize_predicate() {
         let predicate = PredicateWrapper::from_bytes(
             STR_PREDICATE_PROVEN_V02.as_bytes(),
-            PredicateVersion::ProvenV0_2,
+            PredicateVersion::SLSAProvenanceV0_2,
         )
         .unwrap();
         let real = Box::new(PREDICATE_PROVEN_V02.clone()).into_enum();
@@ -240,7 +224,7 @@ pub mod test {
     #[test]
     fn deserialize_dismatch() {
         for version in PredicateVersion::iter() {
-            if version == PredicateVersion::ProvenV0_2 {
+            if version == PredicateVersion::SLSAProvenanceV0_2 {
                 continue;
             }
             let predicate =

@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, fmt::Debug};
 
 use serde_derive::{Deserialize, Serialize};
 
-use super::{FromMerge, StateLayout, StateVersion, StateWrapper};
+use super::{FromMerge, StateLayout, StateWrapper, StatementVer};
 use crate::models::{LinkMetadata, TargetDescription, VirtualTargetPath};
 use crate::{
     interchange::{DataInterchange, Json},
@@ -37,7 +37,7 @@ impl FromMerge for StateNaive {
                 p.version().try_into()?,
             ));
         };
-        let version = StateVersion::Naive.try_into()?;
+        let version = StatementVer::Naive.try_into()?;
         Ok(StateNaive {
             typ: version,
             name: meta.name().to_string(),
@@ -51,8 +51,8 @@ impl FromMerge for StateNaive {
 }
 
 impl StateLayout for StateNaive {
-    fn version(&self) -> StateVersion {
-        StateVersion::Naive
+    fn version(&self) -> StatementVer {
+        StatementVer::Naive
     }
 
     fn into_enum(self: Box<Self>) -> StateWrapper {
@@ -76,7 +76,7 @@ pub mod test {
     use super::StateNaive;
     use crate::interchange::{DataInterchange, Json};
     use crate::models::byproducts::ByProducts;
-    use crate::models::state::{StateLayout, StateVersion, StateWrapper};
+    use crate::models::state::{StateLayout, StateWrapper, StatementVer};
     use crate::models::test::BLANK_META;
     use crate::models::Convert;
 
@@ -101,7 +101,7 @@ pub mod test {
     });
 
     pub static STATE_NAIVE: Lazy<StateNaive> = Lazy::new(|| StateNaive {
-        typ: StateVersion::Naive.try_into().unwrap(),
+        typ: StatementVer::Naive.try_into().unwrap(),
         name: "".to_string(),
         materials: BTreeMap::new(),
         products: BTreeMap::new(),
@@ -120,7 +120,7 @@ pub mod test {
 
     #[test]
     fn create_state_from_meta() {
-        let state = StateWrapper::from_meta(BLANK_META.clone(), None, StateVersion::Naive);
+        let state = StateWrapper::from_meta(BLANK_META.clone(), None, StatementVer::Naive);
         let real = Box::new(STATE_NAIVE.clone()).into_enum();
 
         assert_eq!(state, real);
@@ -138,7 +138,7 @@ pub mod test {
     #[test]
     fn deserialize_state() {
         let link =
-            StateWrapper::from_bytes(STR_NAIVE.as_bytes().to_vec(), StateVersion::Naive).unwrap();
+            StateWrapper::from_bytes(STR_NAIVE.as_bytes().to_vec(), StatementVer::Naive).unwrap();
         let real = Box::new(STATE_NAIVE.clone()).into_enum();
 
         assert_eq!(link, real);
@@ -154,8 +154,8 @@ pub mod test {
 
     #[test]
     fn deserialize_dismatch() {
-        for version in StateVersion::iter() {
-            if version == StateVersion::Naive {
+        for version in StatementVer::iter() {
+            if version == StatementVer::Naive {
                 continue;
             }
             let state = StateWrapper::from_bytes(STR_NAIVE.as_bytes().to_vec(), version);

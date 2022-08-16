@@ -63,6 +63,12 @@ pub enum Error {
 
     #[error("runlib failed: {0}")]
     RunLibError(String),
+
+    #[error("attestation state and predicate version dismatch: {0} and {1}")]
+    AttestationFormatDismatch(String, String),
+
+    #[error("convertion from string failed: {0}")]
+    StringConvertFailed(String),
 }
 
 impl From<serde_json::error::Error> for Error {

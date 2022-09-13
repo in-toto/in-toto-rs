@@ -1,180 +1,138 @@
 //! in-toto metadata.
-//  Provides a container class `Metablock` for signed metadata and
-//  functions for signing, signature verification, de-serialization and
-//  serialization from and to JSON.
+//! # Metadata & MetadataWrapper
+//! Metadata is the top level abstract for both layout metadata and link
+//! metadata. Metadata it is devided into two types
+//! * enum `MetadataWrapper` is used to do serialize, deserialize and
+//! other object unsafe operations.
+//! * trait `Metadata` is used to work for trait object.
+//! The reason please refer to issue https://github.com/in-toto/in-toto-rs/issues/33
+//!
+//! # Metablock
+//! Metablock is the container for link metadata and layout metadata.
+//! Its serialized outcome can work as the content of a link file
+//! or a layout file. It provides `MetablockBuilder` for create
+//! an instance of Metablock, and methods to verify signatures,
+//! create signatures.
 
-// use chrono::offset::Utc;
-// use chrono::{DateTime, Duration};
 use log::{debug, warn};
-use serde::de::DeserializeOwned;
-use serde::ser::Serialize;
 use serde_derive::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
-use std::fmt::Debug;
-use std::fs::canonicalize as canonicalize_path;
-use std::marker::PhantomData;
-use std::path::Path;
+use std::collections::HashMap;
+use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::str;
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
-use crate::crypto::{HashValue, KeyId, PrivateKey, PublicKey, Signature};
+use crate::crypto::{KeyId, PrivateKey, PublicKey, Signature};
 use crate::error::Error;
-use crate::interchange::DataInterchange;
+use crate::interchange::{DataInterchange, Json};
 use crate::Result;
+
+use super::{LayoutMetadata, LinkMetadata};
 
 pub const FILENAME_FORMAT: &str = "{step_name}.{keyid:.8}.link";
 
-/// Top level trait used for role metadata.
-pub trait Metadata: Debug + PartialEq + Serialize + DeserializeOwned {
-    /// The version number.
-    fn version(&self) -> u32;
+#[derive(Debug, Serialize, Deserialize, Hash, PartialEq, EnumIter, Clone, Copy)]
+pub enum MetadataType {
+    Layout,
+    Link,
 }
 
-/// Helper to construct `Metablock`.
-#[derive(Debug, Clone)]
-pub struct MetablockBuilder<D, M>
-where
-    D: DataInterchange,
-{
-    signatures: HashMap<KeyId, Signature>,
-    // TODO: make Metablock & MetablockBuilder's metadata more specific to in-toto
-    metadata: D::RawData,
-    metadata_bytes: Vec<u8>,
-    _marker: PhantomData<M>,
+impl Display for MetadataType {
+    fn fmt(&self, fmt: &mut Formatter) -> FmtResult {
+        match self {
+            MetadataType::Layout => fmt.write_str("layout")?,
+            MetadataType::Link => fmt.write_str("link")?,
+        }
+        Ok(())
+    }
 }
 
-impl<D, M> MetablockBuilder<D, M>
-where
-    D: DataInterchange,
-    M: Metadata,
-{
-    /// Create a new `MetablockBuilder` from a given `Metadata`.
-    pub fn from_metadata(metadata: &M) -> Result<Self> {
-        let metadata = D::serialize(metadata)?;
-        Self::from_raw_metadata(metadata)
-    }
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[serde(untagged)]
+pub enum MetadataWrapper {
+    Layout(LayoutMetadata),
+    Link(LinkMetadata),
+}
 
-    /// Create a new `MetablockBuilder` from manually serialized metadata to be signed.
-    /// Returns an error if `metadata` cannot be parsed into `M`.
-    pub fn from_raw_metadata(metadata: D::RawData) -> Result<Self> {
-        let _ensure_metadata_parses: M = D::deserialize(&metadata)?;
-        let metadata_bytes = D::canonicalize(&metadata)?;
-        Ok(Self {
-            signatures: HashMap::new(),
-            metadata,
-            metadata_bytes,
-            _marker: PhantomData,
-        })
-    }
-
-    /// Sign the metadata using the given `private_key`, replacing any existing signatures with the
-    /// same `KeyId`.
-    ///
-    /// **WARNING**: You should never have multiple TUF private keys on the same machine, so if
-    /// you're using this to append several signatures at once, you are doing something wrong. The
-    /// preferred method is to generate your copy of the metadata locally and use
-    /// `Metablock::merge_signatures` to perform the "append" operations.
-    pub fn sign(mut self, private_key: &PrivateKey) -> Result<Self> {
-        let sig = private_key.sign(&self.metadata_bytes)?;
-        let _ = self.signatures.insert(sig.key_id().clone(), sig);
-        Ok(self)
-    }
-
-    /// Construct a new `Metablock` using the included signatures, sorting the signatures by
-    /// `KeyId`.
-    pub fn build(self) -> Metablock<D, M> {
-        let mut signatures = self
-            .signatures
-            .into_iter()
-            .map(|(_k, v)| v)
-            .collect::<Vec<_>>();
-        signatures.sort_unstable_by(|a, b| a.key_id().cmp(b.key_id()));
-
-        Metablock {
-            signatures,
-            metadata: self.metadata,
-            _marker: PhantomData,
+impl MetadataWrapper {
+    /// Convert from enum `MetadataWrapper` to trait `Metadata`
+    pub fn into_trait(self) -> Box<dyn Metadata> {
+        match self {
+            MetadataWrapper::Layout(layout_meta) => Box::new(layout_meta),
+            MetadataWrapper::Link(link_meta) => Box::new(link_meta),
         }
     }
+
+    /// Standard deserialize for MetadataWrapper by its metadata
+    pub fn from_bytes(bytes: &[u8], metadata_type: MetadataType) -> Result<Self> {
+        match metadata_type {
+            MetadataType::Layout => serde_json::from_slice(bytes)
+                .map(Self::Layout)
+                .map_err(|e| e.into()),
+            MetadataType::Link => serde_json::from_slice(bytes)
+                .map(Self::Link)
+                .map_err(|e| e.into()),
+        }
+    }
+
+    /// Auto deserialize for MetadataWrapper by any possible metadata.
+    pub fn try_from_bytes(bytes: &[u8]) -> Result<Self> {
+        let mut metadata: Result<MetadataWrapper> =
+            Err(Error::Programming("no available bytes parser".to_string()));
+        for typ in MetadataType::iter() {
+            metadata = MetadataWrapper::from_bytes(bytes, typ);
+            if metadata.is_ok() {
+                break;
+            }
+        }
+        metadata
+    }
+
+    /// Standard serialize for MetadataWrapper by its metadata
+    pub fn to_bytes(&self) -> Result<Vec<u8>> {
+        Json::canonicalize(&Json::serialize(self)?)
+    }
 }
 
-/// Serialized metadata with attached unverified signatures.
+/// trait for Metadata
+pub trait Metadata {
+    /// The version of Metadata
+    fn typ(&self) -> MetadataType;
+    /// Convert from trait `Metadata` to enum `MetadataWrapper`
+    fn into_enum(self: Box<Self>) -> MetadataWrapper;
+    /// Standard serialize for Metadata
+    fn to_bytes(&self) -> Result<Vec<u8>>;
+}
+
+/// All signed files (link and layout files) have the format.
+/// * `signatures`: A pubkey => signature map. signatures are for the metadata.
+/// * `metadata`: <ROLE> dictionary. Also known as signed metadata. e.g., link
+/// or layout.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Metablock<D, M>
-where
-    D: DataInterchange,
-{
+pub struct Metablock {
     signatures: Vec<Signature>,
     #[serde(rename = "signed")]
-    metadata: D::RawData,
-    #[serde(skip_serializing, skip_deserializing)]
-    _marker: PhantomData<M>,
+    metadata: MetadataWrapper,
 }
 
-impl<D, M> Metablock<D, M>
-where
-    D: DataInterchange,
-    M: Metadata,
-{
-    /// Create a new `Metablock`. The supplied private key is used to sign the canonicalized
-    /// bytes of the provided metadata with the provided scheme.
-    ///
-    /// ```
-    /// # use chrono::prelude::*;
-    /// # use in_toto::crypto::{PrivateKey, SignatureScheme, HashAlgorithm};
-    /// # use in_toto::interchange::Json;
-    /// # use in_toto::models::{Metablock};
-    /// #
-    /// # fn main() {
-    /// # let key: &[u8] = include_bytes!("../../tests/ed25519/ed25519-1.pk8.der");
-    /// let key = PrivateKey::from_pkcs8(&key, SignatureScheme::Ed25519).unwrap();
-    ///
-    /// # }
-    /// ```
-    pub fn new(metadata: &M, private_key: Option<&PrivateKey>) -> Result<Self> {
-        let raw = D::serialize(metadata)?;
-        let signatures = match private_key {
-            Some(key) => {
-                let bytes = D::canonicalize(&raw)?;
-                let sig = key.sign(&bytes)?;
-                vec![sig]
-            }
-            None => {
-                vec![]
-            }
-        };
+impl Metablock {
+    /// Create a new Metablock, using data of metadata. And the signatures are
+    /// generated by using private-keys to sign the metadata.
+    pub fn new(metadata: MetadataWrapper, private_keys: &[&PrivateKey]) -> Result<Self> {
+        let raw = metadata.to_bytes()?;
+
+        // sign and collect signatures
+        let mut signatures = Vec::new();
+        private_keys.iter().try_for_each(|key| -> Result<()> {
+            let sig = key.sign(&raw)?;
+            signatures.push(sig);
+            Ok(())
+        })?;
 
         Ok(Self {
             signatures,
-            metadata: raw,
-            _marker: PhantomData,
+            metadata,
         })
-    }
-
-    /// Merge the singatures from `other` into `self` if and only if
-    /// `self.as_ref() == other.as_ref()`. If `self` and `other` contain signatures from the same
-    /// key ID, then the signatures from `self` will replace the signatures from `other`.
-    pub fn merge_signatures(&mut self, other: &Self) -> Result<()> {
-        if self.metadata != other.metadata {
-            return Err(Error::IllegalArgument(
-                "Attempted to merge unequal metadata".into(),
-            ));
-        }
-
-        let key_ids = self
-            .signatures
-            .iter()
-            .map(|s| s.key_id().clone())
-            .collect::<HashSet<KeyId>>();
-
-        self.signatures.extend(
-            other
-                .signatures
-                .iter()
-                .filter(|s| !key_ids.contains(s.key_id()))
-                .cloned(),
-        );
-
-        Ok(())
     }
 
     /// An immutable reference to the signatures.
@@ -182,30 +140,11 @@ where
         &self.signatures
     }
 
-    /// Parse this metadata without verifying signatures.
-    ///
-    /// This operation is not safe to do with metadata obtained from an untrusted source.
-    pub fn assume_valid(&self) -> Result<M> {
-        D::deserialize(&self.metadata)
-    }
-
     /// Verify this metadata.
-    ///
-    /// ```
-    /// # use chrono::prelude::*;
-    /// # use in_toto::crypto::{PrivateKey, SignatureScheme, HashAlgorithm};
-    /// # use in_toto::interchange::Json;
-    ///
-    /// # fn main() {
-    /// let key_1: &[u8] = include_bytes!("../../tests/ed25519/ed25519-1.pk8.der");
-    /// let key_1 = PrivateKey::from_pkcs8(&key_1, SignatureScheme::Ed25519).unwrap();
-    ///
-    /// let key_2: &[u8] = include_bytes!("../../tests/ed25519/ed25519-2.pk8.der");
-    /// let key_2 = PrivateKey::from_pkcs8(&key_2, SignatureScheme::Ed25519).unwrap();
-    ///
-    ///
-    /// # }
-    pub fn verify<'a, I>(&self, threshold: u32, authorized_keys: I) -> Result<M>
+    /// Each signature in the Metablock signed by an authorized key
+    /// is a legal signature. Only legal the number signatures is
+    /// not less than `threshold`, will return the wrapped Metadata.
+    pub fn verify<'a, I>(&self, threshold: u32, authorized_keys: I) -> Result<MetadataWrapper>
     where
         I: IntoIterator<Item = &'a PublicKey>,
     {
@@ -226,18 +165,22 @@ where
             .map(|k| (k.key_id(), k))
             .collect::<HashMap<&KeyId, &PublicKey>>();
 
-        let canonical_bytes = D::canonicalize(&self.metadata)?;
-
+        let raw = self.metadata.to_bytes()?;
         let mut signatures_needed = threshold;
+
         // Create a key_id->signature map to deduplicate the key_ids.
         let signatures = self
             .signatures
             .iter()
             .map(|sig| (sig.key_id(), sig))
             .collect::<HashMap<&KeyId, &Signature>>();
+
+        // check the signatures, if is signed by an authorized key,
+        // signatures_needed - 1
+
         for (key_id, sig) in signatures {
             match authorized_keys.get(key_id) {
-                Some(pub_key) => match pub_key.verify(&canonical_bytes, sig) {
+                Some(pub_key) => match pub_key.verify(&raw, sig) {
                     Ok(()) => {
                         debug!("Good signature from key ID {:?}", pub_key.key_id());
                         signatures_needed -= 1;
@@ -257,6 +200,7 @@ where
                 break;
             }
         }
+
         if signatures_needed > 0 {
             return Err(Error::VerificationFailure(format!(
                 "Signature threshold not met: {}/{}",
@@ -265,51 +209,331 @@ where
             )));
         }
 
-        // "assume" the metadata is valid because we just verified that it is.
-        self.assume_valid()
+        Ok(self.metadata.clone())
     }
 }
 
-/// Wrapper for the real path to a target.
-#[derive(Debug, Clone, PartialEq, Hash, Eq, PartialOrd, Ord, Serialize)]
-pub struct TargetPath(String);
+/// A helper to build Metablock
+pub struct MetablockBuilder {
+    signatures: HashMap<KeyId, Signature>,
+    metadata: MetadataWrapper,
+}
 
-impl TargetPath {
-    /// Create a new `TargetPath`.
-    pub fn new(path: String) -> Result<Self> {
-        let cleaned_path = match canonicalize_path(Path::new(path.as_str())) {
-            Ok(path_buf) => match path_buf.to_str() {
-                Some(x) => x.to_string(),
-                None => {
-                    return Err(Error::VerificationFailure("Couldn't find Path".to_string()));
-                }
+impl MetablockBuilder {
+    /// Create a new `MetablockBuilder` from a given `Metadata`.
+    pub fn from_metadata(metadata: Box<dyn Metadata>) -> Self {
+        Self {
+            signatures: HashMap::new(),
+            metadata: metadata.into_enum(),
+        }
+    }
+
+    /// Create a new `MetablockBuilder` from manually serialized metadata to be signed.
+    /// Returns an error if `metadata` cannot be parsed into Metadata.
+    pub fn from_raw_metadata(raw_metadata: &[u8]) -> Result<Self> {
+        let metadata = MetadataWrapper::try_from_bytes(raw_metadata)?;
+        Ok(Self {
+            signatures: HashMap::new(),
+            metadata,
+        })
+    }
+
+    /// Sign the metadata using the given `private_keys`, replacing any existing signatures with the
+    /// same `KeyId`.
+    pub fn sign(mut self, private_keys: &[&PrivateKey]) -> Result<Self> {
+        let mut signatures = HashMap::new();
+        let raw = self.metadata.to_bytes()?;
+
+        private_keys.iter().try_for_each(|key| -> Result<()> {
+            let sig = key.sign(&raw)?;
+            signatures.insert(sig.key_id().clone(), sig);
+            Ok(())
+        })?;
+
+        self.signatures = signatures;
+        Ok(self)
+    }
+
+    /// Construct a new `Metablock` using the included signatures, sorting the signatures by
+    /// `KeyId`.
+    pub fn build(self) -> Metablock {
+        let mut signatures = self
+            .signatures
+            .into_iter()
+            .map(|(_k, v)| v)
+            .collect::<Vec<_>>();
+        signatures.sort_unstable_by(|a, b| a.key_id().cmp(b.key_id()));
+
+        Metablock {
+            signatures,
+            metadata: self.metadata,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{fs, str::FromStr};
+
+    use chrono::{DateTime, NaiveDateTime, Utc};
+    use serde_json::json;
+
+    use crate::{
+        crypto::{PrivateKey, PublicKey},
+        models::{
+            byproducts::ByProducts,
+            inspection::Inspection,
+            rule::ArtifactRuleBuilder,
+            step::{Command, Step},
+            LayoutMetadataBuilder, LinkMetadataBuilder, Metablock, VirtualTargetPath,
+        },
+    };
+
+    use super::MetablockBuilder;
+
+    const ALICE_PRIVATE_KEY: &'static [u8] = include_bytes!("../../tests/ed25519/ed25519-1");
+    const ALICE_PUB_KEY: &'static [u8] = include_bytes!("../../tests/ed25519/ed25519-1.pub");
+    const BOB_PUB_KEY: &'static [u8] = include_bytes!("../../tests/rsa/rsa-4096.spki.der");
+    const OWNER_PRIVATE_KEY: &'static [u8] = include_bytes!("../../tests/test_metadata/owner.der");
+
+    #[test]
+    fn deserialize_layout_metablock() {
+        let raw = fs::read("tests/test_metadata/demo.layout").unwrap();
+        assert!(serde_json::from_slice::<Metablock>(&raw).is_ok());
+    }
+
+    #[test]
+    fn deserialize_link_metablock() {
+        let raw = fs::read("tests/test_metadata/demo.link").unwrap();
+        assert!(serde_json::from_slice::<Metablock>(&raw).is_ok());
+    }
+
+    #[test]
+    fn serialize_layout_metablock() {
+        let alice_public_key = PublicKey::from_ed25519(ALICE_PUB_KEY).unwrap();
+        let bob_public_key =
+            PublicKey::from_spki(BOB_PUB_KEY, crate::crypto::SignatureScheme::RsaSsaPssSha256)
+                .unwrap();
+        let owner_private_key = PrivateKey::from_ed25519(OWNER_PRIVATE_KEY).unwrap();
+        let layout_metadata = Box::new(
+            LayoutMetadataBuilder::new()
+                .expires(DateTime::<Utc>::from_utc(
+                    NaiveDateTime::from_timestamp(0, 0),
+                    Utc,
+                ))
+                .add_key(alice_public_key.clone())
+                .add_key(bob_public_key.clone())
+                .add_step(
+                    Step::new("write-code")
+                        .threshold(1)
+                        .add_expected_product(
+                            ArtifactRuleBuilder::new()
+                                .rule("CREATE")
+                                .pattern("foo.py")
+                                .build()
+                                .unwrap(),
+                        )
+                        .expected_command(Command::from_str("vi").unwrap())
+                        .add_key(alice_public_key.key_id().to_owned()),
+                )
+                .add_step(
+                    Step::new("package")
+                        .threshold(1)
+                        .add_expected_material(
+                            ArtifactRuleBuilder::new()
+                                .rule("MATCH")
+                                .pattern("foo.py")
+                                .with_products()
+                                .from_step("write-code")
+                                .build()
+                                .unwrap(),
+                        )
+                        .add_expected_product(
+                            ArtifactRuleBuilder::new()
+                                .rule("CREATE")
+                                .pattern("foo.tar.gz")
+                                .build()
+                                .unwrap(),
+                        )
+                        .expected_command(Command::from_str("tar zcvf foo.tar.gz foo.py").unwrap())
+                        .add_key(bob_public_key.key_id().to_owned()),
+                )
+                .add_inspect(
+                    Inspection::new("inspect_tarball")
+                        .add_expected_material(
+                            ArtifactRuleBuilder::new()
+                                .rule("MATCH")
+                                .pattern("foo.tar.gz")
+                                .with_products()
+                                .from_step("package")
+                                .build()
+                                .unwrap(),
+                        )
+                        .add_expected_product(
+                            ArtifactRuleBuilder::new()
+                                .rule("MATCH")
+                                .pattern("foo.py")
+                                .with_products()
+                                .from_step("write-code")
+                                .build()
+                                .unwrap(),
+                        )
+                        .run(Command::from_str("inspect_tarball.sh foo.tar.gz").unwrap()),
+                )
+                .build()
+                .unwrap(),
+        );
+
+        let private_keys = vec![&owner_private_key];
+        let metablock = MetablockBuilder::from_metadata(layout_metadata)
+            .sign(&private_keys)
+            .unwrap()
+            .build();
+
+        let serialized = serde_json::to_value(&metablock).unwrap();
+        let expected = json!({
+            "signed": {
+                "_type" : "layout",
+                "expires" : "1970-01-01T00:00:00Z",
+                "keys" : {
+                    "e0294a3f17cc8563c3ed5fceb3bd8d3f6bfeeaca499b5c9572729ae015566554": {
+                        "keytype": "ed25519",
+                        "keyval": {
+                            "public": "eb8ac26b5c9ef0279e3be3e82262a93bce16fe58ee422500d38caf461c65a3b6"
+                        },
+                        "scheme": "ed25519"
+                    },
+                    "3e26343b3a7907b5652dec86222e8fd60e456ebbb6fe4875a1f4281ffd5bd9ae" : {
+                        "keytype": "rsa",
+                        "keyval": {
+                            "public": "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEA91-6CJmBzrb6ODSXPvVKh9IVvDkD63d5_wHawj1ZB22Y0R7A7b8lRl7IqJJ3TcZO8W2zFfeRuPFlghQs-O7hA6XiRr4mlD1dLItk-p93E0vgY-_Jj4I09LObgA2ncGw_bUlYt3fB5tbmnojQyhrQwUQvBxOqI3nSglg02mCdQRWpPzerGxItOIQkmU2TsqTg7TZ8lnSUbAsFuMebnA2dJ2hzeou7ZGsyCJj_6O0ORVF37nLZiOFF8EskKVpUJuoLWopEA2c09YDgFWHEPTIoGNWB2l_qyX7HTk1wf-WK_Wnn3nerzdEhY9dH-U0uH7tOBBVCyEKxUqXDGpzuLSxOGBpJXa3TTqLHJWIOzhIjp5J3rV93aeSqemU38KjguZzdwOMO5lRsFco5gaFS9aNLLXtLd4ZgXaxB3vYqFDhvZCx4IKrsYEc_Nr8ubLwyQ8WHeS7v8FpIT7H9AVNDo9BMZpnmdTc5Lxi15_TulmswIIgjDmmIqujUqyHN27u7l6bZJlcn8lQdYMm4eJr2o-JtdloTwm7Cv_gKkhZ5tdO5c_219UYBnKaGF8No1feEHirm5mdvwpngCxdFMZMbfmUAfzPeVPkXE-LR0lsLGnMlXKG5vKFcQpCXW9iwJ4pZl7j12wLwiWyLDQtsIxiG6SdsALPkWf0mnfBaVj_Q4FNkJBECAwEAAQ=="
+                        },
+                        "keyid_hash_algorithms" : [
+                            "sha256",
+                            "sha512"
+                        ],
+                        "scheme": "rsassa-pss-sha256"
+                    }
+                },
+                "steps" : [
+                    {
+                      "_name": "write-code",
+                      "threshold": 1,
+                      "expected_materials": [ ],
+                      "expected_products": [
+                          ["CREATE", "foo.py"]
+                      ],
+                      "pubkeys": [
+                          "e0294a3f17cc8563c3ed5fceb3bd8d3f6bfeeaca499b5c9572729ae015566554"
+                      ],
+                      "expected_command": "vi"
+                    },
+                    {
+                      "_name": "package",
+                      "threshold": 1,
+                      "expected_materials": [
+                          ["MATCH", "foo.py", "WITH", "PRODUCTS", "FROM", "write-code"]
+                      ],
+                      "expected_products": [
+                          ["CREATE", "foo.tar.gz"]
+                      ],
+                      "pubkeys": [
+                          "3e26343b3a7907b5652dec86222e8fd60e456ebbb6fe4875a1f4281ffd5bd9ae"
+                      ],
+                      "expected_command": "tar zcvf foo.tar.gz foo.py"
+                    }],
+                  "inspect": [
+                    {
+                      "_name": "inspect_tarball",
+                      "expected_materials": [
+                          ["MATCH", "foo.tar.gz", "WITH", "PRODUCTS", "FROM", "package"]
+                      ],
+                      "expected_products": [
+                          ["MATCH", "foo.py", "WITH", "PRODUCTS", "FROM", "write-code"]
+                      ],
+                      "run": "inspect_tarball.sh foo.tar.gz"
+                    }
+                  ],
+                  "readme": ""
+                },
+            "signatures": [{
+                "keyid" : "64786e5921b589af1ca1bf5767087bf201806a9b3ce2e6856c903682132bd1dd",
+                "sig": "49f92066a2e811bbcba33b5cc97c26072a2d3e080102c9a5c653d3d0fa6c3f9a0530a44c94fca44a3f53462d0a701aac1a05d00ee17a3fcdcb90fc0651dd5702"
+            }]
+        });
+        assert_eq!(expected, serialized);
+    }
+
+    #[test]
+    fn serialize_link_metablock() {
+        let link_metadata = LinkMetadataBuilder::new()
+            .name("".into())
+            .add_product(VirtualTargetPath::new("tests/test_link/foo.tar.gz".into()).unwrap())
+            .byproducts(
+                ByProducts::new()
+                    .set_return_value(0)
+                    .set_stderr("a foo.py\n".into())
+                    .set_stdout("".into()),
+            )
+            .command(Command::from("tar zcvf foo.tar.gz foo.py"))
+            .build()
+            .unwrap();
+        let alice_public_key = PrivateKey::from_ed25519(ALICE_PRIVATE_KEY).unwrap();
+        let private_keys = vec![&alice_public_key];
+        let metablock = MetablockBuilder::from_metadata(Box::new(link_metadata))
+            .sign(&private_keys)
+            .unwrap()
+            .build();
+        let serialized = serde_json::to_value(&metablock).unwrap();
+        let expected = json!({
+            "signed" : {
+                "_type": "link",
+                "name": "",
+                "materials": {},
+                "products": {
+                    "tests/test_link/foo.tar.gz": {
+                        "sha256": "52947cb78b91ad01fe81cd6aef42d1f6817e92b9e6936c1e5aabb7c98514f355"
+                    }
+                },
+                "byproducts": {
+                    "return-value": 0,
+                    "stderr": "a foo.py\n",
+                    "stdout": ""
+                },
+                "command": "tar zcvf foo.tar.gz foo.py",
+                "environment": null
             },
-            Err(e) => return Err(Error::from(e)),
-        };
-        Ok(TargetPath(cleaned_path))
+            "signatures" : [{
+                "keyid" : "e0294a3f17cc8563c3ed5fceb3bd8d3f6bfeeaca499b5c9572729ae015566554",
+                "sig": "becef72a0b9c645b3b97034434d06eca50ee811adcb382162d7b22db66732ecfa9b6dfec078a2dddf7495e92c466950a97cbafdc8847dff022f02eff94ea950e"
+            }]
+        });
+        assert_eq!(expected, serialized);
     }
 
-    /// Split `TargetPath` into components that can be joined to create URL paths, Unix paths, or
-    /// Windows paths.
-    ///
-    pub fn components(&self) -> Vec<String> {
-        self.0.split('/').map(|s| s.to_string()).collect()
-    }
+    #[test]
+    fn verify_signatures_of_metablock() {
+        let link_metadata = LinkMetadataBuilder::new()
+            .name("".into())
+            .add_product(VirtualTargetPath::new("tests/test_link/foo.tar.gz".into()).unwrap())
+            .byproducts(
+                ByProducts::new()
+                    .set_return_value(0)
+                    .set_stderr("a foo.py\n".into())
+                    .set_stdout("".into()),
+            )
+            .command(Command::from("tar zcvf foo.tar.gz foo.py"))
+            .build()
+            .unwrap();
+        let alice_public_key = PrivateKey::from_ed25519(ALICE_PRIVATE_KEY).unwrap();
+        let private_keys = vec![&alice_public_key];
+        let metablock = MetablockBuilder::from_metadata(Box::new(link_metadata))
+            .sign(&private_keys)
+            .unwrap()
+            .build();
 
-    /// The string value of the path.
-    pub fn value(&self) -> &str {
-        &self.0
-    }
-
-    /// Prefix the target path with a hash value to support TUF spec 5.5.2.
-    pub fn with_hash_prefix(&self, hash: &HashValue) -> Result<TargetPath> {
-        let mut components = self.components();
-
-        // The unwrap here is safe because we checked in canonicalize_path that the path is valid (not empty string)
-        let file_name = components.pop().unwrap();
-
-        components.push(format!("{}.{}", hash, file_name));
-
-        TargetPath::new(components.join("/"))
+        let public_key = PublicKey::from_ed25519(ALICE_PUB_KEY).unwrap();
+        let authorized_keys = vec![&public_key];
+        assert!(metablock.verify(1, authorized_keys).is_ok());
     }
 }

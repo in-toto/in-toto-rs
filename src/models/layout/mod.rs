@@ -21,7 +21,7 @@ pub mod supply_chain_item;
 
 pub use metadata::{LayoutMetadata, LayoutMetadataBuilder};
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Layout {
     #[serde(rename = "_type")]
     typ: String,

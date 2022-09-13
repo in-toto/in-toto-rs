@@ -8,11 +8,13 @@ use std::fs::File;
 use std::io::BufReader;
 
 use crate::crypto::{self, PrivateKey};
-use crate::interchange::DataInterchange;
+use crate::interchange::{DataInterchange, Json};
 use crate::Result;
 
 use crate::models::step::Command;
-use crate::models::{Link, Metablock, Metadata, TargetDescription, VirtualTargetPath};
+use crate::models::{
+    Link, Metablock, Metadata, MetadataType, MetadataWrapper, TargetDescription, VirtualTargetPath,
+};
 
 use super::byproducts::ByProducts;
 
@@ -110,19 +112,19 @@ impl LinkMetadataBuilder {
     }
 
     /// Construct a new `Metablock<D, LinkMetadata>`.
-    pub fn signed<D>(self, private_key: &PrivateKey) -> Result<Metablock<D, LinkMetadata>>
+    pub fn signed<D>(self, private_key: &PrivateKey) -> Result<Metablock>
     where
         D: DataInterchange,
     {
-        Metablock::new(&self.build()?, Some(private_key))
+        Metablock::new(Box::new(self.build()?).into_enum(), &[private_key])
     }
 
     /// Construct a new `Metablock<D, LinkMetadata>`.
-    pub fn unsigned<D>(self) -> Result<Metablock<D, LinkMetadata>>
+    pub fn unsigned<D>(self) -> Result<Metablock>
     where
         D: DataInterchange,
     {
-        Metablock::new(&self.build()?, None)
+        Metablock::new(Box::new(self.build()?).into_enum(), &[])
     }
 }
 
@@ -189,8 +191,16 @@ impl LinkMetadata {
 }
 
 impl Metadata for LinkMetadata {
-    fn version(&self) -> u32 {
-        0u32
+    fn typ(&self) -> MetadataType {
+        MetadataType::Link
+    }
+
+    fn into_enum(self: Box<Self>) -> MetadataWrapper {
+        MetadataWrapper::Link(*self)
+    }
+
+    fn to_bytes(&self) -> Result<Vec<u8>> {
+        Json::canonicalize(&Json::serialize(self)?)
     }
 }
 

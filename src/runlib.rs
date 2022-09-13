@@ -10,7 +10,7 @@ use walkdir::WalkDir;
 use crate::crypto::HashAlgorithm;
 use crate::interchange::Json;
 use crate::models::byproducts::ByProducts;
-use crate::models::{LinkMetadata, Metablock, TargetDescription};
+use crate::models::{Metablock, TargetDescription};
 use crate::{
     crypto,
     crypto::PrivateKey,
@@ -292,7 +292,7 @@ pub fn in_toto_run(
     hash_algorithms: Option<&[&str]>,
     lstrip_paths: Option<&[&str]>,
     // env: Option<BTreeMap<String, String>>
-) -> Result<Metablock<Json, LinkMetadata>> {
+) -> Result<Metablock> {
     // Record Materials: Given the material_paths, recursively traverse and record files in given path(s)
     let materials = record_artifacts(material_paths, hash_algorithms, lstrip_paths)?;
 

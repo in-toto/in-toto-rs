@@ -40,12 +40,12 @@ impl FromMerge for StateNaive {
         let version = StatementVer::Naive.try_into()?;
         Ok(StateNaive {
             typ: version,
-            name: meta.name().to_string(),
-            materials: meta.materials().clone(),
-            products: meta.products().clone(),
-            env: meta.env().clone(),
-            command: meta.command().clone(),
-            byproducts: meta.byproducts().clone(),
+            name: meta.name,
+            materials: meta.materials,
+            products: meta.products,
+            env: meta.env,
+            command: meta.command,
+            byproducts: meta.byproducts,
         })
     }
 }

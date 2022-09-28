@@ -131,12 +131,12 @@ impl LinkMetadataBuilder {
 /// link metadata
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LinkMetadata {
-    name: String,
-    materials: BTreeMap<VirtualTargetPath, TargetDescription>,
-    products: BTreeMap<VirtualTargetPath, TargetDescription>,
-    env: Option<BTreeMap<String, String>>,
-    byproducts: ByProducts,
-    command: Command,
+    pub name: String,
+    pub materials: BTreeMap<VirtualTargetPath, TargetDescription>,
+    pub products: BTreeMap<VirtualTargetPath, TargetDescription>,
+    pub env: Option<BTreeMap<String, String>>,
+    pub byproducts: ByProducts,
+    pub command: Command,
 }
 
 impl LinkMetadata {
@@ -157,36 +157,6 @@ impl LinkMetadata {
             byproducts,
             command,
         })
-    }
-
-    // The step this link is associated to
-    pub fn name(&self) -> &String {
-        &self.name
-    }
-
-    // The materials used as inputs
-    pub fn materials(&self) -> &BTreeMap<VirtualTargetPath, TargetDescription> {
-        &self.materials
-    }
-
-    // The products used as inputs
-    pub fn products(&self) -> &BTreeMap<VirtualTargetPath, TargetDescription> {
-        &self.products
-    }
-
-    // The Environment where things were built
-    pub fn env(&self) -> &Option<BTreeMap<String, String>> {
-        &self.env
-    }
-
-    // The Environment where things were built
-    pub fn byproducts(&self) -> &ByProducts {
-        &self.byproducts
-    }
-
-    // The command of the link
-    pub fn command(&self) -> &Command {
-        &self.command
     }
 }
 

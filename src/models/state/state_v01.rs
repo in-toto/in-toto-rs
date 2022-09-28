@@ -41,7 +41,7 @@ impl FromMerge for StateV01 {
         let version = StatementVer::V0_1.try_into()?;
         Ok(StateV01 {
             typ: version,
-            subject: meta.products().clone(),
+            subject: meta.products,
             predicate_type: p.version(),
             predicate: p.into_enum(),
         })

@@ -37,12 +37,12 @@ impl Link {
     pub fn from(meta: &LinkMetadata) -> Result<Self> {
         Ok(Link {
             typ: String::from("link"),
-            name: meta.name().to_string(),
-            materials: (*meta.materials()).clone(),
-            products: (*meta.products()).clone(),
-            env: (*meta.env()).clone(),
-            byproducts: (*meta.byproducts()).clone(),
-            command: (*meta.command()).clone(),
+            name: meta.name.clone(),
+            materials: meta.materials.clone(),
+            products: meta.products.clone(),
+            env: meta.env.clone(),
+            byproducts: meta.byproducts.clone(),
+            command: meta.command.clone(),
         })
     }
 

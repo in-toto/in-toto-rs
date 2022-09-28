@@ -35,6 +35,18 @@ impl ToString for VirtualTargetPath {
     }
 }
 
+impl From<&str> for VirtualTargetPath {
+    fn from(s: &str) -> Self {
+        Self(s.to_string())
+    }
+}
+
+impl AsRef<str> for VirtualTargetPath {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
 impl<'de> Deserialize<'de> for VirtualTargetPath {
     fn deserialize<D: Deserializer<'de>>(de: D) -> ::std::result::Result<Self, D::Error> {
         let s: String = Deserialize::deserialize(de)?;
@@ -48,4 +60,25 @@ pub(crate) trait Convert<T> {
     where
         Self: Sized;
     fn try_into(self) -> Result<T>;
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::models::VirtualTargetPath;
+
+    #[test]
+    fn serialize_virtual_target_path() {
+        let path = VirtualTargetPath::from("foo.py");
+        let serialized = serde_json::to_string(&path).expect("serialize failed");
+        let expected = "\"foo.py\"";
+        assert!(serialized == expected);
+    }
+
+    #[test]
+    fn deserialize_virtual_target_path() {
+        let path = VirtualTargetPath::from("foo.py");
+        let deserialized: VirtualTargetPath =
+            serde_json::from_str("\"foo.py\"").expect("serialize failed");
+        assert!(path == deserialized);
+    }
 }

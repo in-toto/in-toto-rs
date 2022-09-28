@@ -52,9 +52,8 @@ lazy_static = "1"
 maplit = "1"
 matches = "0.1.8"
 pretty_assertions = "0.7"
-pem = "1.1.0"
 assert-json-diff = "2.0.2"
+rstest = "0.15.0"
 
 [features]
-default = ["hyper/default"]
 

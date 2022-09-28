@@ -113,11 +113,11 @@ impl LayoutMetadataBuilder {
 /// layout metadata
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LayoutMetadata {
-    steps: Vec<Step>,
-    inspect: Vec<Inspection>,
-    keys: HashMap<KeyId, PublicKey>,
-    expires: DateTime<Utc>,
-    readme: String,
+    pub steps: Vec<Step>,
+    pub inspect: Vec<Inspection>,
+    pub keys: HashMap<KeyId, PublicKey>,
+    pub expires: DateTime<Utc>,
+    pub readme: String,
 }
 
 impl LayoutMetadata {
@@ -135,31 +135,6 @@ impl LayoutMetadata {
             expires,
             readme,
         }
-    }
-
-    /// Restrictions for each step within the supply chain
-    pub fn steps(&self) -> &Vec<Step> {
-        &self.steps
-    }
-
-    /// Inspecting is done by the client upon verification
-    pub fn inspect(&self) -> &Vec<Inspection> {
-        &self.inspect
-    }
-
-    /// All the public keys used in the steps section
-    pub fn keys(&self) -> &HashMap<KeyId, PublicKey> {
-        &self.keys
-    }
-
-    /// The expired time this layout is associated to
-    pub fn expires(&self) -> &DateTime<Utc> {
-        &self.expires
-    }
-
-    /// A human-readable description of this supply chain
-    pub fn readme(&self) -> &String {
-        &self.readme
     }
 }
 

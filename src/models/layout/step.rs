@@ -7,7 +7,7 @@ use serde::ser::{Serialize, Serializer};
 use serde_derive::{Deserialize, Serialize};
 
 use crate::crypto::KeyId;
-use crate::{Error, Result};
+use crate::{supply_chain_item_derive, Error, Result};
 
 use super::rule::ArtifactRule;
 use super::supply_chain_item::SupplyChainItem;
@@ -62,28 +62,25 @@ impl<'de> Deserialize<'de> for Command {
 /// expected_products fields.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Step {
-    #[serde(skip, default = "default_step")]
-    typ: String,
-    threshold: u32,
-    #[serde(flatten)]
-    supply_chain_item: SupplyChainItem,
+    pub threshold: u32,
+    #[serde(rename = "_name")]
+    pub name: String,
+    pub expected_materials: Vec<ArtifactRule>,
+    pub expected_products: Vec<ArtifactRule>,
     #[serde(rename = "pubkeys")]
-    pub_keys: Vec<KeyId>,
-    expected_command: Command,
-}
-
-fn default_step() -> String {
-    "step".to_string()
+    pub pub_keys: Vec<KeyId>,
+    pub expected_command: Command,
 }
 
 impl Step {
     pub fn new(name: &str) -> Self {
         Step {
-            typ: "step".into(),
             pub_keys: Vec::new(),
             expected_command: Command::default(),
             threshold: 0,
-            supply_chain_item: SupplyChainItem::new(name.into()),
+            name: name.into(),
+            expected_materials: Vec::new(),
+            expected_products: Vec::new(),
         }
     }
 
@@ -105,32 +102,21 @@ impl Step {
         self
     }
 
-    /// Add an expected material artifact rule to this Step
-    pub fn add_expected_material(mut self, expected_material: ArtifactRule) -> Self {
-        self.supply_chain_item
-            .add_expected_material(expected_material);
-        self
+    // Derive operations on `materials`/`products` and `name`
+    supply_chain_item_derive!();
+}
+
+impl SupplyChainItem for Step {
+    fn name(&self) -> &str {
+        &self.name
     }
 
-    /// Set expected materials for this Step
-    pub fn expected_materials(mut self, expected_materials: Vec<ArtifactRule>) -> Self {
-        self.supply_chain_item
-            .set_expected_materials(expected_materials);
-        self
+    fn expected_materials(&self) -> &Vec<ArtifactRule> {
+        &self.expected_materials
     }
 
-    /// Add an expected product artifact rule to this Step
-    pub fn add_expected_product(mut self, expected_product: ArtifactRule) -> Self {
-        self.supply_chain_item
-            .add_expected_product(expected_product);
-        self
-    }
-
-    /// Set expected products for this Step
-    pub fn expected_products(mut self, expected_products: Vec<ArtifactRule>) -> Self {
-        self.supply_chain_item
-            .set_expected_products(expected_products);
-        self
+    fn expected_products(&self) -> &Vec<ArtifactRule> {
+        &self.expected_products
     }
 }
 
@@ -140,27 +126,25 @@ mod test {
 
     use serde_json::json;
 
-    use crate::{crypto::KeyId, models::rule::ArtifactRuleBuilder, Result};
+    use crate::{
+        crypto::KeyId,
+        models::rule::{Artifact, ArtifactRule},
+        Result,
+    };
 
     use super::Step;
 
     #[test]
     fn serialize_step() -> Result<()> {
         let step = Step::new("package")
-            .add_expected_material(
-                ArtifactRuleBuilder::new()
-                    .rule("MATCH")
-                    .pattern("foo.py")
-                    .with_products()
-                    .from_step("write-code")
-                    .build()?,
-            )
-            .add_expected_product(
-                ArtifactRuleBuilder::new()
-                    .rule("CREATE")
-                    .pattern("foo.tar.gz")
-                    .build()?,
-            )
+            .add_expected_material(ArtifactRule::Match {
+                pattern: "foo.py".into(),
+                in_src: None,
+                with: Artifact::Products,
+                in_dst: None,
+                from: "write-code".into(),
+            })
+            .add_expected_product(ArtifactRule::Create("foo.tar.gz".into()))
             .expected_command("tar zcvf foo.tar.gz foo.py".into())
             .add_key(KeyId::from_str(
                 "70ca5750c2eda80b18f41f4ec5f92146789b5d68dd09577be422a0159bd13680",
@@ -207,20 +191,14 @@ mod test {
           }"#;
         let step_parsed: Step = serde_json::from_str(json)?;
         let step = Step::new("package")
-            .add_expected_material(
-                ArtifactRuleBuilder::new()
-                    .rule("MATCH")
-                    .pattern("foo.py")
-                    .with_products()
-                    .from_step("write-code")
-                    .build()?,
-            )
-            .add_expected_product(
-                ArtifactRuleBuilder::new()
-                    .rule("CREATE")
-                    .pattern("foo.tar.gz")
-                    .build()?,
-            )
+            .add_expected_material(ArtifactRule::Match {
+                pattern: "foo.py".into(),
+                in_src: None,
+                with: Artifact::Products,
+                in_dst: None,
+                from: "write-code".into(),
+            })
+            .add_expected_product(ArtifactRule::Create("foo.tar.gz".into()))
             .expected_command("tar zcvf foo.tar.gz foo.py".into())
             .add_key(KeyId::from_str(
                 "70ca5750c2eda80b18f41f4ec5f92146789b5d68dd09577be422a0159bd13680",

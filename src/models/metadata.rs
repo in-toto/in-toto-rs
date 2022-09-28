@@ -110,9 +110,9 @@ pub trait Metadata {
 /// or layout.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Metablock {
-    signatures: Vec<Signature>,
+    pub signatures: Vec<Signature>,
     #[serde(rename = "signed")]
-    metadata: MetadataWrapper,
+    pub metadata: MetadataWrapper,
 }
 
 impl Metablock {
@@ -133,11 +133,6 @@ impl Metablock {
             signatures,
             metadata,
         })
-    }
-
-    /// An immutable reference to the signatures.
-    pub fn signatures(&self) -> &[Signature] {
-        &self.signatures
     }
 
     /// Verify this metadata.
@@ -283,7 +278,7 @@ mod tests {
         models::{
             byproducts::ByProducts,
             inspection::Inspection,
-            rule::ArtifactRuleBuilder,
+            rule::{Artifact, ArtifactRule},
             step::{Command, Step},
             LayoutMetadataBuilder, LinkMetadataBuilder, Metablock, VirtualTargetPath,
         },
@@ -326,58 +321,40 @@ mod tests {
                 .add_step(
                     Step::new("write-code")
                         .threshold(1)
-                        .add_expected_product(
-                            ArtifactRuleBuilder::new()
-                                .rule("CREATE")
-                                .pattern("foo.py")
-                                .build()
-                                .unwrap(),
-                        )
+                        .add_expected_product(ArtifactRule::Create("foo.py".into()))
                         .expected_command(Command::from_str("vi").unwrap())
                         .add_key(alice_public_key.key_id().to_owned()),
                 )
                 .add_step(
                     Step::new("package")
                         .threshold(1)
-                        .add_expected_material(
-                            ArtifactRuleBuilder::new()
-                                .rule("MATCH")
-                                .pattern("foo.py")
-                                .with_products()
-                                .from_step("write-code")
-                                .build()
-                                .unwrap(),
-                        )
-                        .add_expected_product(
-                            ArtifactRuleBuilder::new()
-                                .rule("CREATE")
-                                .pattern("foo.tar.gz")
-                                .build()
-                                .unwrap(),
-                        )
+                        .add_expected_material(ArtifactRule::Match {
+                            pattern: "foo.py".into(),
+                            in_src: None,
+                            with: Artifact::Products,
+                            in_dst: None,
+                            from: "write-code".into(),
+                        })
+                        .add_expected_product(ArtifactRule::Create("foo.tar.gz".into()))
                         .expected_command(Command::from_str("tar zcvf foo.tar.gz foo.py").unwrap())
                         .add_key(bob_public_key.key_id().to_owned()),
                 )
                 .add_inspect(
                     Inspection::new("inspect_tarball")
-                        .add_expected_material(
-                            ArtifactRuleBuilder::new()
-                                .rule("MATCH")
-                                .pattern("foo.tar.gz")
-                                .with_products()
-                                .from_step("package")
-                                .build()
-                                .unwrap(),
-                        )
-                        .add_expected_product(
-                            ArtifactRuleBuilder::new()
-                                .rule("MATCH")
-                                .pattern("foo.py")
-                                .with_products()
-                                .from_step("write-code")
-                                .build()
-                                .unwrap(),
-                        )
+                        .add_expected_material(ArtifactRule::Match {
+                            pattern: "foo.tar.gz".into(),
+                            in_src: None,
+                            with: Artifact::Products,
+                            in_dst: None,
+                            from: "package".into(),
+                        })
+                        .add_expected_product(ArtifactRule::Match {
+                            pattern: "foo.py".into(),
+                            in_src: None,
+                            with: Artifact::Products,
+                            in_dst: None,
+                            from: "write-code".into(),
+                        })
                         .run(Command::from_str("inspect_tarball.sh foo.tar.gz").unwrap()),
                 )
                 .build()

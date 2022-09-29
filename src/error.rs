@@ -69,6 +69,9 @@ pub enum Error {
 
     #[error("convertion from string failed: {0}")]
     StringConvertFailed(String),
+
+    #[error("artifact rule error: {0}")]
+    ArtifactRuleError(String),
 }
 
 impl From<serde_json::error::Error> for Error {

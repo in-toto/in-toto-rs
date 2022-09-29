@@ -14,7 +14,7 @@ pub mod error;
 pub mod interchange;
 pub mod models;
 pub mod runlib;
-pub mod verifylib;
+mod rulelib;
 
 mod format_hex;
 

@@ -232,7 +232,7 @@ mod test {
                 "stderr": "a foo.py\n",
                 "stdout": ""
             },
-            "command": "tar zcvf foo.tar.gz foo.py",
+            "command": ["tar", "zcvf", "foo.tar.gz", "foo.py"],
             "environment": null
         });
         assert_eq!(json, serialized_linkmetadata);
@@ -254,7 +254,7 @@ mod test {
                 "stderr": "a foo.py\n",
                 "stdout": ""
             },
-            "command": "tar zcvf foo.tar.gz foo.py",
+            "command": ["tar", "zcvf", "foo.tar.gz", "foo.py"],
             "environment": null
         }"#;
 

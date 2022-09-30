@@ -88,7 +88,7 @@ mod test {
                     "test_step"
                 ]
             ],
-            "run" : "ls -al"
+            "run" : ["ls", "-al"]
         })
         .to_string();
         let inspection = Inspection::new("test_inspect")
@@ -132,7 +132,7 @@ mod test {
                     "test_step"
                 ] 
             ],
-            "run" : "ls -al"
+            "run" : ["ls", "-al"]
         }"#;
 
         let inspection = Inspection::new("test_inspect")

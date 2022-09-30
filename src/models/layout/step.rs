@@ -2,7 +2,6 @@
 
 use std::str::FromStr;
 
-use serde::de::{Deserialize, Deserializer, Error as DeserializeError};
 use serde::ser::{Serialize, Serializer};
 use serde_derive::{Deserialize, Serialize};
 
@@ -13,18 +12,54 @@ use super::rule::ArtifactRule;
 use super::supply_chain_item::SupplyChainItem;
 
 /// Wrapper type for a command in step.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
-pub struct Command(String);
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Deserialize)]
+pub struct Command(Vec<String>);
+
+impl Command {
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
+impl AsRef<Vec<String>> for Command {
+    fn as_ref(&self) -> &Vec<String> {
+        &self.0
+    }
+}
 
 impl From<String> for Command {
     fn from(str: String) -> Self {
-        Command(str)
+        let paras: Vec<String> = str
+            .split_whitespace()
+            .collect::<Vec<&str>>()
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        Command(paras)
+    }
+}
+
+impl From<Vec<String>> for Command {
+    fn from(strs: Vec<String>) -> Self {
+        Command::from(&strs[..])
+    }
+}
+
+impl From<&[String]> for Command {
+    fn from(strs: &[String]) -> Self {
+        Command(strs.to_vec())
     }
 }
 
 impl From<&str> for Command {
     fn from(str: &str) -> Self {
-        Command(str.to_string())
+        let paras: Vec<String> = str
+            .split_whitespace()
+            .collect::<Vec<&str>>()
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        Command(paras)
     }
 }
 
@@ -33,7 +68,13 @@ impl FromStr for Command {
 
     /// Parse a Command from a string.
     fn from_str(string: &str) -> Result<Self> {
-        Ok(Command(string.to_owned()))
+        let paras: Vec<String> = string
+            .split_whitespace()
+            .collect::<Vec<&str>>()
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        Ok(Command(paras))
     }
 }
 
@@ -43,13 +84,6 @@ impl Serialize for Command {
         S: Serializer,
     {
         self.0.serialize(ser)
-    }
-}
-
-impl<'de> Deserialize<'de> for Command {
-    fn deserialize<D: Deserializer<'de>>(de: D) -> ::std::result::Result<Self, D::Error> {
-        let string: String = Deserialize::deserialize(de)?;
-        Command::from_str(&string).map_err(|e| DeserializeError::custom(format!("{:?}", e)))
     }
 }
 
@@ -161,7 +195,7 @@ mod test {
             "expected_products": [
                ["CREATE", "foo.tar.gz"]
             ],
-            "expected_command": "tar zcvf foo.tar.gz foo.py",
+            "expected_command": ["tar", "zcvf", "foo.tar.gz", "foo.py"],
             "pubkeys": [
                "70ca5750c2eda80b18f41f4ec5f92146789b5d68dd09577be422a0159bd13680"
             ],
@@ -183,7 +217,7 @@ mod test {
             "expected_products": [
                ["CREATE", "foo.tar.gz"]
             ],
-            "expected_command": "tar zcvf foo.tar.gz foo.py",
+            "expected_command": ["tar", "zcvf", "foo.tar.gz", "foo.py"],
             "pubkeys": [
                "70ca5750c2eda80b18f41f4ec5f92146789b5d68dd09577be422a0159bd13680"
             ],

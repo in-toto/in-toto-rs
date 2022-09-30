@@ -31,8 +31,8 @@
         },
         "steps": [
             {
-                "threshold": 1,
                 "_name": "write-code",
+                "threshold": 1,
                 "expected_materials": [],
                 "expected_products": [
                     [
@@ -43,11 +43,13 @@
                 "pubkeys": [
                     "e0294a3f17cc8563c3ed5fceb3bd8d3f6bfeeaca499b5c9572729ae015566554"
                 ],
-                "expected_command": "vi"
+                "expected_command": [
+                    "vi"
+                ]
             },
             {
-                "threshold": 1,
                 "_name": "package",
+                "threshold": 1,
                 "expected_materials": [
                     [
                         "MATCH",
@@ -65,9 +67,14 @@
                     ]
                 ],
                 "pubkeys": [
-                    "59d12f31ee173dbb3359769414e73c120f219af551baefb70aa69414dfba4aaf"
+                    "3e26343b3a7907b5652dec86222e8fd60e456ebbb6fe4875a1f4281ffd5bd9ae"
                 ],
-                "expected_command": "tar zcvf foo.tar.gz foo.py"
+                "expected_command": [
+                    "tar",
+                    "zcvf",
+                    "foo.tar.gz",
+                    "foo.py"
+                ]
             }
         ],
         "inspect": [
@@ -93,7 +100,10 @@
                         "write-code"
                     ]
                 ],
-                "run": "inspect_tarball.sh foo.tar.gz"
+                "run": [
+                    "inspect_tarball.sh",
+                    "foo.tar.gz"
+                ]
             }
         ]
     }

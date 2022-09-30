@@ -270,6 +270,7 @@ impl MetablockBuilder {
 mod tests {
     use std::{fs, str::FromStr};
 
+    use assert_json_diff::assert_json_eq;
     use chrono::{DateTime, NaiveDateTime, Utc};
     use serde_json::json;
 
@@ -401,74 +402,51 @@ mod tests {
                 },
                 "steps": [
                     {
-                        "threshold": 1,
-                        "_name": "write-code",
-                        "expected_materials": [],
-                        "expected_products": [
-                            [
-                                "CREATE",
-                                "foo.py"
-                            ]
-                        ],
-                        "pubkeys": [
-                            "e0294a3f17cc8563c3ed5fceb3bd8d3f6bfeeaca499b5c9572729ae015566554"
-                        ],
-                        "expected_command": "vi"
+                      "_name": "write-code",
+                      "threshold": 1,
+                      "expected_materials": [ ],
+                      "expected_products": [
+                          ["CREATE", "foo.py"]
+                      ],
+                      "pubkeys": [
+                          "e0294a3f17cc8563c3ed5fceb3bd8d3f6bfeeaca499b5c9572729ae015566554"
+                      ],
+                      "expected_command": ["vi"]
                     },
                     {
-                        "threshold": 1,
-                        "_name": "package",
-                        "expected_materials": [
-                            [
-                                "MATCH",
-                                "foo.py",
-                                "WITH",
-                                "PRODUCTS",
-                                "FROM",
-                                "write-code"
-                            ]
-                        ],
-                        "expected_products": [
-                            [
-                                "CREATE",
-                                "foo.tar.gz"
-                            ]
-                        ],
-                        "pubkeys": [
-                            "59d12f31ee173dbb3359769414e73c120f219af551baefb70aa69414dfba4aaf"
-                        ],
-                        "expected_command": "tar zcvf foo.tar.gz foo.py"
-                    }
-                ],
-                "inspect": [
+                      "_name": "package",
+                      "threshold": 1,
+                      "expected_materials": [
+                          ["MATCH", "foo.py", "WITH", "PRODUCTS", "FROM", "write-code"]
+                      ],
+                      "expected_products": [
+                          ["CREATE", "foo.tar.gz"]
+                      ],
+                      "pubkeys": [
+                          "59d12f31ee173dbb3359769414e73c120f219af551baefb70aa69414dfba4aaf"
+                      ],
+                      "expected_command": ["tar", "zcvf", "foo.tar.gz", "foo.py"]
+                    }],
+                  "inspect": [
                     {
-                        "_name": "inspect_tarball",
-                        "expected_materials": [
-                            [
-                                "MATCH",
-                                "foo.tar.gz",
-                                "WITH",
-                                "PRODUCTS",
-                                "FROM",
-                                "package"
-                            ]
-                        ],
-                        "expected_products": [
-                            [
-                                "MATCH",
-                                "foo.py",
-                                "WITH",
-                                "PRODUCTS",
-                                "FROM",
-                                "write-code"
-                            ]
-                        ],
-                        "run": "inspect_tarball.sh foo.tar.gz"
+                      "_name": "inspect_tarball",
+                      "expected_materials": [
+                          ["MATCH", "foo.tar.gz", "WITH", "PRODUCTS", "FROM", "package"]
+                      ],
+                      "expected_products": [
+                          ["MATCH", "foo.py", "WITH", "PRODUCTS", "FROM", "write-code"]
+                      ],
+                      "run": ["inspect_tarball.sh", "foo.tar.gz"]
                     }
-                ]
-            }
+                  ],
+                  "readme": ""
+                },
+            "signatures": [{
+                "keyid" : "64786e5921b589af1ca1bf5767087bf201806a9b3ce2e6856c903682132bd1dd",
+                "sig": "f408c23f36f42901daa992b3fa8cbc33193989929064d4131fba6bee24789245176e212991fa8c8c19422969467584c80ab3ad0612641d0b9523c28f80441d07"
+            }]
         });
-        assert_eq!(expected, serialized);
+        assert_json_eq!(expected, serialized);
     }
 
     #[test]
@@ -507,12 +485,12 @@ mod tests {
                     "stderr": "a foo.py\n",
                     "stdout": ""
                 },
-                "command": "tar zcvf foo.tar.gz foo.py",
+                "command": ["tar", "zcvf", "foo.tar.gz", "foo.py"],
                 "environment": null
             },
             "signatures" : [{
                 "keyid" : "e0294a3f17cc8563c3ed5fceb3bd8d3f6bfeeaca499b5c9572729ae015566554",
-                "sig": "becef72a0b9c645b3b97034434d06eca50ee811adcb382162d7b22db66732ecfa9b6dfec078a2dddf7495e92c466950a97cbafdc8847dff022f02eff94ea950e"
+                "sig": "7306d7d3e462f16026768f9b94bba5513d86355641ab39942575c1259073063802ea759d2e919bf2c1f38bfdaa5ad1499c5330541c6324220a41e27ea57d6f0d"
             }]
         });
         assert_eq!(expected, serialized);

@@ -92,7 +92,7 @@ pub mod test {
                     "stderr": "",
                     "stdout": ""
                 },
-                "command": "",
+                "command": [],
                 "env": null,
                 "materials": {},
                 "name": ""

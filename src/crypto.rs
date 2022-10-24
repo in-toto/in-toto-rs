@@ -1,6 +1,6 @@
 //! Cryptographic structures and functions.
 
-use data_encoding::{BASE64URL, HEXLOWER};
+use data_encoding::HEXLOWER;
 use derp::{self, Der, Tag};
 use ring::digest::{self, SHA256, SHA512};
 use ring::rand::SystemRandom;
@@ -41,6 +41,9 @@ const ED25519_PUBLIC_KEY_LENGTH: usize = 32;
 
 /// The length of an ed25519 keypair in bytes
 const ED25519_KEYPAIR_LENGTH: usize = ED25519_PRIVATE_KEY_LENGTH + ED25519_PUBLIC_KEY_LENGTH;
+
+/// Pem header of a rsa private key
+const PEM_PUBLIC_KEY: &str = "PUBLIC KEY";
 
 fn python_sslib_compatibility_keyid_hash_algorithms() -> Option<Vec<String>> {
     Some(vec!["sha256".to_string(), "sha512".to_string()])
@@ -128,12 +131,22 @@ fn shim_public_key(
     signature_scheme: &SignatureScheme,
     keyid_hash_algorithms: &Option<Vec<String>>,
     public_key: &[u8],
-) -> ::std::result::Result<shims::PublicKey, derp::Error> {
+) -> Result<shims::PublicKey> {
     let key = match key_type {
         KeyType::Ed25519 => HEXLOWER.encode(public_key),
-        KeyType::Rsa | KeyType::Unknown(_) => {
-            let bytes = write_spki(public_key, key_type)?;
-            BASE64URL.encode(&bytes)
+        KeyType::Rsa => {
+            let contents = write_spki(public_key, key_type)?;
+            let public_pem = pem::Pem {
+                tag: PEM_PUBLIC_KEY.to_string(),
+                contents,
+            };
+            pem::encode(&public_pem)
+                .replace("\r\n", "\n")
+                .trim()
+                .to_string()
+        }
+        KeyType::Unknown(inner) => {
+            return Err(Error::UnknownKeyType(format!("content: {}", inner)))
         }
     };
 
@@ -145,6 +158,9 @@ fn shim_public_key(
     ))
 }
 
+/// Calculate unique key_id. This function will convert the der bytes
+/// of the public key into PKIX-encoded pem bytes to keep consistent
+/// with the python and golang version.
 fn calculate_key_id(
     key_type: &KeyType,
     signature_scheme: &SignatureScheme,
@@ -160,8 +176,11 @@ fn calculate_key_id(
         public_key,
     )?;
     let public_key = Json::canonicalize(&Json::serialize(&public_key)?)?;
+    let public_key = String::from_utf8(public_key)
+        .map_err(|e| Error::Encoding(format!("public key from bytes to string failed: {}", e,)))?
+        .replace("\\n", "\n");
     let mut context = digest::Context::new(&SHA256);
-    context.update(&public_key);
+    context.update(public_key.as_bytes());
 
     let key_id = HEXLOWER.encode(context.finish().as_ref());
 
@@ -800,19 +819,25 @@ impl<'de> Deserialize<'de> for PublicKey {
                     DeserializeError::custom(format!("Couldn't parse key as ed25519: {:?}", e))
                 })?
             }
-            KeyType::Rsa | KeyType::Unknown(_) => {
-                let bytes = BASE64URL
-                    .decode(intermediate.public_key().as_bytes())
-                    .map_err(|e| DeserializeError::custom(format!("{:?}", e)))?;
+            KeyType::Rsa => {
+                let pub_pem = pem::parse(intermediate.public_key().as_bytes()).map_err(|e| {
+                    DeserializeError::custom(format!("pem deserialize failed: {:?}", e))
+                })?;
 
                 PublicKey::from_spki_with_keyid_hash_algorithms(
-                    &bytes,
+                    &pub_pem.contents,
                     intermediate.scheme().clone(),
                     intermediate.keyid_hash_algorithms().clone(),
                 )
                 .map_err(|e| {
                     DeserializeError::custom(format!("Couldn't parse key as SPKI: {:?}", e))
                 })?
+            }
+            KeyType::Unknown(inner) => {
+                return Err(DeserializeError::custom(format!(
+                    "Unknown key type, content: {}",
+                    inner
+                )))
             }
         };
 
@@ -1009,6 +1034,9 @@ mod test {
     const ED25519_1_PK8: &'static [u8] = include_bytes!("../tests/ed25519/ed25519-1.pk8.der");
     const ED25519_1_SPKI: &'static [u8] = include_bytes!("../tests/ed25519/ed25519-1.spki.der");
     const ED25519_2_PK8: &'static [u8] = include_bytes!("../tests/ed25519/ed25519-2.pk8.der");
+
+    const DEMO_KEY_ID: &str = "556caebdc0877eed53d419b60eddb1e57fa773e4e31d70698b588f3e9cc48b35";
+    const DEMO_PUBLIC_KEY: &'static [u8] = include_bytes!("../tests/rsa/alice.pub");
 
     #[test]
     fn parse_public_rsa_2048_spki() {
@@ -1216,13 +1244,20 @@ mod test {
     fn serde_rsa_public_key() {
         let der = RSA_2048_SPKI;
         let pub_key = PublicKey::from_spki(der, SignatureScheme::RsaSsaPssSha256).unwrap();
+        let pem = pem::encode(&pem::Pem {
+            tag: PEM_PUBLIC_KEY.to_string(),
+            contents: der.to_vec(),
+        })
+        .trim()
+        .replace("\r\n", "\n")
+        .to_string();
         let encoded = serde_json::to_value(&pub_key).unwrap();
         let jsn = json!({
             "keytype": "rsa",
             "scheme": "rsassa-pss-sha256",
             "keyid_hash_algorithms": ["sha256", "sha512"],
             "keyval": {
-                "public": BASE64URL.encode(der),
+                "public": pem,
             }
         });
         assert_eq!(encoded, jsn);
@@ -1232,12 +1267,20 @@ mod test {
 
     #[test]
     fn de_ser_rsa_public_key_with_keyid_hash_algo() {
+        let pem = pem::encode(&pem::Pem {
+            tag: PEM_PUBLIC_KEY.to_string(),
+            contents: RSA_2048_SPKI.to_vec(),
+        })
+        .trim()
+        .replace("\r\n", "\n")
+        .to_string();
+
         let original = json!({
             "keytype": "rsa",
             "scheme": "rsassa-pss-sha256",
             "keyid_hash_algorithms": ["sha256", "sha512"],
             "keyval": {
-                "public": BASE64URL.encode(RSA_2048_SPKI),
+                "public": pem,
             }
         });
 
@@ -1249,11 +1292,19 @@ mod test {
 
     #[test]
     fn de_ser_rsa_public_key_without_keyid_hash_algo() {
+        let pem = pem::encode(&pem::Pem {
+            tag: PEM_PUBLIC_KEY.to_string(),
+            contents: RSA_2048_SPKI.to_vec(),
+        })
+        .trim()
+        .replace("\r\n", "\n")
+        .to_string();
+
         let original = json!({
             "keytype": "rsa",
             "scheme": "rsassa-pss-sha256",
             "keyval": {
-                "public": BASE64URL.encode(RSA_2048_SPKI),
+                "public": pem,
             }
         });
 
@@ -1411,5 +1462,15 @@ mod test {
         key512.hash(&mut hasher512);
 
         assert_ne!(hasher256.finish(), hasher512.finish());
+    }
+
+    #[test]
+    fn compatibility_with_python_in_toto() {
+        let der = pem::parse(DEMO_PUBLIC_KEY)
+            .expect("parse alice.pub in pem format failed")
+            .contents;
+        let key = PublicKey::from_spki(&der, SignatureScheme::RsaSsaPssSha256)
+            .expect("create PublicKey failed");
+        assert_eq!(key.key_id.0, DEMO_KEY_ID);
     }
 }

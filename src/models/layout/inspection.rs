@@ -4,7 +4,7 @@ use serde_derive::{Deserialize, Serialize};
 
 use super::{rule::ArtifactRule, step::Command, supply_chain_item::SupplyChainItem};
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Inspection {
     #[serde(flatten)]
     supply_chain_item: SupplyChainItem,

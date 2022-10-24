@@ -4,7 +4,7 @@ use crate::interchange::DataInterchange;
 use crate::Result;
 use crate::{crypto::Signature, interchange::Json};
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct EnvelopeFile {
     payload: String,

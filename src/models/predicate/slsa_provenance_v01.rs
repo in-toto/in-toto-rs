@@ -9,7 +9,7 @@ use super::{PredicateLayout, PredicateVersion, PredicateWrapper};
 use crate::interchange::{DataInterchange, Json};
 use crate::Result;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TimeStamp(pub DateTime<FixedOffset>);
 
 impl Serialize for TimeStamp {
@@ -31,17 +31,17 @@ impl<'de> Deserialize<'de> for TimeStamp {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct TypeURI(pub String);
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Builder {
     pub id: TypeURI,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Completeness {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -52,7 +52,7 @@ pub struct Completeness {
     pub materials: Option<bool>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Recipe {
     #[serde(rename = "type")]
@@ -69,7 +69,7 @@ pub struct Recipe {
     pub environment: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Metadata {
     #[serde(rename = "buildInvocationId")]
@@ -87,7 +87,7 @@ pub struct Metadata {
     pub reproducible: Option<bool>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Material {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -96,7 +96,7 @@ pub struct Material {
     pub(crate) digest: Option<HashMap<String, String>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 #[serde(deny_unknown_fields)]
 /// Predicate `SLSAProvenanceV01` means the predicate of SLSA format.
 ///

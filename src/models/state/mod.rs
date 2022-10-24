@@ -67,7 +67,7 @@ impl Display for StatementVer {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum StateWrapper {
     Naive(StateNaive),
     V0_1(StateV01),

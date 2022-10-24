@@ -111,7 +111,7 @@ impl LayoutMetadataBuilder {
 }
 
 /// layout metadata
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LayoutMetadata {
     steps: Vec<Step>,
     inspect: Vec<Inspection>,

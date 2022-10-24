@@ -9,7 +9,7 @@ use crate::models::step::Command;
 use crate::models::{TargetDescription, VirtualTargetPath};
 use crate::Result;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 #[serde(deny_unknown_fields)]
 /// Predicate `LinkV02` means the predicate of original compatible format.
 ///

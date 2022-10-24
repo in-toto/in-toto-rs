@@ -60,7 +60,7 @@ impl<'de> Deserialize<'de> for Command {
 /// Materials and products used/produced by the step are constrained by the
 /// artifact rules in the step's supply_chain_item's expected_materials and
 /// expected_products fields.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Step {
     #[serde(skip, default = "default_step")]
     typ: String,

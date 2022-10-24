@@ -7,7 +7,7 @@ use super::{PredicateLayout, PredicateVersion, PredicateWrapper};
 use crate::interchange::{DataInterchange, Json};
 use crate::Result;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigSource {
     pub uri: Option<TypeURI>,
@@ -18,7 +18,7 @@ pub struct ConfigSource {
     pub entry_point: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Invocation {
     #[serde(rename = "configSource")]
@@ -30,7 +30,7 @@ pub struct Invocation {
     pub environment: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 #[serde(deny_unknown_fields)]
 /// Predicate `SLSAProvenanceV02` means the predicate of SLSA format.
 ///

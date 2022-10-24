@@ -10,7 +10,7 @@ use crate::{
     Error, Result,
 };
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 /// Statement `Naive` means the predicate of original format.
 ///

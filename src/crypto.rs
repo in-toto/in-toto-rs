@@ -223,7 +223,7 @@ pub enum SignatureScheme {
 }
 
 /// Wrapper type for the value of a cryptographic signature.
-#[derive(Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SignatureValue(#[serde(with = "crate::format_hex")] Vec<u8>);
 
 impl SignatureValue {
@@ -841,7 +841,7 @@ impl Debug for PublicKeyValue {
 }
 
 /// A structure that contains a `Signature` and associated data for verifying it.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Signature {
     #[serde(rename = "keyid")]
     key_id: KeyId,

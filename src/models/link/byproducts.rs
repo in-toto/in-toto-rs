@@ -32,7 +32,7 @@ use serde_derive::{Deserialize, Serialize};
 ///     .set_stdout("".into())
 ///     .set_other_fields(other_byproducts);
 /// ```
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ByProducts {
     #[serde(rename = "return-value")]
     return_value: i32,

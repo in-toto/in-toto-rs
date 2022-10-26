@@ -31,7 +31,7 @@ use super::{LayoutMetadata, LinkMetadata};
 
 pub const FILENAME_FORMAT: &str = "{step_name}.{keyid:.8}.link";
 
-#[derive(Debug, Serialize, Deserialize, Hash, PartialEq, EnumIter, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, Hash, PartialEq, Eq, EnumIter, Clone, Copy)]
 pub enum MetadataType {
     Layout,
     Link,
@@ -47,7 +47,7 @@ impl Display for MetadataType {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 #[serde(untagged)]
 pub enum MetadataWrapper {
     Layout(LayoutMetadata),
@@ -108,7 +108,7 @@ pub trait Metadata {
 /// * `signatures`: A pubkey => signature map. signatures are for the metadata.
 /// * `metadata`: <ROLE> dictionary. Also known as signed metadata. e.g., link
 /// or layout.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Metablock {
     signatures: Vec<Signature>,
     #[serde(rename = "signed")]

@@ -129,7 +129,7 @@ impl LinkMetadataBuilder {
 }
 
 /// link metadata
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LinkMetadata {
     name: String,
     materials: BTreeMap<VirtualTargetPath, TargetDescription>,

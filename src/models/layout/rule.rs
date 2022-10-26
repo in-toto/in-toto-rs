@@ -285,7 +285,7 @@ impl ArtifactRuleBuilder {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ArtifactRule {
     inner: HashMap<String, String>,
 }
@@ -305,24 +305,18 @@ impl Serialize for ArtifactRule {
         let mut statement = vec![typ.clone(), pattern];
 
         if &typ[..] == "MATCH" {
-            match self.inner.get(SOURCE_PATH_PREFIX) {
-                Some(src) => {
-                    statement.push(IN.into());
-                    statement.push(src.into());
-                }
-                None => {}
+            if let Some(src) = self.inner.get(SOURCE_PATH_PREFIX) {
+                statement.push(IN.into());
+                statement.push(src.into());
             }
 
             let target = self.inner.get(TARGET).unwrap().to_owned();
             statement.push(WITH.into());
             statement.push(target);
 
-            match self.inner.get(DESTINATION_PATH_PREFIX) {
-                Some(dst) => {
-                    statement.push("IN".into());
-                    statement.push(dst.into());
-                }
-                None => {}
+            if let Some(dst) = self.inner.get(DESTINATION_PATH_PREFIX) {
+                statement.push("IN".into());
+                statement.push(dst.into());
             }
 
             let step = self.inner.get(STEP).unwrap().to_owned();

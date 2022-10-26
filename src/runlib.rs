@@ -181,7 +181,7 @@ pub fn run_command(cmd_args: &[&str], run_dir: Option<&str>) -> Result<ByProduct
     }
 
     let executable = cmd_args[0];
-    let args = (&cmd_args[1..])
+    let args = (cmd_args[1..])
         .iter()
         .map(|arg| {
             if VirtualTargetPath::new((*arg).into()).is_ok() {

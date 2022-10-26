@@ -5,7 +5,7 @@ use serde_derive::{Deserialize, Serialize};
 
 use super::rule::ArtifactRule;
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SupplyChainItem {
     #[serde(rename = "_name")]
     name: String,

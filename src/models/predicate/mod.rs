@@ -16,7 +16,7 @@ use strum_macros::EnumIter;
 use super::Convert;
 use crate::{Error, Result};
 
-#[derive(Debug, Hash, PartialEq, EnumIter, Clone, Copy)]
+#[derive(Debug, Hash, PartialEq, Eq, EnumIter, Clone, Copy)]
 pub enum PredicateVersion {
     LinkV0_2,
     SLSAProvenanceV0_1,
@@ -65,7 +65,7 @@ impl<'de> Deserialize<'de> for PredicateVersion {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 #[serde(untagged)]
 pub enum PredicateWrapper {
     LinkV0_2(LinkV02),

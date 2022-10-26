@@ -14,7 +14,7 @@ use crate::{
 use super::{FromMerge, StateLayout, StateWrapper, StatementVer};
 use crate::Result;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(deny_unknown_fields)]
 /// Statement `V0_1` means the statement of contains a predicate for SLSA format.
 ///

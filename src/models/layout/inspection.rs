@@ -8,7 +8,9 @@ use super::{rule::ArtifactRule, step::Command, supply_chain_item::SupplyChainIte
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Inspection {
-    #[serde(rename = "_name")]
+    #[serde(rename = "_type")]
+    pub typ: String,
+    #[serde(rename = "name")]
     pub name: String,
     pub expected_materials: Vec<ArtifactRule>,
     pub expected_products: Vec<ArtifactRule>,
@@ -22,6 +24,7 @@ impl Inspection {
             name: name.into(),
             expected_materials: Vec::new(),
             expected_products: Vec::new(),
+            typ: "inspection".into(),
         }
     }
 
@@ -51,6 +54,7 @@ impl SupplyChainItem for Inspection {
 
 #[cfg(test)]
 mod test {
+    use assert_json_diff::assert_json_eq;
     use serde_json::json;
 
     use super::Inspection;
@@ -59,7 +63,8 @@ mod test {
     #[test]
     fn serialize_inspection() {
         let json = json!({
-            "_name": "test_inspect",
+            "_type": "inspection",
+            "name": "test_inspect",
             "expected_materials" : [
                 [
                     "MATCH",
@@ -89,21 +94,21 @@ mod test {
                 ]
             ],
             "run" : ["ls", "-al"]
-        })
-        .to_string();
+        });
         let inspection = Inspection::new("test_inspect")
             .add_expected_material(generate_materials_rule())
             .add_expected_product(generate_products_rule())
             .run("ls -al".into());
 
-        let json_serialized = serde_json::to_string(&inspection).unwrap();
-        assert_eq!(json, json_serialized);
+        let json_serialized = serde_json::to_value(&inspection).unwrap();
+        assert_json_eq!(json, json_serialized);
     }
 
     #[test]
     fn deserialize_inspection() {
         let json = r#"{
-            "_name": "test_inspect",
+            "_type": "inspection",
+            "name": "test_inspect",
             "expected_materials" : [
                 [
                     "MATCH", 

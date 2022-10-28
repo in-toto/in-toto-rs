@@ -96,8 +96,9 @@ impl Serialize for Command {
 /// expected_products fields.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Step {
+    #[serde(rename = "_type")]
+    pub typ: String,
     pub threshold: u32,
-    #[serde(rename = "_name")]
     pub name: String,
     pub expected_materials: Vec<ArtifactRule>,
     pub expected_products: Vec<ArtifactRule>,
@@ -115,6 +116,7 @@ impl Step {
             name: name.into(),
             expected_materials: Vec::new(),
             expected_products: Vec::new(),
+            typ: "step".into(),
         }
     }
 
@@ -188,7 +190,8 @@ mod test {
         let json_serialize = serde_json::to_value(&step)?;
         let json = json!(
         {
-            "_name": "package",
+            "_type": "step",
+            "name": "package",
             "expected_materials": [
                ["MATCH", "foo.py", "WITH", "PRODUCTS", "FROM", "write-code"]
             ],
@@ -210,7 +213,8 @@ mod test {
     fn deserialize_step() -> Result<()> {
         let json = r#"
         {
-            "_name": "package",
+            "_type": "step",
+            "name": "package",
             "expected_materials": [
                ["MATCH", "foo.py", "WITH", "PRODUCTS", "FROM", "write-code"]
             ],

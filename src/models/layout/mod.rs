@@ -203,7 +203,8 @@ mod test {
             },
             "steps": [
                 {
-                  "_name": "write-code",
+                  "_type": "step",
+                  "name": "write-code",
                   "threshold": 1,
                   "expected_materials": [ ],
                   "expected_products": [
@@ -215,7 +216,8 @@ mod test {
                   "expected_command": ["vi"]
                 },
                 {
-                  "_name": "package",
+                  "_type": "step",
+                  "name": "package",
                   "threshold": 1,
                   "expected_materials": [
                       ["MATCH", "foo.py", "WITH", "PRODUCTS", "FROM", "write-code"]
@@ -230,7 +232,8 @@ mod test {
                 }],
               "inspect": [
                 {
-                  "_name": "inspect_tarball",
+                  "_type": "inspection",
+                  "name": "inspect_tarball",
                   "expected_materials": [
                       ["MATCH", "foo.tar.gz", "WITH", "PRODUCTS", "FROM", "package"]
                   ],
@@ -274,7 +277,8 @@ mod test {
             },
             "steps": [
                 {
-                    "_name": "write-code",
+                    "_type": "step",
+                    "name": "write-code",
                     "threshold": 1,
                     "expected_materials": [],
                     "expected_products": [
@@ -291,7 +295,8 @@ mod test {
                     ]
                 },
                 {
-                    "_name": "package",
+                    "_type": "step",
+                    "name": "package",
                     "threshold": 1,
                     "expected_materials": [
                         [
@@ -322,7 +327,8 @@ mod test {
             ],
             "inspect": [
                 {
-                    "_name": "inspect_tarball",
+                    "_type": "inspection",
+                    "name": "inspect_tarball",
                     "expected_materials": [
                         [
                             "MATCH",

@@ -370,12 +370,6 @@ mod tests {
 
         let serialized = serde_json::to_value(&metablock).unwrap();
         let expected = json!({
-            "signatures": [
-                {
-                    "keyid": "64786e5921b589af1ca1bf5767087bf201806a9b3ce2e6856c903682132bd1dd",
-                    "sig": "0c2c5bb8fb58ccbb644e17bfbda0b754cc13f71ddb5ae4be1fff7ad7ec5c94543bec3818b0c45c4a9dd17545382b4ec6d9fcc71366be08c131505981ca415d04"
-                }
-            ],
             "signed": {
                 "_type": "layout",
                 "expires": "1970-01-01T00:00:00Z",
@@ -402,7 +396,8 @@ mod tests {
                 },
                 "steps": [
                     {
-                      "_name": "write-code",
+                      "_type": "step",
+                      "name": "write-code",
                       "threshold": 1,
                       "expected_materials": [ ],
                       "expected_products": [
@@ -414,7 +409,8 @@ mod tests {
                       "expected_command": ["vi"]
                     },
                     {
-                      "_name": "package",
+                      "_type": "step",
+                      "name": "package",
                       "threshold": 1,
                       "expected_materials": [
                           ["MATCH", "foo.py", "WITH", "PRODUCTS", "FROM", "write-code"]
@@ -429,7 +425,8 @@ mod tests {
                     }],
                   "inspect": [
                     {
-                      "_name": "inspect_tarball",
+                      "_type": "inspection",
+                      "name": "inspect_tarball",
                       "expected_materials": [
                           ["MATCH", "foo.tar.gz", "WITH", "PRODUCTS", "FROM", "package"]
                       ],
@@ -443,7 +440,7 @@ mod tests {
                 },
             "signatures": [{
                 "keyid" : "64786e5921b589af1ca1bf5767087bf201806a9b3ce2e6856c903682132bd1dd",
-                "sig": "f408c23f36f42901daa992b3fa8cbc33193989929064d4131fba6bee24789245176e212991fa8c8c19422969467584c80ab3ad0612641d0b9523c28f80441d07"
+                "sig": "b50dae4f1ef8cfcbc3cbcae1cdb3516f01980fdbf685a7a34d9218d6d6dae264200baeb2b6d2152cc9d8f9fea26b28b8bae8ce2befbb2ccf8419141d4843f807"
             }]
         });
         assert_json_eq!(expected, serialized);

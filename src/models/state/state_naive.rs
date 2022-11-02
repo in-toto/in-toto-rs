@@ -83,11 +83,7 @@ pub mod test {
     pub static STR_NAIVE: Lazy<String> = Lazy::new(|| {
         let raw_data = json!({
             "_type": "link",
-            "byproducts": {
-                "return-value": 0,
-                "stderr": "",
-                "stdout": ""
-            },
+            "byproducts": {},
             "command": [],
             "env": null,
             "materials": {},

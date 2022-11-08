@@ -13,6 +13,8 @@ pub struct PublicKey {
     #[serde(skip_serializing_if = "Option::is_none")]
     keyid_hash_algorithms: Option<Vec<String>>,
     keyval: PublicKeyValue,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    keyid: Option<String>,
 }
 
 impl PublicKey {
@@ -21,12 +23,18 @@ impl PublicKey {
         scheme: crypto::SignatureScheme,
         keyid_hash_algorithms: Option<Vec<String>>,
         public_key: String,
+        keyid: Option<&str>,
+        private_key: Option<&str>,
     ) -> Self {
         PublicKey {
             keytype,
             scheme,
             keyid_hash_algorithms,
-            keyval: PublicKeyValue { public: public_key },
+            keyval: PublicKeyValue {
+                public: public_key,
+                private: private_key.map(|k| k.to_string()),
+            },
+            keyid: keyid.map(|id| id.to_string()),
         }
     }
 
@@ -50,4 +58,6 @@ impl PublicKey {
 #[derive(Serialize, Deserialize)]
 pub struct PublicKeyValue {
     public: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    private: Option<String>,
 }

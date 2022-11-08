@@ -161,6 +161,9 @@ impl Metablock {
             .collect::<HashMap<&KeyId, &PublicKey>>();
 
         let raw = self.metadata.to_bytes()?;
+        let metadata = String::from_utf8(raw)
+            .map_err(|e| Error::Encoding(format!("Cannot convert metadata into a string: {}", e)))?
+            .replace("\\n", "\n");
         let mut signatures_needed = threshold;
 
         // Create a key_id->signature map to deduplicate the key_ids.
@@ -175,7 +178,7 @@ impl Metablock {
 
         for (key_id, sig) in signatures {
             match authorized_keys.get(key_id) {
-                Some(pub_key) => match pub_key.verify(&raw, sig) {
+                Some(pub_key) => match pub_key.verify(metadata.as_bytes(), sig) {
                     Ok(()) => {
                         debug!("Good signature from key ID {:?}", pub_key.key_id());
                         signatures_needed -= 1;
@@ -238,9 +241,12 @@ impl MetablockBuilder {
     pub fn sign(mut self, private_keys: &[&PrivateKey]) -> Result<Self> {
         let mut signatures = HashMap::new();
         let raw = self.metadata.to_bytes()?;
+        let metadata = String::from_utf8(raw)
+            .map_err(|e| Error::Encoding(format!("Cannot convert metadata into a string: {}", e)))?
+            .replace("\\n", "\n");
 
         private_keys.iter().try_for_each(|key| -> Result<()> {
-            let sig = key.sign(&raw)?;
+            let sig = key.sign(metadata.as_bytes())?;
             signatures.insert(sig.key_id().clone(), sig);
             Ok(())
         })?;
@@ -376,6 +382,7 @@ mod tests {
                 "readme": "",
                 "keys": {
                     "59d12f31ee173dbb3359769414e73c120f219af551baefb70aa69414dfba4aaf": {
+                        "keyid": "59d12f31ee173dbb3359769414e73c120f219af551baefb70aa69414dfba4aaf",
                         "keytype": "rsa",
                         "scheme": "rsassa-pss-sha256",
                         "keyid_hash_algorithms": [
@@ -383,13 +390,16 @@ mod tests {
                             "sha512"
                         ],
                         "keyval": {
+                            "private": "",
                             "public": "-----BEGIN PUBLIC KEY-----\nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEA91+6CJmBzrb6ODSXPvVK\nh9IVvDkD63d5/wHawj1ZB22Y0R7A7b8lRl7IqJJ3TcZO8W2zFfeRuPFlghQs+O7h\nA6XiRr4mlD1dLItk+p93E0vgY+/Jj4I09LObgA2ncGw/bUlYt3fB5tbmnojQyhrQ\nwUQvBxOqI3nSglg02mCdQRWpPzerGxItOIQkmU2TsqTg7TZ8lnSUbAsFuMebnA2d\nJ2hzeou7ZGsyCJj/6O0ORVF37nLZiOFF8EskKVpUJuoLWopEA2c09YDgFWHEPTIo\nGNWB2l/qyX7HTk1wf+WK/Wnn3nerzdEhY9dH+U0uH7tOBBVCyEKxUqXDGpzuLSxO\nGBpJXa3TTqLHJWIOzhIjp5J3rV93aeSqemU38KjguZzdwOMO5lRsFco5gaFS9aNL\nLXtLd4ZgXaxB3vYqFDhvZCx4IKrsYEc/Nr8ubLwyQ8WHeS7v8FpIT7H9AVNDo9BM\nZpnmdTc5Lxi15/TulmswIIgjDmmIqujUqyHN27u7l6bZJlcn8lQdYMm4eJr2o+Jt\ndloTwm7Cv/gKkhZ5tdO5c/219UYBnKaGF8No1feEHirm5mdvwpngCxdFMZMbfmUA\nfzPeVPkXE+LR0lsLGnMlXKG5vKFcQpCXW9iwJ4pZl7j12wLwiWyLDQtsIxiG6Sds\nALPkWf0mnfBaVj/Q4FNkJBECAwEAAQ==\n-----END PUBLIC KEY-----"
                         }
                     },
                     "e0294a3f17cc8563c3ed5fceb3bd8d3f6bfeeaca499b5c9572729ae015566554": {
+                        "keyid": "e0294a3f17cc8563c3ed5fceb3bd8d3f6bfeeaca499b5c9572729ae015566554",
                         "keytype": "ed25519",
                         "scheme": "ed25519",
                         "keyval": {
+                            "private": "",
                             "public": "eb8ac26b5c9ef0279e3be3e82262a93bce16fe58ee422500d38caf461c65a3b6"
                         }
                     }
@@ -440,7 +450,7 @@ mod tests {
                 },
             "signatures": [{
                 "keyid" : "64786e5921b589af1ca1bf5767087bf201806a9b3ce2e6856c903682132bd1dd",
-                "sig": "b50dae4f1ef8cfcbc3cbcae1cdb3516f01980fdbf685a7a34d9218d6d6dae264200baeb2b6d2152cc9d8f9fea26b28b8bae8ce2befbb2ccf8419141d4843f807"
+                "sig": "61b2551e3febfa1f110cd9f087243908d88d29fb639b83e7978f9e3bda109cb21452134534298c64825c85684700390fcd0a0f03ee468905405ec58f88becb06"
             }]
         });
         assert_json_eq!(expected, serialized);
@@ -487,7 +497,7 @@ mod tests {
             },
             "signatures" : [{
                 "keyid" : "e0294a3f17cc8563c3ed5fceb3bd8d3f6bfeeaca499b5c9572729ae015566554",
-                "sig": "7306d7d3e462f16026768f9b94bba5513d86355641ab39942575c1259073063802ea759d2e919bf2c1f38bfdaa5ad1499c5330541c6324220a41e27ea57d6f0d"
+                "sig": "62918f5f84fca149c15fcbc247a831e0360d33f0d9c8a89e6f623a011a8b807e2b0ef816a37356d966e9ad446ec234efb2b3bb4b04f338c0560d9cdfa1dcba0a"
             }]
         });
         assert_eq!(expected, serialized);

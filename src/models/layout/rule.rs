@@ -179,6 +179,20 @@ pub enum ArtifactRule {
     },
 }
 
+impl ArtifactRule {
+    pub fn pattern(&self) -> &VirtualTargetPath {
+        match self {
+            ArtifactRule::Create(pattern) => pattern,
+            ArtifactRule::Delete(pattern) => pattern,
+            ArtifactRule::Modify(pattern) => pattern,
+            ArtifactRule::Allow(pattern) => pattern,
+            ArtifactRule::Require(pattern) => pattern,
+            ArtifactRule::Disallow(pattern) => pattern,
+            ArtifactRule::Match { pattern, .. } => pattern,
+        }
+    }
+}
+
 impl Serialize for ArtifactRule {
     fn serialize<S>(&self, serializer: S) -> StdResult<S::Ok, S::Error>
     where

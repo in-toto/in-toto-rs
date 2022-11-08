@@ -1,0 +1,29 @@
+{
+ "signatures": [
+  {
+   "keyid": "776a00e29f3559e0141b3b096f696abc6cfb0c657ab40f441132b345b08453f5",
+   "sig": "3b77aba17d665ae408a9df69ef15ee5279d47637dee60b9fea69dc09c08f858fe12ad4c416c1558be3eb09397c3f9ece2a6d0743322d3861cf8bd0827494a0163d4f26590e9ad9a7684ec211daade7f71a64a896f95088bd05401aad50f0b1d8991b8bd25a55117a1493569f12878078ce3dc1242960dacb430b815ca42656e21e0b6df3e525028376e6c452b716221af857a28a6062643f08f37f1225e620182b9a3a8493121643ca7f21a71138cb7d8a5ae3be267680aef7e5de594a950d426bbbfdc3069762a7baec9f475773251b9dd6835f4173ed62340f8690c3e0db3e6435f29b730d2544cf96f1a3e47466ddad94bd745af6a19a04e9edb227866a8f6975abd76099adf5cb2ed54cdbad243e404671f3510be2ce9eed49cba8edbd03ba1b335e5180b78eac596d23021e542615db8607558839ad358001fab85ad0913381db70814388932e56bde067f92c94fc3ff8ff7eb3eb79b95a74eed8b28c716f83764020618214e2131367a7708260c13c3ede27853a9e2e185f1dd181ad0f"
+  }
+ ],
+ "signed": {
+  "_type": "link",
+  "byproducts": {
+   "return-value": 0,
+   "stderr": "",
+   "stdout": ""
+  },
+  "command": [
+   "git",
+   "clone",
+   "https://github.com/in-toto/demo-project.git"
+  ],
+  "environment": {},
+  "materials": {},
+  "name": "clone",
+  "products": {
+   "demo-project/foo.py": {
+    "sha256": "ebebf8778035e0e842a4f1aeb92a601be8ea8e621195f3b972316c60c9e12235"
+   }
+  }
+ }
+}

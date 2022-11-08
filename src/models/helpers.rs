@@ -7,7 +7,7 @@ use serde::de::{Deserialize, Deserializer, Error as DeserializeError};
 use serde_derive::Serialize;
 
 use crate::crypto::{HashAlgorithm, HashValue};
-use crate::Result;
+use crate::{Error, Result};
 
 /// Description of a target, used in verification.
 pub type TargetDescription = HashMap<HashAlgorithm, HashValue>;
@@ -26,6 +26,14 @@ impl VirtualTargetPath {
     /// The string value of the path.
     pub fn value(&self) -> &str {
         &self.0
+    }
+
+    /// Judge if this [`VirtualTargetPath`] matches the given pattern
+    pub(crate) fn matches(&self, pattern: &str) -> Result<bool> {
+        let matcher = glob::Pattern::new(pattern).map_err(|e| {
+            Error::IllegalArgument(format!("Pattern matcher creation failed: {}", e))
+        })?;
+        Ok(matcher.matches(self.value()))
     }
 }
 

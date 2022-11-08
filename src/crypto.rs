@@ -580,7 +580,7 @@ impl PrivateKey {
 
     fn rsa_gen() -> Result<Vec<u8>> {
         let gen = Command::new("openssl")
-            .args(&[
+            .args([
                 "genpkey",
                 "-algorithm",
                 "RSA",
@@ -594,7 +594,7 @@ impl PrivateKey {
             .output()?;
 
         let mut pk8 = Command::new("openssl")
-            .args(&[
+            .args([
                 "pkcs8", "-inform", "der", "-topk8", "-nocrypt", "-outform", "der",
             ])
             .stdin(Stdio::piped())

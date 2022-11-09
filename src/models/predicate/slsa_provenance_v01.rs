@@ -5,7 +5,7 @@ use serde::de::{Deserialize, Deserializer, Error as DeserializeError};
 use serde::ser::{Serialize, Serializer};
 use serde_derive::{Deserialize, Serialize};
 
-use super::{PredicateLayout, PredicateVersion, PredicateWrapper};
+use super::{PredicateLayout, PredicateVer, PredicateWrapper};
 use crate::interchange::{DataInterchange, Json};
 use crate::Result;
 
@@ -71,7 +71,7 @@ pub struct Recipe {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 #[serde(deny_unknown_fields)]
-pub struct Metadata {
+pub struct ProvenanceMetadata {
     #[serde(rename = "buildInvocationId")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub build_invocation_id: Option<String>,
@@ -107,7 +107,7 @@ pub struct SLSAProvenanceV01 {
     #[serde(skip_serializing_if = "Option::is_none")]
     recipe: Option<Recipe>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    metadata: Option<Metadata>,
+    metadata: Option<ProvenanceMetadata>,
     #[serde(skip_serializing_if = "Option::is_none")]
     materials: Option<Vec<Material>>,
 }
@@ -121,8 +121,8 @@ impl PredicateLayout for SLSAProvenanceV01 {
         PredicateWrapper::SLSAProvenanceV0_1(*self)
     }
 
-    fn version(&self) -> PredicateVersion {
-        PredicateVersion::SLSAProvenanceV0_1
+    fn version(&self) -> PredicateVer {
+        PredicateVer::SLSAProvenanceV0_1
     }
 }
 
@@ -132,15 +132,16 @@ pub mod test {
 
     use chrono::DateTime;
     use once_cell::sync::Lazy;
-    use serde_json::json;
+    use serde_json::{json, Value};
     use strum::IntoEnumIterator;
 
     use super::{
-        Builder, Completeness, Material, Metadata, Recipe, SLSAProvenanceV01, TimeStamp, TypeURI,
+        Builder, Completeness, Material, ProvenanceMetadata, Recipe, SLSAProvenanceV01, TimeStamp,
+        TypeURI,
     };
     use crate::{
         interchange::{DataInterchange, Json},
-        models::{PredicateLayout, PredicateVersion, PredicateWrapper},
+        models::{PredicateLayout, PredicateVer, PredicateWrapper},
     };
 
     pub static STR_PREDICATE_PROVEN_V01: Lazy<String> = Lazy::new(|| {
@@ -154,7 +155,7 @@ pub mod test {
                 "entryPoint": "build.yaml:maketgz"
             },
             "metadata": {
-                "buildStartedOn": "2020-08-19T08:38:00Z",
+                "buildInvocationId":"test_invocation_id",
                 "completeness": {
                     "environment": true
                 }
@@ -174,51 +175,62 @@ pub mod test {
         data.to_string()
     });
 
-    pub static PREDICATE_PROVEN_V01: Lazy<SLSAProvenanceV01> = Lazy::new(|| {
-        let build_started_on = DateTime::parse_from_rfc3339("2020-08-19T08:38:00Z").unwrap();
-        SLSAProvenanceV01 {
-            builder: Builder {
-                id: TypeURI("https://github.com/Attestations/GitHubHostedActions@v1".to_string()),
-            },
-            recipe: Some(Recipe {
-                typ: TypeURI(
-                    "https://github.com/Attestations/GitHubActionsWorkflow@v1".to_string(),
-                ),
-                defined_in_material: Some(0),
-                entry_point: Some("build.yaml:maketgz".to_string()),
+    pub static PREDICATE_PROVEN_V01: Lazy<SLSAProvenanceV01> = Lazy::new(|| SLSAProvenanceV01 {
+        builder: Builder {
+            id: TypeURI("https://github.com/Attestations/GitHubHostedActions@v1".to_string()),
+        },
+        recipe: Some(Recipe {
+            typ: TypeURI("https://github.com/Attestations/GitHubActionsWorkflow@v1".to_string()),
+            defined_in_material: Some(0),
+            entry_point: Some("build.yaml:maketgz".to_string()),
+            arguments: None,
+            environment: None,
+        }),
+        metadata: Some(ProvenanceMetadata {
+            build_invocation_id: Some("test_invocation_id".to_string()),
+            build_started_on: None,
+            build_finished_on: None,
+            completeness: Some(Completeness {
                 arguments: None,
-                environment: None,
+                environment: Some(true),
+                materials: None,
             }),
-            metadata: Some(Metadata {
-                build_invocation_id: None,
-                build_started_on: Some(TimeStamp(build_started_on)),
-                build_finished_on: None,
-                completeness: Some(Completeness {
-                    arguments: None,
-                    environment: Some(true),
-                    materials: None,
-                }),
-                reproducible: None,
-            }),
-            materials: Some(vec![
-                Material {
-                    uri: Some(TypeURI(
-                        "git+https://github.com/curl/curl-docker@master".to_string(),
-                    )),
-                    digest: Some(HashMap::from([(
-                        "sha1".to_string(),
-                        "d6525c840a62b398424a78d792f457477135d0cf".to_string(),
-                    )])),
-                },
-                Material {
-                    uri: Some(TypeURI(
-                        "github_hosted_vm:ubuntu-18.04:20210123.1".to_string(),
-                    )),
-                    digest: None,
-                },
-            ]),
-        }
+            reproducible: None,
+        }),
+        materials: Some(vec![
+            Material {
+                uri: Some(TypeURI(
+                    "git+https://github.com/curl/curl-docker@master".to_string(),
+                )),
+                digest: Some(HashMap::from([(
+                    "sha1".to_string(),
+                    "d6525c840a62b398424a78d792f457477135d0cf".to_string(),
+                )])),
+            },
+            Material {
+                uri: Some(TypeURI(
+                    "github_hosted_vm:ubuntu-18.04:20210123.1".to_string(),
+                )),
+                digest: None,
+            },
+        ]),
     });
+
+    #[test]
+    fn serialize_deserialize_datetime() {
+        let datetime = TimeStamp(DateTime::parse_from_rfc3339("2020-08-19T08:38:00Z").unwrap());
+        let datetime_raw = "\"2020-08-19T08:38:00Z\"";
+
+        // serialize
+        let buf = Json::canonicalize(&Json::serialize(&datetime).unwrap()).unwrap();
+        let datetime_serialized = str::from_utf8(&buf).unwrap();
+        assert_eq!(datetime_raw, datetime_serialized);
+
+        // deserialize
+        let datetime_deserialized: TimeStamp =
+            serde_json::from_slice(datetime_raw.as_bytes()).unwrap();
+        assert_eq!(datetime_deserialized, datetime);
+    }
 
     #[test]
     fn into_trait_equal() {
@@ -244,11 +256,9 @@ pub mod test {
 
     #[test]
     fn deserialize_predicate() {
-        let predicate = PredicateWrapper::from_bytes(
-            STR_PREDICATE_PROVEN_V01.as_bytes(),
-            PredicateVersion::SLSAProvenanceV0_1,
-        )
-        .unwrap();
+        let value: Value = serde_json::from_str(&STR_PREDICATE_PROVEN_V01).unwrap();
+        let predicate =
+            PredicateWrapper::from_value(value, PredicateVer::SLSAProvenanceV0_1).unwrap();
         let real = Box::new(PREDICATE_PROVEN_V01.clone()).into_enum();
 
         assert_eq!(predicate, real);
@@ -256,8 +266,8 @@ pub mod test {
 
     #[test]
     fn deserialize_auto() {
-        let predicate =
-            PredicateWrapper::try_from_bytes(STR_PREDICATE_PROVEN_V01.as_bytes()).unwrap();
+        let value: Value = serde_json::from_str(&STR_PREDICATE_PROVEN_V01).unwrap();
+        let predicate = PredicateWrapper::try_from_value(value).unwrap();
         let real = Box::new(PREDICATE_PROVEN_V01.clone()).into_enum();
 
         assert_eq!(predicate, real);
@@ -265,12 +275,12 @@ pub mod test {
 
     #[test]
     fn deserialize_dismatch() {
-        for version in PredicateVersion::iter() {
-            if version == PredicateVersion::SLSAProvenanceV0_1 {
+        let value: Value = serde_json::from_str(&STR_PREDICATE_PROVEN_V01).unwrap();
+        for version in PredicateVer::iter() {
+            if version == PredicateVer::SLSAProvenanceV0_1 {
                 continue;
             }
-            let predicate =
-                PredicateWrapper::from_bytes(STR_PREDICATE_PROVEN_V01.as_bytes(), version);
+            let predicate = PredicateWrapper::from_value(value.clone(), version);
 
             assert!(predicate.is_err());
         }

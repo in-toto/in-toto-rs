@@ -41,11 +41,3 @@ impl<'de> Deserialize<'de> for VirtualTargetPath {
         VirtualTargetPath::new(s).map_err(|e| DeserializeError::custom(format!("{:?}", e)))
     }
 }
-
-/// Trait for return Result From + Into
-pub(crate) trait Convert<T> {
-    fn try_from(target: T) -> Result<Self>
-    where
-        Self: Sized;
-    fn try_into(self) -> Result<T>;
-}

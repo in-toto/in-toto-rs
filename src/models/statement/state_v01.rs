@@ -5,13 +5,13 @@ use serde_derive::{Deserialize, Serialize};
 use crate::{
     interchange::{DataInterchange, Json},
     models::{
-        Convert, LinkMetadata, PredicateLayout, PredicateVersion, PredicateWrapper,
-        TargetDescription, VirtualTargetPath,
+        LinkMetadata, PredicateLayout, PredicateVer, PredicateWrapper, TargetDescription,
+        VirtualTargetPath,
     },
     Error,
 };
 
-use super::{FromMerge, StateLayout, StateWrapper, StatementVer};
+use super::{FromMerge, StateLayout, StatementVer, StatementWrapper};
 use crate::Result;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
@@ -24,8 +24,22 @@ pub struct StateV01 {
     typ: String,
     subject: BTreeMap<VirtualTargetPath, TargetDescription>,
     #[serde(rename = "predicateType")]
-    predicate_type: PredicateVersion,
+    predicate_type: PredicateVer,
     predicate: PredicateWrapper,
+}
+
+impl StateLayout for StateV01 {
+    fn version(&self) -> StatementVer {
+        StatementVer::V0_1
+    }
+
+    fn into_enum(self: Box<Self>) -> StatementWrapper {
+        StatementWrapper::V0_1(*self)
+    }
+
+    fn to_bytes(&self) -> Result<Vec<u8>> {
+        Json::canonicalize(&Json::serialize(self)?)
+    }
 }
 
 impl FromMerge for StateV01 {
@@ -38,7 +52,7 @@ impl FromMerge for StateV01 {
         }
         let p = predicate
             .ok_or_else(|| Error::Programming("match rules failed for StateV01".to_string()))?;
-        let version = StatementVer::V0_1.try_into()?;
+        let version = StatementVer::V0_1.into();
         Ok(StateV01 {
             typ: version,
             subject: meta.products().clone(),
@@ -48,36 +62,22 @@ impl FromMerge for StateV01 {
     }
 }
 
-impl StateLayout for StateV01 {
-    fn version(&self) -> StatementVer {
-        StatementVer::V0_1
-    }
-
-    fn into_enum(self: Box<Self>) -> StateWrapper {
-        StateWrapper::V0_1(*self)
-    }
-
-    fn to_bytes(&self) -> Result<Vec<u8>> {
-        Json::canonicalize(&Json::serialize(self)?)
-    }
-}
-
 #[cfg(test)]
 pub mod test {
     use crate::{
         interchange::{DataInterchange, Json},
         models::{
             predicate::link_v02::test::PREDICATE_LINK_V02,
-            state::{StateLayout, StateWrapper, StatementVer},
+            statement::{StateLayout, StatementVer, StatementWrapper},
             test::BLANK_META,
-            Convert, PredicateLayout, PredicateVersion,
+            PredicateLayout, PredicateVer,
         },
     };
     use std::collections::BTreeMap;
     use std::str;
 
     use once_cell::sync::Lazy;
-    use serde_json::json;
+    use serde_json::{json, Value};
     use strum::IntoEnumIterator;
 
     use super::StateV01;
@@ -106,23 +106,23 @@ pub mod test {
     });
 
     pub static STATE_V01: Lazy<StateV01> = Lazy::new(|| StateV01 {
-        typ: StatementVer::V0_1.try_into().unwrap(),
+        typ: StatementVer::V0_1.into(),
         subject: BTreeMap::new(),
-        predicate_type: PredicateVersion::LinkV0_2,
+        predicate_type: PredicateVer::LinkV0_2,
         predicate: Box::new(PREDICATE_LINK_V02.clone()).into_enum(),
     });
 
     #[test]
     fn into_trait_equal() {
-        let link = StateWrapper::V0_1(STATE_V01.clone());
+        let link = StatementWrapper::V0_1(STATE_V01.clone());
         let real = Box::new(STATE_V01.clone()).into_enum();
 
         assert_eq!(link, real);
     }
 
     #[test]
-    fn create_state_from_meta() {
-        let link = StateWrapper::from_meta(
+    fn create_statement_from_meta() {
+        let link = StatementWrapper::from_meta(
             BLANK_META.clone(),
             Some(Box::new(PREDICATE_LINK_V02.clone())),
             StatementVer::V0_1,
@@ -133,7 +133,7 @@ pub mod test {
     }
 
     #[test]
-    fn serialize_state() {
+    fn serialize_statement() {
         let state = Box::new(STATE_V01.clone()).into_enum();
         let buf = state.into_trait().to_bytes().unwrap();
         let link_serialized = str::from_utf8(&buf).unwrap();
@@ -142,9 +142,9 @@ pub mod test {
     }
 
     #[test]
-    fn deserialize_state() {
-        let link =
-            StateWrapper::from_bytes(STR_V01.as_bytes().to_vec(), StatementVer::V0_1).unwrap();
+    fn deserialize_statement() {
+        let value: Value = serde_json::from_str(&STR_V01).unwrap();
+        let link = StatementWrapper::from_value(value, StatementVer::V0_1).unwrap();
         let real = Box::new(STATE_V01.clone()).into_enum();
 
         assert_eq!(link, real);
@@ -152,7 +152,8 @@ pub mod test {
 
     #[test]
     fn deserialize_auto() {
-        let link = StateWrapper::try_from_bytes(STR_V01.as_bytes().to_vec()).unwrap();
+        let value: Value = serde_json::from_str(&STR_V01).unwrap();
+        let link = StatementWrapper::try_from_value(value).unwrap();
         let real = Box::new(STATE_V01.clone()).into_enum();
 
         assert_eq!(link, real);
@@ -160,11 +161,12 @@ pub mod test {
 
     #[test]
     fn deserialize_dismatch() {
+        let value: Value = serde_json::from_str(&STR_V01).unwrap();
         for version in StatementVer::iter() {
             if version == StatementVer::V0_1 {
                 continue;
             }
-            let state = StateWrapper::from_bytes(STR_V01.as_bytes().to_vec(), version);
+            let state = StatementWrapper::from_value(value.clone(), version);
 
             assert!(state.is_err());
         }

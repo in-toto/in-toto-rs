@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use serde_derive::{Deserialize, Serialize};
 
-use super::{PredicateLayout, PredicateVersion, PredicateWrapper};
+use super::{PredicateLayout, PredicateVer, PredicateWrapper};
 use crate::interchange::{DataInterchange, Json};
 use crate::models::byproducts::ByProducts;
 use crate::models::step::Command;
@@ -32,8 +32,8 @@ impl PredicateLayout for LinkV02 {
         PredicateWrapper::LinkV0_2(*self)
     }
 
-    fn version(&self) -> PredicateVersion {
-        PredicateVersion::LinkV0_2
+    fn version(&self) -> PredicateVer {
+        PredicateVer::LinkV0_2
     }
 }
 
@@ -43,13 +43,13 @@ pub mod test {
     use std::str;
 
     use once_cell::sync::Lazy;
-    use serde_json::json;
+    use serde_json::{json, Value};
     use strum::IntoEnumIterator;
 
     use super::LinkV02;
     use crate::{
         interchange::{DataInterchange, Json},
-        models::{byproducts::ByProducts, PredicateLayout, PredicateVersion, PredicateWrapper},
+        models::{byproducts::ByProducts, PredicateLayout, PredicateVer, PredicateWrapper},
     };
 
     pub static STR_PREDICATE_LINK_V02: Lazy<String> = Lazy::new(|| {
@@ -106,11 +106,8 @@ pub mod test {
 
     #[test]
     fn deserialize_predicate() {
-        let predicate = PredicateWrapper::from_bytes(
-            STR_PREDICATE_LINK_V02.as_bytes(),
-            PredicateVersion::LinkV0_2,
-        )
-        .unwrap();
+        let value: Value = serde_json::from_str(&STR_PREDICATE_LINK_V02).unwrap();
+        let predicate = PredicateWrapper::from_value(value, PredicateVer::LinkV0_2).unwrap();
         let real = Box::new(PREDICATE_LINK_V02.clone()).into_enum();
 
         assert_eq!(predicate, real);
@@ -118,8 +115,8 @@ pub mod test {
 
     #[test]
     fn deserialize_auto() {
-        let predicate =
-            PredicateWrapper::try_from_bytes(STR_PREDICATE_LINK_V02.as_bytes()).unwrap();
+        let value: Value = serde_json::from_str(&STR_PREDICATE_LINK_V02).unwrap();
+        let predicate = PredicateWrapper::try_from_value(value).unwrap();
         let real = Box::new(PREDICATE_LINK_V02.clone()).into_enum();
 
         assert_eq!(predicate, real);
@@ -127,12 +124,12 @@ pub mod test {
 
     #[test]
     fn deserialize_dismatch() {
-        for version in PredicateVersion::iter() {
-            if version == PredicateVersion::LinkV0_2 {
+        let value: Value = serde_json::from_str(&STR_PREDICATE_LINK_V02).unwrap();
+        for version in PredicateVer::iter() {
+            if version == PredicateVer::LinkV0_2 {
                 continue;
             }
-            let predicate =
-                PredicateWrapper::from_bytes(STR_PREDICATE_LINK_V02.as_bytes(), version);
+            let predicate = PredicateWrapper::from_value(value.clone(), version);
 
             assert!(predicate.is_err());
         }

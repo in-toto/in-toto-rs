@@ -163,7 +163,7 @@ pub fn record_artifacts(
 /// # Arguments
 ///
 /// * `cmd_args` - An array of string slices (`&str`) that holds the command arguments to be executed. The first element of cmd_args is used as executable and the rest as command arguments.
-/// * `run_dir` - A string slice (`&str`) wrapped in an `Option` that holds the directory the commands are to be ran. If `None` is provided, the current directory is assumed as default.
+/// * `run_dir` - A string slice (`&str`) wrapped in an `Option` that holds the directory the commands are to be run in. If `None` is provided, the current directory is assumed as default.
 ///
 /// # Examples
 ///
@@ -261,7 +261,7 @@ pub fn run_command(cmd_args: &[&str], run_dir: Option<&str>) -> Result<ByProduct
 /// # Arguments
 ///
 /// * `name` - The unique string used to associate link metadata with a step or inspection.
-/// * `run_dir` - A string slice (`&str`) wrapped in an `Option` that holds the directory the commands are to be ran. If `None` is provided, the current directory is assumed as default.
+/// * `run_dir` - A string slice (`&str`) wrapped in an `Option` that holds the directory the commands are to be run in. If `None` is provided, the current directory is assumed as default.
 /// * `material_paths` - A string slice (`&str`) of artifact paths to be recorded before command execution. Directories are traversed recursively.
 /// * `product_paths` - A string slice (`&str`) of artifact paths to be recorded after command execution. Directories are traversed recursively.
 /// * `cmd_args` - A string slice (`&str`) where the first element is a command and the remaining elements are arguments passed to that command.

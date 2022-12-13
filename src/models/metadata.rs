@@ -5,7 +5,7 @@
 //! * enum `MetadataWrapper` is used to do serialize, deserialize and
 //! other object unsafe operations.
 //! * trait `Metadata` is used to work for trait object.
-//! The reason please refer to issue https://github.com/in-toto/in-toto-rs/issues/33
+//! The reason please refer to issue <https://github.com/in-toto/in-toto-rs/issues/33>
 //!
 //! # Metablock
 //! Metablock is the container for link metadata and layout metadata.

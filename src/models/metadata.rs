@@ -110,9 +110,9 @@ pub trait Metadata {
 /// or layout.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Metablock {
-    signatures: Vec<Signature>,
+    pub signatures: Vec<Signature>,
     #[serde(rename = "signed")]
-    metadata: MetadataWrapper,
+    pub metadata: MetadataWrapper,
 }
 
 impl Metablock {
@@ -133,11 +133,6 @@ impl Metablock {
             signatures,
             metadata,
         })
-    }
-
-    /// An immutable reference to the signatures.
-    pub fn signatures(&self) -> &[Signature] {
-        &self.signatures
     }
 
     /// Verify this metadata.
@@ -166,6 +161,9 @@ impl Metablock {
             .collect::<HashMap<&KeyId, &PublicKey>>();
 
         let raw = self.metadata.to_bytes()?;
+        let metadata = String::from_utf8(raw)
+            .map_err(|e| Error::Encoding(format!("Cannot convert metadata into a string: {}", e)))?
+            .replace("\\n", "\n");
         let mut signatures_needed = threshold;
 
         // Create a key_id->signature map to deduplicate the key_ids.
@@ -180,7 +178,7 @@ impl Metablock {
 
         for (key_id, sig) in signatures {
             match authorized_keys.get(key_id) {
-                Some(pub_key) => match pub_key.verify(&raw, sig) {
+                Some(pub_key) => match pub_key.verify(metadata.as_bytes(), sig) {
                     Ok(()) => {
                         debug!("Good signature from key ID {:?}", pub_key.key_id());
                         signatures_needed -= 1;
@@ -243,9 +241,12 @@ impl MetablockBuilder {
     pub fn sign(mut self, private_keys: &[&PrivateKey]) -> Result<Self> {
         let mut signatures = HashMap::new();
         let raw = self.metadata.to_bytes()?;
+        let metadata = String::from_utf8(raw)
+            .map_err(|e| Error::Encoding(format!("Cannot convert metadata into a string: {}", e)))?
+            .replace("\\n", "\n");
 
         private_keys.iter().try_for_each(|key| -> Result<()> {
-            let sig = key.sign(&raw)?;
+            let sig = key.sign(metadata.as_bytes())?;
             signatures.insert(sig.key_id().clone(), sig);
             Ok(())
         })?;
@@ -275,6 +276,7 @@ impl MetablockBuilder {
 mod tests {
     use std::{fs, str::FromStr};
 
+    use assert_json_diff::assert_json_eq;
     use chrono::{DateTime, NaiveDateTime, Utc};
     use serde_json::json;
 
@@ -283,7 +285,7 @@ mod tests {
         models::{
             byproducts::ByProducts,
             inspection::Inspection,
-            rule::ArtifactRuleBuilder,
+            rule::{Artifact, ArtifactRule},
             step::{Command, Step},
             LayoutMetadataBuilder, LinkMetadataBuilder, Metablock, VirtualTargetPath,
         },
@@ -326,58 +328,40 @@ mod tests {
                 .add_step(
                     Step::new("write-code")
                         .threshold(1)
-                        .add_expected_product(
-                            ArtifactRuleBuilder::new()
-                                .rule("CREATE")
-                                .pattern("foo.py")
-                                .build()
-                                .unwrap(),
-                        )
+                        .add_expected_product(ArtifactRule::Create("foo.py".into()))
                         .expected_command(Command::from_str("vi").unwrap())
                         .add_key(alice_public_key.key_id().to_owned()),
                 )
                 .add_step(
                     Step::new("package")
                         .threshold(1)
-                        .add_expected_material(
-                            ArtifactRuleBuilder::new()
-                                .rule("MATCH")
-                                .pattern("foo.py")
-                                .with_products()
-                                .from_step("write-code")
-                                .build()
-                                .unwrap(),
-                        )
-                        .add_expected_product(
-                            ArtifactRuleBuilder::new()
-                                .rule("CREATE")
-                                .pattern("foo.tar.gz")
-                                .build()
-                                .unwrap(),
-                        )
+                        .add_expected_material(ArtifactRule::Match {
+                            pattern: "foo.py".into(),
+                            in_src: None,
+                            with: Artifact::Products,
+                            in_dst: None,
+                            from: "write-code".into(),
+                        })
+                        .add_expected_product(ArtifactRule::Create("foo.tar.gz".into()))
                         .expected_command(Command::from_str("tar zcvf foo.tar.gz foo.py").unwrap())
                         .add_key(bob_public_key.key_id().to_owned()),
                 )
                 .add_inspect(
                     Inspection::new("inspect_tarball")
-                        .add_expected_material(
-                            ArtifactRuleBuilder::new()
-                                .rule("MATCH")
-                                .pattern("foo.tar.gz")
-                                .with_products()
-                                .from_step("package")
-                                .build()
-                                .unwrap(),
-                        )
-                        .add_expected_product(
-                            ArtifactRuleBuilder::new()
-                                .rule("MATCH")
-                                .pattern("foo.py")
-                                .with_products()
-                                .from_step("write-code")
-                                .build()
-                                .unwrap(),
-                        )
+                        .add_expected_material(ArtifactRule::Match {
+                            pattern: "foo.tar.gz".into(),
+                            in_src: None,
+                            with: Artifact::Products,
+                            in_dst: None,
+                            from: "package".into(),
+                        })
+                        .add_expected_product(ArtifactRule::Match {
+                            pattern: "foo.py".into(),
+                            in_src: None,
+                            with: Artifact::Products,
+                            in_dst: None,
+                            from: "write-code".into(),
+                        })
                         .run(Command::from_str("inspect_tarball.sh foo.tar.gz").unwrap()),
                 )
                 .build()
@@ -392,18 +376,13 @@ mod tests {
 
         let serialized = serde_json::to_value(&metablock).unwrap();
         let expected = json!({
-            "signatures": [
-                {
-                    "keyid": "64786e5921b589af1ca1bf5767087bf201806a9b3ce2e6856c903682132bd1dd",
-                    "sig": "0c2c5bb8fb58ccbb644e17bfbda0b754cc13f71ddb5ae4be1fff7ad7ec5c94543bec3818b0c45c4a9dd17545382b4ec6d9fcc71366be08c131505981ca415d04"
-                }
-            ],
             "signed": {
                 "_type": "layout",
                 "expires": "1970-01-01T00:00:00Z",
                 "readme": "",
                 "keys": {
                     "59d12f31ee173dbb3359769414e73c120f219af551baefb70aa69414dfba4aaf": {
+                        "keyid": "59d12f31ee173dbb3359769414e73c120f219af551baefb70aa69414dfba4aaf",
                         "keytype": "rsa",
                         "scheme": "rsassa-pss-sha256",
                         "keyid_hash_algorithms": [
@@ -411,87 +390,70 @@ mod tests {
                             "sha512"
                         ],
                         "keyval": {
+                            "private": "",
                             "public": "-----BEGIN PUBLIC KEY-----\nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEA91+6CJmBzrb6ODSXPvVK\nh9IVvDkD63d5/wHawj1ZB22Y0R7A7b8lRl7IqJJ3TcZO8W2zFfeRuPFlghQs+O7h\nA6XiRr4mlD1dLItk+p93E0vgY+/Jj4I09LObgA2ncGw/bUlYt3fB5tbmnojQyhrQ\nwUQvBxOqI3nSglg02mCdQRWpPzerGxItOIQkmU2TsqTg7TZ8lnSUbAsFuMebnA2d\nJ2hzeou7ZGsyCJj/6O0ORVF37nLZiOFF8EskKVpUJuoLWopEA2c09YDgFWHEPTIo\nGNWB2l/qyX7HTk1wf+WK/Wnn3nerzdEhY9dH+U0uH7tOBBVCyEKxUqXDGpzuLSxO\nGBpJXa3TTqLHJWIOzhIjp5J3rV93aeSqemU38KjguZzdwOMO5lRsFco5gaFS9aNL\nLXtLd4ZgXaxB3vYqFDhvZCx4IKrsYEc/Nr8ubLwyQ8WHeS7v8FpIT7H9AVNDo9BM\nZpnmdTc5Lxi15/TulmswIIgjDmmIqujUqyHN27u7l6bZJlcn8lQdYMm4eJr2o+Jt\ndloTwm7Cv/gKkhZ5tdO5c/219UYBnKaGF8No1feEHirm5mdvwpngCxdFMZMbfmUA\nfzPeVPkXE+LR0lsLGnMlXKG5vKFcQpCXW9iwJ4pZl7j12wLwiWyLDQtsIxiG6Sds\nALPkWf0mnfBaVj/Q4FNkJBECAwEAAQ==\n-----END PUBLIC KEY-----"
                         }
                     },
                     "e0294a3f17cc8563c3ed5fceb3bd8d3f6bfeeaca499b5c9572729ae015566554": {
+                        "keyid": "e0294a3f17cc8563c3ed5fceb3bd8d3f6bfeeaca499b5c9572729ae015566554",
                         "keytype": "ed25519",
                         "scheme": "ed25519",
                         "keyval": {
+                            "private": "",
                             "public": "eb8ac26b5c9ef0279e3be3e82262a93bce16fe58ee422500d38caf461c65a3b6"
                         }
                     }
                 },
                 "steps": [
                     {
-                        "threshold": 1,
-                        "_name": "write-code",
-                        "expected_materials": [],
-                        "expected_products": [
-                            [
-                                "CREATE",
-                                "foo.py"
-                            ]
-                        ],
-                        "pubkeys": [
-                            "e0294a3f17cc8563c3ed5fceb3bd8d3f6bfeeaca499b5c9572729ae015566554"
-                        ],
-                        "expected_command": "vi"
+                      "_type": "step",
+                      "name": "write-code",
+                      "threshold": 1,
+                      "expected_materials": [ ],
+                      "expected_products": [
+                          ["CREATE", "foo.py"]
+                      ],
+                      "pubkeys": [
+                          "e0294a3f17cc8563c3ed5fceb3bd8d3f6bfeeaca499b5c9572729ae015566554"
+                      ],
+                      "expected_command": ["vi"]
                     },
                     {
-                        "threshold": 1,
-                        "_name": "package",
-                        "expected_materials": [
-                            [
-                                "MATCH",
-                                "foo.py",
-                                "WITH",
-                                "PRODUCTS",
-                                "FROM",
-                                "write-code"
-                            ]
-                        ],
-                        "expected_products": [
-                            [
-                                "CREATE",
-                                "foo.tar.gz"
-                            ]
-                        ],
-                        "pubkeys": [
-                            "59d12f31ee173dbb3359769414e73c120f219af551baefb70aa69414dfba4aaf"
-                        ],
-                        "expected_command": "tar zcvf foo.tar.gz foo.py"
-                    }
-                ],
-                "inspect": [
+                      "_type": "step",
+                      "name": "package",
+                      "threshold": 1,
+                      "expected_materials": [
+                          ["MATCH", "foo.py", "WITH", "PRODUCTS", "FROM", "write-code"]
+                      ],
+                      "expected_products": [
+                          ["CREATE", "foo.tar.gz"]
+                      ],
+                      "pubkeys": [
+                          "59d12f31ee173dbb3359769414e73c120f219af551baefb70aa69414dfba4aaf"
+                      ],
+                      "expected_command": ["tar", "zcvf", "foo.tar.gz", "foo.py"]
+                    }],
+                  "inspect": [
                     {
-                        "_name": "inspect_tarball",
-                        "expected_materials": [
-                            [
-                                "MATCH",
-                                "foo.tar.gz",
-                                "WITH",
-                                "PRODUCTS",
-                                "FROM",
-                                "package"
-                            ]
-                        ],
-                        "expected_products": [
-                            [
-                                "MATCH",
-                                "foo.py",
-                                "WITH",
-                                "PRODUCTS",
-                                "FROM",
-                                "write-code"
-                            ]
-                        ],
-                        "run": "inspect_tarball.sh foo.tar.gz"
+                      "_type": "inspection",
+                      "name": "inspect_tarball",
+                      "expected_materials": [
+                          ["MATCH", "foo.tar.gz", "WITH", "PRODUCTS", "FROM", "package"]
+                      ],
+                      "expected_products": [
+                          ["MATCH", "foo.py", "WITH", "PRODUCTS", "FROM", "write-code"]
+                      ],
+                      "run": ["inspect_tarball.sh", "foo.tar.gz"]
                     }
-                ]
-            }
+                  ],
+                  "readme": ""
+                },
+            "signatures": [{
+                "keyid" : "64786e5921b589af1ca1bf5767087bf201806a9b3ce2e6856c903682132bd1dd",
+                "sig": "61b2551e3febfa1f110cd9f087243908d88d29fb639b83e7978f9e3bda109cb21452134534298c64825c85684700390fcd0a0f03ee468905405ec58f88becb06"
+            }]
         });
-        assert_eq!(expected, serialized);
+        assert_json_eq!(expected, serialized);
     }
 
     #[test]
@@ -530,12 +492,12 @@ mod tests {
                     "stderr": "a foo.py\n",
                     "stdout": ""
                 },
-                "command": "tar zcvf foo.tar.gz foo.py",
+                "command": ["tar", "zcvf", "foo.tar.gz", "foo.py"],
                 "environment": null
             },
             "signatures" : [{
                 "keyid" : "e0294a3f17cc8563c3ed5fceb3bd8d3f6bfeeaca499b5c9572729ae015566554",
-                "sig": "becef72a0b9c645b3b97034434d06eca50ee811adcb382162d7b22db66732ecfa9b6dfec078a2dddf7495e92c466950a97cbafdc8847dff022f02eff94ea950e"
+                "sig": "62918f5f84fca149c15fcbc247a831e0360d33f0d9c8a89e6f623a011a8b807e2b0ef816a37356d966e9ad446ec234efb2b3bb4b04f338c0560d9cdfa1dcba0a"
             }]
         });
         assert_eq!(expected, serialized);

@@ -6,13 +6,15 @@
     clippy::implicit_hasher,
     clippy::new_ret_no_self,
     clippy::op_ref,
-    clippy::too_many_arguments
+    clippy::too_many_arguments,
+    clippy::borrowed_box
 )]
 
 pub mod crypto;
 pub mod error;
 pub mod interchange;
 pub mod models;
+mod rulelib;
 pub mod runlib;
 pub mod verifylib;
 

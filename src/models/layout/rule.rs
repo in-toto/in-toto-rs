@@ -39,27 +39,26 @@
 //!
 //! We can build a MATCH rule like this
 //! ```
-//! # use in_toto::{models::rule::ArtifactRuleBuilder, Result};
+//! # use in_toto::{models::rule::{ArtifactRule, Artifact}, Result};
 //!
 //! # fn main() -> Result<()> {
-//!     let _match_rule = ArtifactRuleBuilder::new()
-//!         .rule("MATCH")
-//!         .pattern("foo.py")
-//! //       .in_source_path_prefix("src/")
-//!         .with_materials() // or .with_products()
-//! //       .in_destination_path_prefix("dst/")
-//!         .from_step("code")
-//!         .build()?;
+//!     let _match_rule = ArtifactRule::Match {
+//!         pattern: "pattern/".into(),
+//!         in_src: Some("src".into()),
+//!         with: Artifact::Materials,
+//!         in_dst: Some("dst".into()),
+//!         from: "test_step".into(),
+//!     };
 //!
 //!     Ok(())
 //! # }
 //!
 //! ```
 //!
-//! Here, optional fields of the rule is also optional when
-//! use `ArtifactRuleBuilder`, but `rule()`, `pattern()` and
-//! `from_step()` are required. If they are not provided,
-//! the `build()` function will return an error.
+//! This rule equals to
+//! ```plaintext
+//! ["MATCH", "pattern/", "IN", "src", "WITH", "MATERIALS", "IN", "dst", "FROM", "test_step"]
+//! ```
 //!
 //! ### Other Rules
 //!
@@ -69,22 +68,20 @@
 //! For example, we can build a CREATE rule like this
 //!
 //! ```
-//! # use in_toto::{models::rule::ArtifactRuleBuilder, Result};
+//! # use in_toto::{models::rule::ArtifactRule, Result};
 //!
 //! # fn main() -> Result<()> {
-//!     let _create_rule = ArtifactRuleBuilder::new()
-//!         .rule("CREATE")
-//!         .pattern("foo.py")
-//!         .build()?;
+//!     let _create_rule = ArtifactRule::Create("./artifact".into());
 //!
 //!     Ok(())
 //! # }
 //!
 //! ```
 //!
-//! If any other fields like `<source-path-prefix>` is set via related
-//! function (in this case, `in_source_path_prefix()`), the build
-//! process will succeed, ignoring them and only set `<pattern>` field.
+//! This rule equals to
+//! ```plaintext
+//! ["CREATE", "./artifact"]
+//! ```
 //!
 //! ## Deserialize and Serialize
 //!
@@ -95,14 +92,10 @@
 //!
 //! ```
 //! # use serde_json::Error;
-//! # use in_toto::models::rule::{ArtifactRule, ArtifactRuleBuilder};
+//! # use in_toto::models::rule::ArtifactRule;
 //!
 //! # fn main() {
-//! let rule = ArtifactRuleBuilder::new()
-//!     .rule("CREATE")
-//!     .pattern("foo.py")
-//!     .build()
-//!     .unwrap();
+//! let rule = ArtifactRule::Create("foo.py".into());
 //!
 //! let rule_raw = r#"["CREATE", "foo.py"]"#;
 //! let rule_parsed: ArtifactRule = serde_json::from_str(rule_raw).unwrap();
@@ -115,14 +108,10 @@
 //!
 //! ```
 //! # use serde_json::{Error, json};
-//! # use in_toto::models::rule::{ArtifactRule, ArtifactRuleBuilder};
+//! # use in_toto::models::rule::ArtifactRule;
 //!
 //! # fn main() {
-//! let rule = ArtifactRuleBuilder::new()
-//!     .rule("CREATE")
-//!     .pattern("foo.py")
-//!     .build()
-//!     .unwrap();
+//! let rule = ArtifactRule::Create("foo.py".into());
 //!
 //! let rule_value = json!(["CREATE", "foo.py"]);
 //! let rule_serialized = serde_json::to_value(&rule).unwrap();
@@ -132,205 +121,143 @@
 //!
 //! [`in-toto v0.9 spec`]: https://github.com/in-toto/docs/blob/v0.9/in-toto-spec.md#433-artifact-rules
 
-use std::collections::HashMap;
 use std::result::Result as StdResult;
 
-use lazy_static::lazy_static;
 use serde::{
     de::{self, SeqAccess, Unexpected, Visitor},
     ser::{Serialize, SerializeSeq},
     Deserialize,
 };
 
-use crate::{Error, Result};
-
-// keys for ARTIFACT_RULE's inner map
-static TYPE: &str = "type";
-static PATTERN: &str = "pattern";
-static SOURCE_PATH_PREFIX: &str = "source-path-prefix";
-static TARGET: &str = "target";
-static DESTINATION_PATH_PREFIX: &str = "destination-path-prefix";
-static STEP: &str = "step";
-
-// const strings for Rules
-static MATERIALS: &str = "MATERIALS";
-static PRODUCTS: &str = "PRODUCTS";
-static IN: &str = "IN";
-static WITH: &str = "WITH";
-static FROM: &str = "FROM";
-
-// Rule types
-lazy_static! {
-    static ref RULE_TYPES: Vec<String> = vec![
-        "MATCH".into(),
-        "CREATE".into(),
-        "DELETE".into(),
-        "MODIFY".into(),
-        "ALLOW".into(),
-        "REQUIRE".into(),
-        "DISALLOW".into()
-    ];
-}
-
-/// Helper to build an ArtifactRule as in-toto spec v0.9
-pub struct ArtifactRuleBuilder {
-    inner: HashMap<String, String>,
-}
-
-impl Default for ArtifactRuleBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl ArtifactRuleBuilder {
-    pub fn new() -> Self {
-        Self {
-            inner: HashMap::new(),
-        }
-    }
-
-    /// Set Rule type for the rule.
-    /// Can be one of `MATCH`, `CREATE`, `DELETE`
-    /// `MODIFY`, `ALLOW`, `REQUIRE` or `DISALLOW`
-    pub fn rule(mut self, typ: &str) -> Self {
-        self.inner.insert(TYPE.to_owned(), typ.to_owned());
-        self
-    }
-
-    /// Set `<pattern>` for the rule.
-    pub fn pattern(mut self, pattern: &str) -> Self {
-        self.inner.insert(PATTERN.to_owned(), pattern.to_owned());
-        self
-    }
-
-    /// Set `<source-path-prefix>` for the rule.
-    /// Only works for `MATCH` rule
-    pub fn in_source_path_prefix(mut self, source_path_prefix: &str) -> Self {
-        self.inner
-            .insert(SOURCE_PATH_PREFIX.to_owned(), source_path_prefix.to_owned());
-        self
-    }
-
-    /// Set `<destination-path-prefix>` for the rule.
-    /// Only works for `MATCH` rule
-    pub fn in_destination_path_prefix(mut self, destination_path_prefix: &str) -> Self {
-        self.inner.insert(
-            DESTINATION_PATH_PREFIX.to_owned(),
-            destination_path_prefix.to_owned(),
-        );
-        self
-    }
-
-    /// Set thr rule's check target is `MATERIALS`.
-    /// Only works for `MATCH` rule
-    pub fn with_materials(mut self) -> Self {
-        self.inner.insert(TARGET.to_owned(), MATERIALS.to_owned());
-        self
-    }
-
-    /// Set thr rule's check target is `PRODUCTS`.
-    /// Only works for `MATCH` rule
-    pub fn with_products(mut self) -> Self {
-        self.inner.insert(TARGET.to_owned(), PRODUCTS.to_owned());
-        self
-    }
-
-    /// Set `<step>` for the rule.
-    /// Only works for `MATCH` rule
-    pub fn from_step(mut self, step: &str) -> Self {
-        self.inner.insert(STEP.to_owned(), step.to_owned());
-        self
-    }
-
-    /// Check the parameters input for the Builder and
-    /// build ArtifactRule
-    pub fn build(self) -> Result<ArtifactRule> {
-        let typ = self
-            .inner
-            .get(TYPE)
-            .ok_or_else(|| Error::Programming("ArtifactRule should have type".into()))?
-            .to_owned();
-
-        // Check whether type is allowed
-        if !RULE_TYPES.contains(&typ) {
-            return Err(Error::Programming(
-                r"ArtifactRule's type should be one of :
-            `MATCH`, 'CREATE', 'DELETE', 'MODIFY', 'ALLOW', 'REQUIRE' or 'DISALLOW'"
-                    .into(),
-            ));
-        }
-
-        if !self.inner.contains_key(PATTERN) {
-            return Err(Error::Programming(
-                "ArtifactRule should have a <pattern> field".into(),
-            ));
-        }
-
-        if &typ[..] == "MATCH" {
-            if !self.inner.contains_key(STEP) {
-                return Err(Error::Programming(
-                    "A match rule should have a <step> field".into(),
-                ));
-            }
-
-            if !self.inner.contains_key(TARGET) {
-                return Err(Error::Programming(
-                    "A match rule should be either MATERIALS or PRODUCTS".into(),
-                ));
-            }
-        }
-
-        Ok(ArtifactRule { inner: self.inner })
-    }
-}
+use crate::models::VirtualTargetPath;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ArtifactRule {
-    inner: HashMap<String, String>,
+pub enum Artifact {
+    Materials,
+    Products,
 }
 
-impl ArtifactRule {}
+impl AsRef<str> for Artifact {
+    fn as_ref(&self) -> &str {
+        match self {
+            Artifact::Materials => "MATERIALS",
+            Artifact::Products => "PRODUCTS",
+        }
+    }
+}
+
+/// Artifact rule enum
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ArtifactRule {
+    /// indicates that products matched by the pattern must not appear
+    /// as materials of this step.
+    Create(VirtualTargetPath),
+    /// indicates that materials matched by the pattern must not appear
+    /// as products of this step.
+    Delete(VirtualTargetPath),
+    /// indicates that products matched by this pattern must appear as
+    /// materials of this step, and their hashes must not be the same.
+    Modify(VirtualTargetPath),
+    /// indicates that artifacts matched by the pattern are allowed as
+    /// materials or products of this step.
+    Allow(VirtualTargetPath),
+    /// indicates that a pattern must appear as a material or product
+    /// of this step.
+    Require(VirtualTargetPath),
+    /// indicates that artifacts matched by the pattern are not allowed
+    /// as materials or products of this step.
+    Disallow(VirtualTargetPath),
+    /// indicates that the artifacts filtered in using `"in_src/pattern"`
+    /// must be matched to a `"MATERIAL"` or `"PRODUCT"` from a destination
+    /// step with the "in_dst/pattern" filter.
+    Match {
+        pattern: VirtualTargetPath,
+        in_src: Option<String>,
+        with: Artifact,
+        in_dst: Option<String>,
+        from: String,
+    },
+}
+
+impl ArtifactRule {
+    pub fn pattern(&self) -> &VirtualTargetPath {
+        match self {
+            ArtifactRule::Create(pattern) => pattern,
+            ArtifactRule::Delete(pattern) => pattern,
+            ArtifactRule::Modify(pattern) => pattern,
+            ArtifactRule::Allow(pattern) => pattern,
+            ArtifactRule::Require(pattern) => pattern,
+            ArtifactRule::Disallow(pattern) => pattern,
+            ArtifactRule::Match { pattern, .. } => pattern,
+        }
+    }
+}
 
 impl Serialize for ArtifactRule {
     fn serialize<S>(&self, serializer: S) -> StdResult<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        let typ = self.inner.get(TYPE).unwrap().to_owned();
-        // here use unwrap() because when an ArtifactRule is
-        // successfully built from ArtifactRuleBuilder, the key 'TYPE' is
-        // ensured to exist in the inner map.
-        let pattern = self.inner.get(PATTERN).unwrap().to_owned();
-        let mut statement = vec![typ.clone(), pattern];
-
-        if &typ[..] == "MATCH" {
-            if let Some(src) = self.inner.get(SOURCE_PATH_PREFIX) {
-                statement.push(IN.into());
-                statement.push(src.into());
+        match self {
+            ArtifactRule::Create(pattern) => {
+                let mut seq = serializer.serialize_seq(Some(2))?;
+                seq.serialize_element("CREATE")?;
+                seq.serialize_element(pattern)?;
+                seq.end()
             }
-
-            let target = self.inner.get(TARGET).unwrap().to_owned();
-            statement.push(WITH.into());
-            statement.push(target);
-
-            if let Some(dst) = self.inner.get(DESTINATION_PATH_PREFIX) {
-                statement.push("IN".into());
-                statement.push(dst.into());
+            ArtifactRule::Delete(pattern) => {
+                let mut seq = serializer.serialize_seq(Some(2))?;
+                seq.serialize_element("DELETE")?;
+                seq.serialize_element(pattern)?;
+                seq.end()
             }
-
-            let step = self.inner.get(STEP).unwrap().to_owned();
-            statement.push(FROM.into());
-            statement.push(step);
+            ArtifactRule::Modify(pattern) => {
+                let mut seq = serializer.serialize_seq(Some(2))?;
+                seq.serialize_element("MODIFY")?;
+                seq.serialize_element(pattern)?;
+                seq.end()
+            }
+            ArtifactRule::Allow(pattern) => {
+                let mut seq = serializer.serialize_seq(Some(2))?;
+                seq.serialize_element("ALLOW")?;
+                seq.serialize_element(pattern)?;
+                seq.end()
+            }
+            ArtifactRule::Require(pattern) => {
+                let mut seq = serializer.serialize_seq(Some(2))?;
+                seq.serialize_element("REQUIRE")?;
+                seq.serialize_element(pattern)?;
+                seq.end()
+            }
+            ArtifactRule::Disallow(pattern) => {
+                let mut seq = serializer.serialize_seq(Some(2))?;
+                seq.serialize_element("DISALLOW")?;
+                seq.serialize_element(pattern)?;
+                seq.end()
+            }
+            ArtifactRule::Match {
+                pattern,
+                in_src,
+                with,
+                in_dst,
+                from,
+            } => {
+                let mut to_be_serialized = vec!["MATCH", pattern.as_ref()];
+                if let Some(src) = in_src {
+                    to_be_serialized.append(&mut vec!["IN", src]);
+                }
+                to_be_serialized.append(&mut vec!["WITH", with.as_ref()]);
+                if let Some(dst) = in_dst {
+                    to_be_serialized.append(&mut vec!["IN", dst]);
+                }
+                to_be_serialized.append(&mut vec!["FROM", from]);
+                let mut seq = serializer.serialize_seq(Some(to_be_serialized.len()))?;
+                for e in to_be_serialized {
+                    seq.serialize_element(e)?;
+                }
+                seq.end()
+            }
         }
-
-        let len = Some(statement.len());
-
-        let mut seq = serializer.serialize_seq(len)?;
-        for e in statement {
-            seq.serialize_element(&e)?;
-        }
-        seq.end()
     }
 }
 
@@ -356,104 +283,118 @@ impl<'de> Visitor<'de> for ArtifactRuleVisitor {
         V: SeqAccess<'de>,
     {
         let mut len = 0;
-        let typ: String = seq
+        let typ: &str = seq
             .next_element()?
             .ok_or_else(|| de::Error::invalid_length(len, &self))?;
         len += 1;
 
-        let pattern: String = seq
+        let pattern: VirtualTargetPath = seq
             .next_element()?
             .ok_or_else(|| de::Error::invalid_length(len, &self))?;
         len += 1;
-        let mut builder = ArtifactRuleBuilder::new().rule(&typ).pattern(&pattern);
 
-        if &typ[..] == "MATCH" {
-            let in_or_with: String = seq
-                .next_element()?
-                .ok_or_else(|| de::Error::invalid_length(len, &self))?;
-            len += 1;
+        match typ {
+            "CREATE" => Ok(ArtifactRule::Create(pattern)),
+            "DELETE" => Ok(ArtifactRule::Delete(pattern)),
+            "MODIFY" => Ok(ArtifactRule::Modify(pattern)),
+            "ALLOW" => Ok(ArtifactRule::Allow(pattern)),
+            "REQUIRE" => Ok(ArtifactRule::Require(pattern)),
+            "DISALLOW" => Ok(ArtifactRule::Disallow(pattern)),
+            "MATCH" => {
+                let in_or_with: String = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(len, &self))?;
+                len += 1;
 
-            match &in_or_with[..] {
-                "IN" => {
-                    let source_path_prefix: String = seq
-                        .next_element()?
-                        .ok_or_else(|| de::Error::invalid_length(len, &self))?;
-                    len += 1;
-                    builder = builder.in_source_path_prefix(&source_path_prefix);
+                let mut in_src = None;
+                let mut with = Artifact::Materials;
+                let mut in_dst = None;
 
-                    let in_: String = seq
-                        .next_element()?
-                        .ok_or_else(|| de::Error::invalid_length(len, &self))?;
-                    len += 1;
+                match &in_or_with[..] {
+                    "IN" => {
+                        let source_path_prefix: String = seq
+                            .next_element()?
+                            .ok_or_else(|| de::Error::invalid_length(len, &self))?;
+                        len += 1;
 
-                    if in_ != WITH {
-                        Err(de::Error::invalid_value(Unexpected::Str(&in_), &"IN"))?
+                        in_src = Some(source_path_prefix);
+
+                        let in_: String = seq
+                            .next_element()?
+                            .ok_or_else(|| de::Error::invalid_length(len, &self))?;
+                        len += 1;
+
+                        if in_ != "WITH" {
+                            Err(de::Error::invalid_value(Unexpected::Str(&in_), &"IN"))?
+                        }
+                    }
+                    "WITH" => {}
+                    _ => {
+                        return Err(de::Error::invalid_value(
+                            Unexpected::Str(&in_or_with),
+                            &"WITH or IN",
+                        ))
                     }
                 }
-                "WITH" => {}
-                _ => {
-                    return Err(de::Error::invalid_value(
-                        Unexpected::Str(&in_or_with),
-                        &"WITH or IN",
-                    ))
-                }
+
+                let target: String = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(len, &self))?;
+                len += 1;
+
+                match &target[..] {
+                    "MATERIALS" => {}
+                    "PRODUCTS" => with = Artifact::Products,
+                    _ => Err(de::Error::invalid_value(
+                        Unexpected::Str(&target),
+                        &"MATERIALS or PRODUCTS",
+                    ))?,
+                };
+
+                let in_or_from: String = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(len, &self))?;
+                len += 1;
+
+                match &in_or_from[..] {
+                    "IN" => {
+                        let destination_path_prefix: String = seq
+                            .next_element()?
+                            .ok_or_else(|| de::Error::invalid_length(len, &self))?;
+                        len += 1;
+                        in_dst = Some(destination_path_prefix);
+
+                        let from_: String = seq
+                            .next_element()?
+                            .ok_or_else(|| de::Error::invalid_length(len, &self))?;
+                        len += 1;
+
+                        if from_ != "FROM" {
+                            return Err(de::Error::invalid_value(Unexpected::Str(&from_), &"FROM"));
+                        }
+                    }
+                    "FROM" => {}
+                    _ => {
+                        return Err(de::Error::invalid_value(
+                            Unexpected::Str(&in_or_from),
+                            &"IN or FROM",
+                        ));
+                    }
+                };
+
+                let from: String = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(len, &self))?;
+
+                Ok(ArtifactRule::Match {
+                    pattern,
+                    in_src,
+                    with,
+                    in_dst,
+                    from,
+                })
             }
-
-            let target: String = seq
-                .next_element()?
-                .ok_or_else(|| de::Error::invalid_length(len, &self))?;
-            len += 1;
-
-            match &target[..] {
-                "MATERIALS" => builder = builder.with_materials(),
-                "PRODUCTS" => builder = builder.with_products(),
-                _ => Err(de::Error::invalid_value(
-                    Unexpected::Str(&target),
-                    &"MATERIALS or PRODUCTS",
-                ))?,
-            };
-
-            let in_or_from: String = seq
-                .next_element()?
-                .ok_or_else(|| de::Error::invalid_length(len, &self))?;
-            len += 1;
-
-            match &in_or_from[..] {
-                "IN" => {
-                    let destination_path_prefix: String = seq
-                        .next_element()?
-                        .ok_or_else(|| de::Error::invalid_length(len, &self))?;
-                    len += 1;
-                    builder = builder.in_destination_path_prefix(&destination_path_prefix);
-
-                    let from_: String = seq
-                        .next_element()?
-                        .ok_or_else(|| de::Error::invalid_length(len, &self))?;
-                    len += 1;
-
-                    if from_ != FROM {
-                        return Err(de::Error::invalid_value(Unexpected::Str(&from_), &"FROM"));
-                    }
-                }
-                "FROM" => {}
-                _ => {
-                    return Err(de::Error::invalid_value(
-                        Unexpected::Str(&in_or_from),
-                        &"IN or FROM",
-                    ));
-                }
-            };
-
-            let step: String = seq
-                .next_element()?
-                .ok_or_else(|| de::Error::invalid_length(len, &self))?;
-
-            builder = builder.from_step(&step);
-        }
-
-        match builder.build() {
-            Ok(rule) => Ok(rule),
-            Err(e) => Err(de::Error::custom(e.to_string())),
+            others => Err(de::Error::custom(format!("Unexpected token {}", others))),
         }
     }
 }
@@ -469,9 +410,10 @@ impl<'de> Deserialize<'de> for ArtifactRule {
 
 #[cfg(test)]
 pub mod test {
+    use rstest::rstest;
     use serde_json::json;
 
-    use super::{ArtifactRule, ArtifactRuleBuilder};
+    use super::{Artifact, ArtifactRule};
 
     /// generate a ARTIFACT_RULE as json:
     /// `[
@@ -487,15 +429,13 @@ pub mod test {
     ///     "test_step"
     /// ]`
     pub fn generate_materials_rule() -> ArtifactRule {
-        ArtifactRuleBuilder::new()
-            .rule("MATCH")
-            .pattern("pattern/")
-            .in_source_path_prefix("src")
-            .with_materials()
-            .in_destination_path_prefix("dst")
-            .from_step("test_step")
-            .build()
-            .unwrap()
+        ArtifactRule::Match {
+            pattern: "pattern/".into(),
+            in_src: Some("src".into()),
+            with: Artifact::Materials,
+            in_dst: Some("dst".into()),
+            from: "test_step".into(),
+        }
     }
 
     /// generate a ARTIFACT_RULE as json:
@@ -512,66 +452,29 @@ pub mod test {
     ///     "test_step"
     /// ]`
     pub fn generate_products_rule() -> ArtifactRule {
-        ArtifactRuleBuilder::new()
-            .rule("MATCH")
-            .pattern("pattern/")
-            .in_source_path_prefix("src")
-            .with_products()
-            .in_destination_path_prefix("dst")
-            .from_step("test_step")
-            .build()
-            .unwrap()
-    }
-
-    #[test]
-    fn success_build_rule() {
-        let res = ArtifactRuleBuilder::new()
-            .rule("MATCH")
-            .pattern("a.out")
-            .in_source_path_prefix("./src")
-            .with_materials()
-            .in_destination_path_prefix("./dst")
-            .from_step("build")
-            .build();
-        assert!(res.is_ok());
-    }
-
-    #[test]
-    fn fail_build_rule() {
-        let res = ArtifactRuleBuilder::new()
-            .rule("MATCH")
-            .in_source_path_prefix("./src")
-            .with_materials()
-            .in_destination_path_prefix("./dst")
-            .from_step("build")
-            .build();
-        // No pattern here is illegal
-        assert!(res.is_err());
+        ArtifactRule::Match {
+            pattern: "pattern/".into(),
+            in_src: Some("src".into()),
+            with: Artifact::Products,
+            in_dst: Some("dst".into()),
+            from: "test_step".into(),
+        }
     }
 
     #[test]
     fn serialize_match_full() {
-        let rule = ArtifactRuleBuilder::new()
-            .rule("MATCH")
-            .pattern("./")
-            .in_source_path_prefix("pre")
-            .with_materials()
-            .in_destination_path_prefix("dst")
-            .from_step("build")
-            .build()
-            .unwrap();
-
+        let rule = generate_materials_rule();
         let json = json!([
             "MATCH",
-            "./",
+            "pattern/",
             "IN",
-            "pre",
+            "src",
             "WITH",
             "MATERIALS",
             "IN",
             "dst",
             "FROM",
-            "build"
+            "test_step"
         ]);
 
         let json_serialize = serde_json::to_value(&rule).unwrap();
@@ -580,14 +483,13 @@ pub mod test {
 
     #[test]
     fn serialize_match_without_source() {
-        let rule = ArtifactRuleBuilder::new()
-            .rule("MATCH")
-            .pattern("./")
-            .with_materials()
-            .in_destination_path_prefix("dst")
-            .from_step("build")
-            .build()
-            .unwrap();
+        let rule = ArtifactRule::Match {
+            pattern: "./".into(),
+            in_src: None,
+            with: Artifact::Materials,
+            in_dst: Some("dst".into()),
+            from: "build".into(),
+        };
 
         let json = json!([
             "MATCH",
@@ -606,14 +508,13 @@ pub mod test {
 
     #[test]
     fn serialize_match_without_dest() {
-        let rule = ArtifactRuleBuilder::new()
-            .rule("MATCH")
-            .pattern("./")
-            .in_source_path_prefix("pre")
-            .with_materials()
-            .from_step("build")
-            .build()
-            .unwrap();
+        let rule = ArtifactRule::Match {
+            pattern: "./".into(),
+            in_src: Some("pre".into()),
+            with: Artifact::Materials,
+            in_dst: None,
+            from: "build".into(),
+        };
 
         let json = json!([
             "MATCH",
@@ -630,15 +531,14 @@ pub mod test {
         assert_eq!(json, json_serialize, "{:#?} != {:#?}", json, json_serialize);
     }
 
-    #[test]
-    fn serialize_other() {
-        let rule = ArtifactRuleBuilder::new()
-            .rule("CREATE")
-            .pattern("./artifact")
-            .build()
-            .unwrap();
-
-        let json = json!(["CREATE", "./artifact"]);
+    #[rstest]
+    #[case(ArtifactRule::Create("./artifact".into()), json!(["CREATE", "./artifact"]))]
+    #[case(ArtifactRule::Delete("./artifact".into()), json!(["DELETE", "./artifact"]))]
+    #[case(ArtifactRule::Modify("./artifact".into()), json!(["MODIFY", "./artifact"]))]
+    #[case(ArtifactRule::Allow("./artifact".into()), json!(["ALLOW", "./artifact"]))]
+    #[case(ArtifactRule::Require("./artifact".into()), json!(["REQUIRE", "./artifact"]))]
+    #[case(ArtifactRule::Disallow("./artifact".into()), json!(["DISALLOW", "./artifact"]))]
+    fn serialize_tests(#[case] rule: ArtifactRule, #[case] json: serde_json::Value) {
         let json_serialize = serde_json::to_value(&rule).unwrap();
         assert_eq!(json, json_serialize, "{:#?} != {:#?}", json, json_serialize);
     }
@@ -647,25 +547,17 @@ pub mod test {
     fn deserialize_full() {
         let json = r#"[
             "MATCH",
-            "foo.tar.gz",
+            "pattern/",
             "IN",
-            "./src",
+            "src",
             "WITH",
-            "PRODUCTS",
+            "MATERIALS",
             "IN",
-            "./dst",
+            "dst",
             "FROM",
-            "package"
+            "test_step"
         ]"#;
-        let rule = ArtifactRuleBuilder::new()
-            .rule("MATCH")
-            .pattern("foo.tar.gz")
-            .in_source_path_prefix("./src")
-            .with_products()
-            .in_destination_path_prefix("./dst")
-            .from_step("package")
-            .build()
-            .unwrap();
+        let rule = generate_materials_rule();
 
         let rule_parsed: ArtifactRule = serde_json::from_str(json).unwrap();
         assert_eq!(rule, rule_parsed);
@@ -683,14 +575,13 @@ pub mod test {
             "FROM",
             "package"
         ]"#;
-        let rule = ArtifactRuleBuilder::new()
-            .rule("MATCH")
-            .pattern("foo.tar.gz")
-            .with_products()
-            .in_destination_path_prefix("./dst")
-            .from_step("package")
-            .build()
-            .unwrap();
+        let rule = ArtifactRule::Match {
+            pattern: "foo.tar.gz".into(),
+            in_src: None,
+            with: Artifact::Products,
+            in_dst: Some("./dst".into()),
+            from: "package".into(),
+        };
 
         let rule_parsed: ArtifactRule = serde_json::from_str(json).unwrap();
         assert_eq!(rule, rule_parsed);
@@ -708,31 +599,26 @@ pub mod test {
             "FROM",
             "package"
         ]"#;
-        let rule = ArtifactRuleBuilder::new()
-            .rule("MATCH")
-            .pattern("foo.tar.gz")
-            .in_source_path_prefix("./src")
-            .with_products()
-            .from_step("package")
-            .build()
-            .unwrap();
+        let rule = ArtifactRule::Match {
+            pattern: "foo.tar.gz".into(),
+            in_src: Some("./src".into()),
+            with: Artifact::Products,
+            in_dst: None,
+            from: "package".into(),
+        };
 
         let rule_parsed: ArtifactRule = serde_json::from_str(json).unwrap();
         assert_eq!(rule, rule_parsed);
     }
 
-    #[test]
-    fn deserialize_other() {
-        let json = r#"[
-            "DELETE",
-            "foo.pyc"
-        ]"#;
-        let rule = ArtifactRuleBuilder::new()
-            .rule("DELETE")
-            .pattern("foo.pyc")
-            .build()
-            .unwrap();
-
+    #[rstest]
+    #[case(ArtifactRule::Create("./artifact".into()), r#"["CREATE", "./artifact"]"#)]
+    #[case(ArtifactRule::Delete("./artifact".into()), r#"["DELETE", "./artifact"]"#)]
+    #[case(ArtifactRule::Modify("./artifact".into()), r#"["MODIFY", "./artifact"]"#)]
+    #[case(ArtifactRule::Allow("./artifact".into()), r#"["ALLOW", "./artifact"]"#)]
+    #[case(ArtifactRule::Require("./artifact".into()), r#"["REQUIRE", "./artifact"]"#)]
+    #[case(ArtifactRule::Disallow("./artifact".into()), r#"["DISALLOW", "./artifact"]"#)]
+    fn deserialize_tests(#[case] rule: ArtifactRule, #[case] json: &str) {
         let rule_parsed: ArtifactRule = serde_json::from_str(json).unwrap();
         assert_eq!(rule, rule_parsed);
     }

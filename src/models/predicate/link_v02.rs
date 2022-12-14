@@ -60,7 +60,7 @@ pub mod test {
                 "stderr": "",
                 "stdout": ""
             },
-            "command": "",
+            "command": [],
             "env": null,
             "materials": {},
             "name": ""
@@ -76,7 +76,10 @@ pub mod test {
         materials: BTreeMap::new(),
         env: None,
         command: "".into(),
-        byproducts: ByProducts::new(),
+        byproducts: ByProducts::new()
+            .set_return_value(0)
+            .set_stderr("".into())
+            .set_stdout("".into()),
     });
 
     #[test]

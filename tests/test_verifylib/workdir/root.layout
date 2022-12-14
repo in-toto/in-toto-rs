@@ -1,0 +1,211 @@
+{
+    "signatures": [
+        {
+            "keyid": "556caebdc0877eed53d419b60eddb1e57fa773e4e31d70698b588f3e9cc48b35",
+            "sig": "a2e420a830389fbe32761b203f87fb2521068a16c60c5780baac13e600b37ffc451b2f7b76546bde211e343ba670e4e87680e0cd2dce46cd8566c2bd23c2cb7c6f78bdd91b5f24480f260d9bdc9c0bb217ca1ba8869873f790d7d2663af42d821a2952951f411d760a38bc9e1367e7048a6c4cc7de245a5b14dfd98e3ed227460b5c305541d88c7f9300d71091211a80d1363f68ba090cd8cee7d552e49a0396b9aff863e562225886d0f33195141d21fb3b0f67ab6b800c40ccac073a354a79e6d797d0aa8b9436799da783e217a3d7527a891f0f2ebf04cd6c6430430e725c8a7b68b2d40978bfe20340374f5b0cbe001dd3c8e3589e9b988fac1c47917391884d4b6bbc83b7b9265eeb6f96764a82fca5a9ea4770d8096e563b43adac50f414b117f497c663d68b17faeac3d4535eeaa973b6cfe6e81b309f7e9c8ef05fceb9b748f712d0691f2ef7def3b0a858c8436b4752687861e69dc94ed3ae8b5023161c6201bdffcaa1e8286b83d3818bf0d3ba4383fefa4c699f493635813e51b0"
+        }
+    ],
+    "signed": {
+        "_type": "layout",
+        "expires": "2022-12-02T18:41:07Z",
+        "inspect": [
+            {
+                "_type": "inspection",
+                "expected_materials": [
+                    [
+                        "MATCH",
+                        "demo-project.tar.gz",
+                        "WITH",
+                        "PRODUCTS",
+                        "FROM",
+                        "package"
+                    ],
+                    [
+                        "ALLOW",
+                        ".keep"
+                    ],
+                    [
+                        "ALLOW",
+                        "alice.pub"
+                    ],
+                    [
+                        "ALLOW",
+                        "root.layout"
+                    ],
+                    [
+                        "DISALLOW",
+                        "*"
+                    ]
+                ],
+                "expected_products": [
+                    [
+                        "MATCH",
+                        "demo-project/foo.py",
+                        "WITH",
+                        "PRODUCTS",
+                        "FROM",
+                        "update-version"
+                    ],
+                    [
+                        "ALLOW",
+                        "demo-project/.git/*"
+                    ],
+                    [
+                        "ALLOW",
+                        "demo-project.tar.gz"
+                    ],
+                    [
+                        "ALLOW",
+                        ".keep"
+                    ],
+                    [
+                        "ALLOW",
+                        "alice.pub"
+                    ],
+                    [
+                        "ALLOW",
+                        "root.layout"
+                    ],
+                    [
+                        "DISALLOW",
+                        "*"
+                    ]
+                ],
+                "name": "untar",
+                "run": [
+                    "tar",
+                    "xzf",
+                    "demo-project.tar.gz"
+                ]
+            }
+        ],
+        "keys": {
+            "2f89b9272acfc8f4a0a0f094d789fdb0ba798b0fe41f2f5f417c12f0085ff498": {
+                "keyid": "2f89b9272acfc8f4a0a0f094d789fdb0ba798b0fe41f2f5f417c12f0085ff498",
+                "keyid_hash_algorithms": [
+                    "sha256",
+                    "sha512"
+                ],
+                "keytype": "rsa",
+                "keyval": {
+                    "private": "",
+                    "public": "-----BEGIN PUBLIC KEY-----\nMIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAzgLBsMFSgwBiWTBmVsyW\n5KbJwLFSodAzdUhU2Bq6SdRz/W6UOBGdojZXibxupjRtAaEQW/eXDe+1CbKg6ENZ\nGt2D9HGFCQZgQS8ONgNDQGiNxgApMA0T21AaUhru0vEofzdN1DfEF4CAGv5AkcgK\nsalhTyONervFIjFEdXGelFZ7dVMV3Pp5WkZPG0jFQWjnmDZhUrtSxEtqbVghc3kK\nAUj9Ll/3jyi2wS92Z1j5ueN8X62hWX2xBqQ6nViOMzdujkoiYCRSwuMLRqzW2CbT\nL8hF1+S5KWKFzxl5sCVfpPe7V5HkgEHjwCILXTbCn2fCMKlaSbJ/MG2lW7qSY2Ro\nwVXWkp1wDrsJ6Ii9f2dErv9vJeOVZeO9DsooQ5EuzLCfQLEU5mn7ul7bU7rFsb8J\nxYOeudkNBatnNCgVMAkmDPiNA7E33bmL5ARRwU0iZicsqLQR32pmwdap8PjofxqQ\nk7Gtvz/iYzaLrZv33cFWWTsEOqK1gKqigSqgW9T26wO9AgMBAAE=\n-----END PUBLIC KEY-----"
+                },
+                "scheme": "rsassa-pss-sha256"
+            },
+            "776a00e29f3559e0141b3b096f696abc6cfb0c657ab40f441132b345b08453f5": {
+                "keyid": "776a00e29f3559e0141b3b096f696abc6cfb0c657ab40f441132b345b08453f5",
+                "keyid_hash_algorithms": [
+                    "sha256",
+                    "sha512"
+                ],
+                "keytype": "rsa",
+                "keyval": {
+                    "private": "",
+                    "public": "-----BEGIN PUBLIC KEY-----\nMIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA0Zfzonp3/FScaIP+KKuz\nB+OZNFpjbVGWjm3leqnFqHYLqrLcCw5KhlXpycJqoSvZBpO+PFCksUx8U/ryklHG\nVoDiB84pRkvZtBoVaA4b4IHDIhz1K5NqkJgieya4fwReTxmCW0a9gH7AnDicHBCX\nlzMxqEdt6OKMV5g4yjKaxf8lW72O1gSI46GSIToo+Z7UUgs3ofaM5UFIcczgCpUa\n5kEKocB6cSZ9U8PKRLSs0xO0ROjrcOTsfxMs8eV4bsRCWY5mAq1WM9EHDSV9WO8g\nqrRmanC4enNqa8jU4O3zhgJVegP9A01r9AwNt6AqgPSikwhXN/P4v1FMYV+R6N3b\nS1lsVWRAnwBq5RFz5zVvcY88JEkHbrcBqP/A4909NXae1VMXmnoJb4EzGAkyUySB\na+fHXAVJgzwyv3I48d/OIjH8NWcVmM/DQL7FtcJk3tp0YUjY5wNpcbQTnLzURtlU\nsd+MtGuvdlDxUUvtUYCIVKRdS8UzYnTPjI2xzeoSHZ2ZAgMBAAE=\n-----END PUBLIC KEY-----"
+                },
+                "scheme": "rsassa-pss-sha256"
+            }
+        },
+        "readme": "",
+        "steps": [
+            {
+                "_type": "step",
+                "expected_command": [
+                    "git",
+                    "clone",
+                    "https://github.com/in-toto/demo-project.git"
+                ],
+                "expected_materials": [],
+                "expected_products": [
+                    [
+                        "CREATE",
+                        "demo-project/foo.py"
+                    ],
+                    [
+                        "DISALLOW",
+                        "*"
+                    ]
+                ],
+                "name": "clone",
+                "pubkeys": [
+                    "776a00e29f3559e0141b3b096f696abc6cfb0c657ab40f441132b345b08453f5"
+                ],
+                "threshold": 1
+            },
+            {
+                "_type": "step",
+                "expected_command": [],
+                "expected_materials": [
+                    [
+                        "MATCH",
+                        "demo-project/*",
+                        "WITH",
+                        "PRODUCTS",
+                        "FROM",
+                        "clone"
+                    ],
+                    [
+                        "DISALLOW",
+                        "*"
+                    ]
+                ],
+                "expected_products": [
+                    [
+                        "MODIFY",
+                        "demo-project/foo.py"
+                    ],
+                    [
+                        "DISALLOW",
+                        "*"
+                    ]
+                ],
+                "name": "update-version",
+                "pubkeys": [
+                    "776a00e29f3559e0141b3b096f696abc6cfb0c657ab40f441132b345b08453f5"
+                ],
+                "threshold": 1
+            },
+            {
+                "_type": "step",
+                "expected_command": [
+                    "tar",
+                    "--exclude",
+                    ".git",
+                    "-zcvf",
+                    "demo-project.tar.gz",
+                    "demo-project"
+                ],
+                "expected_materials": [
+                    [
+                        "MATCH",
+                        "demo-project/*",
+                        "WITH",
+                        "PRODUCTS",
+                        "FROM",
+                        "update-version"
+                    ],
+                    [
+                        "DISALLOW",
+                        "*"
+                    ]
+                ],
+                "expected_products": [
+                    [
+                        "CREATE",
+                        "demo-project.tar.gz"
+                    ],
+                    [
+                        "DISALLOW",
+                        "*"
+                    ]
+                ],
+                "name": "package",
+                "pubkeys": [
+                    "2f89b9272acfc8f4a0a0f094d789fdb0ba798b0fe41f2f5f417c12f0085ff498"
+                ],
+                "threshold": 1
+            }
+        ]
+    }
+}

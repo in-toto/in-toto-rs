@@ -114,7 +114,6 @@ impl StateWrapper {
     }
 
     pub fn try_from_bytes(bytes: Vec<u8>) -> Result<Self> {
-        println!("{:?}", bytes);
         Self::judge_from_bytes(bytes.clone())
             .map(|ver| StateWrapper::from_bytes(bytes.clone(), ver).unwrap())
     }

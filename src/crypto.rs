@@ -131,6 +131,8 @@ fn shim_public_key(
     signature_scheme: &SignatureScheme,
     keyid_hash_algorithms: &Option<Vec<String>>,
     public_key: &[u8],
+    private_key: bool,
+    keyid: Option<&str>,
 ) -> Result<shims::PublicKey> {
     let key = match key_type {
         KeyType::Ed25519 => HEXLOWER.encode(public_key),
@@ -150,11 +152,18 @@ fn shim_public_key(
         }
     };
 
+    let private_key = match private_key {
+        true => Some(""),
+        false => None,
+    };
+
     Ok(shims::PublicKey::new(
         key_type.clone(),
         signature_scheme.clone(),
         keyid_hash_algorithms.clone(),
         key,
+        keyid,
+        private_key,
     ))
 }
 
@@ -174,6 +183,8 @@ fn calculate_key_id(
         signature_scheme,
         keyid_hash_algorithms,
         public_key,
+        false,
+        None,
     )?;
     let public_key = Json::canonicalize(&Json::serialize(&public_key)?)?;
     let public_key = String::from_utf8(public_key)
@@ -194,6 +205,14 @@ fn calculate_key_id(
 /// public key, or `hexdigest(sha256(cjson(public_key)))`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct KeyId(String);
+
+impl KeyId {
+    /// Return the first 8 hex digits of the key id
+    pub fn prefix(&self) -> String {
+        assert!(self.0.len() >= 8);
+        self.0[0..8].to_string()
+    }
+}
 
 impl FromStr for KeyId {
     type Err = Error;
@@ -561,7 +580,7 @@ impl PrivateKey {
 
     fn rsa_gen() -> Result<Vec<u8>> {
         let gen = Command::new("openssl")
-            .args(&[
+            .args([
                 "genpkey",
                 "-algorithm",
                 "RSA",
@@ -575,7 +594,7 @@ impl PrivateKey {
             .output()?;
 
         let mut pk8 = Command::new("openssl")
-            .args(&[
+            .args([
                 "pkcs8", "-inform", "der", "-topk8", "-nocrypt", "-outform", "der",
             ])
             .stdin(Stdio::piped())
@@ -786,6 +805,8 @@ impl Serialize for PublicKey {
             &self.scheme,
             &self.keyid_hash_algorithms,
             &self.value.0,
+            true,
+            Some(&self.key_id.0),
         )
         .map_err(|e| SerializeError::custom(format!("Couldn't write key as SPKI: {:?}", e)))?;
         key.serialize(ser)
@@ -1017,6 +1038,8 @@ fn write_pkcs1(n: &[u8], e: &[u8]) -> ::std::result::Result<Vec<u8>, derp::Error
 
 #[cfg(test)]
 mod test {
+    use crate::models::Metablock;
+
     use super::*;
     use pretty_assertions::assert_eq;
     use serde_json::{self, json};
@@ -1037,6 +1060,8 @@ mod test {
 
     const DEMO_KEY_ID: &str = "556caebdc0877eed53d419b60eddb1e57fa773e4e31d70698b588f3e9cc48b35";
     const DEMO_PUBLIC_KEY: &'static [u8] = include_bytes!("../tests/rsa/alice.pub");
+    const DEMO_LAYOUT: &'static [u8] =
+        include_bytes!("../tests/test_verifylib/workdir/root.layout");
 
     #[test]
     fn parse_public_rsa_2048_spki() {
@@ -1253,10 +1278,12 @@ mod test {
         .to_string();
         let encoded = serde_json::to_value(&pub_key).unwrap();
         let jsn = json!({
+            "keyid": "c2620e94b6ff57f433c24436013a89d403fa6934a2ee490f44f897176c2c52e9",
             "keytype": "rsa",
             "scheme": "rsassa-pss-sha256",
             "keyid_hash_algorithms": ["sha256", "sha512"],
             "keyval": {
+                "private": "",
                 "public": pem,
             }
         });
@@ -1276,10 +1303,12 @@ mod test {
         .to_string();
 
         let original = json!({
+            "keyid": "c2620e94b6ff57f433c24436013a89d403fa6934a2ee490f44f897176c2c52e9",
             "keytype": "rsa",
             "scheme": "rsassa-pss-sha256",
             "keyid_hash_algorithms": ["sha256", "sha512"],
             "keyval": {
+                "private": "",
                 "public": pem,
             }
         });
@@ -1301,9 +1330,11 @@ mod test {
         .to_string();
 
         let original = json!({
+            "keyid": "3733b56bfa06e9d731b561891d413569e0795c74d9c3434bc6373ff809683dde",
             "keytype": "rsa",
             "scheme": "rsassa-pss-sha256",
             "keyval": {
+                "private": "",
                 "public": pem,
             }
         });
@@ -1328,10 +1359,12 @@ mod test {
         .unwrap();
         let encoded = serde_json::to_value(&pub_key).unwrap();
         let jsn = json!({
+            "keyid": "a9f3ebc9b138762563a9c27b6edd439959e559709babd123e8d449ba2c18c61a",
             "keytype": "ed25519",
             "scheme": "ed25519",
             "keyid_hash_algorithms": ["sha256", "sha512"],
             "keyval": {
+                "private": "",
                 "public": HEXLOWER.encode(pub_key.as_bytes()),
             }
         });
@@ -1352,10 +1385,12 @@ mod test {
         )
         .unwrap();
         let original = json!({
+            "keyid": "a9f3ebc9b138762563a9c27b6edd439959e559709babd123e8d449ba2c18c61a",
             "keytype": "ed25519",
             "scheme": "ed25519",
             "keyid_hash_algorithms": ["sha256", "sha512"],
             "keyval": {
+                "private": "",
                 "public": HEXLOWER.encode(pub_key.as_bytes()),
             }
         });
@@ -1376,9 +1411,11 @@ mod test {
             PublicKey::from_ed25519_with_keyid_hash_algorithms(pub_key.as_bytes().to_vec(), None)
                 .unwrap();
         let original = json!({
+            "keyid": "e0294a3f17cc8563c3ed5fceb3bd8d3f6bfeeaca499b5c9572729ae015566554",
             "keytype": "ed25519",
             "scheme": "ed25519",
             "keyval": {
+                "private": "",
                 "public": HEXLOWER.encode(pub_key.as_bytes()),
             }
         });
@@ -1465,12 +1502,29 @@ mod test {
     }
 
     #[test]
-    fn compatibility_with_python_in_toto() {
+    fn compatibility_keyid_with_python_in_toto() {
         let der = pem::parse(DEMO_PUBLIC_KEY)
             .expect("parse alice.pub in pem format failed")
             .contents;
         let key = PublicKey::from_spki(&der, SignatureScheme::RsaSsaPssSha256)
             .expect("create PublicKey failed");
         assert_eq!(key.key_id.0, DEMO_KEY_ID);
+    }
+
+    #[test]
+    fn compatibility_rsa_verify_with_python_in_toto() {
+        let der = pem::parse(DEMO_PUBLIC_KEY)
+            .expect("parse alice.pub in pem format failed")
+            .contents;
+        let key = PublicKey::from_spki(&der, SignatureScheme::RsaSsaPssSha256)
+            .expect("create PublicKey failed");
+        let meta: Metablock = serde_json::from_slice(DEMO_LAYOUT).expect("failed to deserialize");
+        let msg = meta.metadata.to_bytes().expect("failed to canonicalize");
+        let msg = String::from_utf8(msg)
+            .expect("failed to parse metadata string")
+            .replace("\\n", "\n");
+        let sig = &meta.signatures[0];
+        let res = key.verify(msg.as_bytes(), &sig);
+        assert!(res.is_ok(), "{:?}", res);
     }
 }

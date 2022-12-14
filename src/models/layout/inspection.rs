@@ -2,20 +2,29 @@
 
 use serde_derive::{Deserialize, Serialize};
 
+use crate::supply_chain_item_derive;
+
 use super::{rule::ArtifactRule, step::Command, supply_chain_item::SupplyChainItem};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Inspection {
-    #[serde(flatten)]
-    supply_chain_item: SupplyChainItem,
-    run: Command,
+    #[serde(rename = "_type")]
+    pub typ: String,
+    #[serde(rename = "name")]
+    pub name: String,
+    pub expected_materials: Vec<ArtifactRule>,
+    pub expected_products: Vec<ArtifactRule>,
+    pub run: Command,
 }
 
 impl Inspection {
     pub fn new(name: &str) -> Self {
         Inspection {
             run: Command::default(),
-            supply_chain_item: SupplyChainItem::new(name.into()),
+            name: name.into(),
+            expected_materials: Vec::new(),
+            expected_products: Vec::new(),
+            typ: "inspection".into(),
         }
     }
 
@@ -25,37 +34,27 @@ impl Inspection {
         self
     }
 
-    /// Add an expected material artifact rule to this Inspection
-    pub fn add_expected_material(mut self, expected_material: ArtifactRule) -> Self {
-        self.supply_chain_item
-            .add_expected_material(expected_material);
-        self
+    // Derive operations on `materials`/`products` and `name`
+    supply_chain_item_derive!();
+}
+
+impl SupplyChainItem for Inspection {
+    fn name(&self) -> &str {
+        &self.name
     }
 
-    /// Set expected materials for this Inspection
-    pub fn expected_materials(mut self, expected_materials: Vec<ArtifactRule>) -> Self {
-        self.supply_chain_item
-            .set_expected_materials(expected_materials);
-        self
+    fn expected_materials(&self) -> &Vec<ArtifactRule> {
+        &self.expected_materials
     }
 
-    /// Add an expected product artifact rule to this Inspection
-    pub fn add_expected_product(mut self, expected_product: ArtifactRule) -> Self {
-        self.supply_chain_item
-            .add_expected_product(expected_product);
-        self
-    }
-
-    /// Set expected products for this Inspection
-    pub fn expected_products(mut self, expected_products: Vec<ArtifactRule>) -> Self {
-        self.supply_chain_item
-            .set_expected_products(expected_products);
-        self
+    fn expected_products(&self) -> &Vec<ArtifactRule> {
+        &self.expected_products
     }
 }
 
 #[cfg(test)]
 mod test {
+    use assert_json_diff::assert_json_eq;
     use serde_json::json;
 
     use super::Inspection;
@@ -64,7 +63,8 @@ mod test {
     #[test]
     fn serialize_inspection() {
         let json = json!({
-            "_name": "test_inspect",
+            "_type": "inspection",
+            "name": "test_inspect",
             "expected_materials" : [
                 [
                     "MATCH",
@@ -93,22 +93,22 @@ mod test {
                     "test_step"
                 ]
             ],
-            "run" : "ls -al"
-        })
-        .to_string();
+            "run" : ["ls", "-al"]
+        });
         let inspection = Inspection::new("test_inspect")
             .add_expected_material(generate_materials_rule())
             .add_expected_product(generate_products_rule())
             .run("ls -al".into());
 
-        let json_serialized = serde_json::to_string(&inspection).unwrap();
-        assert_eq!(json, json_serialized);
+        let json_serialized = serde_json::to_value(&inspection).unwrap();
+        assert_json_eq!(json, json_serialized);
     }
 
     #[test]
     fn deserialize_inspection() {
         let json = r#"{
-            "_name": "test_inspect",
+            "_type": "inspection",
+            "name": "test_inspect",
             "expected_materials" : [
                 [
                     "MATCH", 
@@ -137,7 +137,7 @@ mod test {
                     "test_step"
                 ] 
             ],
-            "run" : "ls -al"
+            "run" : ["ls", "-al"]
         }"#;
 
         let inspection = Inspection::new("test_inspect")

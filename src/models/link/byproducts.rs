@@ -34,10 +34,12 @@ use serde_derive::{Deserialize, Serialize};
 /// ```
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ByProducts {
-    #[serde(rename = "return-value")]
-    return_value: i32,
-    stderr: String,
-    stdout: String,
+    #[serde(rename = "return-value", skip_serializing_if = "Option::is_none")]
+    return_value: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stderr: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stdout: Option<String>,
     #[serde(flatten)]
     other_fields: BTreeMap<String, String>,
 }
@@ -45,28 +47,28 @@ pub struct ByProducts {
 impl ByProducts {
     pub fn new() -> Self {
         ByProducts {
-            return_value: 0,
-            stderr: "".into(),
-            stdout: "".into(),
+            return_value: None,
+            stderr: None,
+            stdout: None,
             other_fields: BTreeMap::new(),
         }
     }
 
     /// Set return-value
     pub fn set_return_value(mut self, return_value: i32) -> Self {
-        self.return_value = return_value;
+        self.return_value = Some(return_value);
         self
     }
 
     /// Set stderr
     pub fn set_stderr(mut self, stderr: String) -> Self {
-        self.stderr = stderr;
+        self.stderr = Some(stderr);
         self
     }
 
     /// Set stdout
     pub fn set_stdout(mut self, stdout: String) -> Self {
-        self.stdout = stdout;
+        self.stdout = Some(stdout);
         self
     }
 
@@ -85,17 +87,17 @@ impl ByProducts {
     }
 
     /// Get return-value
-    pub fn return_value(&self) -> i32 {
+    pub fn return_value(&self) -> Option<i32> {
         self.return_value
     }
 
     /// Get stderr
-    pub fn stderr(&self) -> &String {
+    pub fn stderr(&self) -> &Option<String> {
         &self.stderr
     }
 
     /// Get stdout
-    pub fn stdout(&self) -> &String {
+    pub fn stdout(&self) -> &Option<String> {
         &self.stdout
     }
 

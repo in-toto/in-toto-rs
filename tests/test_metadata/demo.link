@@ -13,7 +13,7 @@
                 "stderr": "a foo.py\n",
                 "stdout": ""
             },
-            "command": "tar zcvf foo.tar.gz foo.py",
+            "command": ["tar", "zcvf", "foo.tar.gz", "foo.py"],
             "environment": null
         }, 
     "signatures": []

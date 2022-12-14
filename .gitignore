@@ -1,3 +1,7 @@
 /target/
 /Cargo.lock
 /tests/hello_intoto
+
+# verifylib tempfiles
+tests/test_verifylib/workdir/untar.link
+tests/test_verifylib/workdir/demo-product

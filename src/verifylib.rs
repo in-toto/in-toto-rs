@@ -535,17 +535,25 @@ mod tests {
         error::Error::VerificationFailure,
         models::Metablock,
     };
+    use std::path::{Path, PathBuf};
 
     use super::in_toto_verify;
-    const WORK_DIR: &str = "tests/test_verifylib/workdir";
 
     #[test]
     fn verify_demo() {
-        std::env::set_current_dir(WORK_DIR).expect("set current dir failed");
-        let raw = fs::read("root.layout").expect("read layout failed");
+        let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+        let working_dir = Path::new(&manifest_dir)
+            .join("tests")
+            .join("test_verifylib")
+            .join("workdir");
+
+        let root_layout_file = working_dir.join("root.layout");
+        let raw = fs::read(root_layout_file).expect("read layout failed");
         let layout =
             serde_json::from_slice::<Metablock>(&raw).expect("deserialize metablock failed");
-        let public_key_string = fs::read_to_string("alice.pub").expect("read public key failed");
+        let public_key_file = working_dir.join("alice.pub");
+        let public_key_string =
+            fs::read_to_string(public_key_file).expect("read public key failed");
         let pem = pem::parse(public_key_string).expect("parse pem failed");
         let pub_key = PublicKey::from_spki(&pem.contents, SignatureScheme::RsaSsaPssSha256)
             .expect("create public key failed");

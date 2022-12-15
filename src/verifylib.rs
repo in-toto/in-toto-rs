@@ -532,6 +532,7 @@ mod tests {
 
     use crate::{
         crypto::{KeyId, PublicKey, SignatureScheme},
+        error::Error::VerificationFailure,
         models::Metablock,
     };
 
@@ -552,6 +553,11 @@ mod tests {
             KeyId::from_str("556caebdc0877eed53d419b60eddb1e57fa773e4e31d70698b588f3e9cc48b35")
                 .expect("key id parse failed");
         let layout_keys = HashMap::from([(key_id, pub_key)]);
-        in_toto_verify(&layout, layout_keys, "../links", None).expect("verify failed");
+        let result = in_toto_verify(&layout, layout_keys, "../links", None);
+        match result {
+            Ok(_) => {}
+            Err(VerificationFailure(msg)) => assert!(msg == "layout expired"),
+            Err(error) => panic!("{}", error),
+        }
     }
 }

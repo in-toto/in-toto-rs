@@ -29,7 +29,7 @@ fn verify_layout_signatures(
     layout.verify(layout_keys.len() as u32, layout_keys.values())
 }
 
-/// verify_layout_expiration will verify whether the layout is expired
+/// verify_layout_expiration will verify whether the layout has expired
 fn verify_layout_expiration(layout: &LayoutMetadata) -> Result<()> {
     let time = layout.expires;
     let now = chrono::Utc::now();
@@ -162,7 +162,7 @@ fn verify_link_signature_thresholds_step(
 }
 
 /// verify_link_signature_thresholds will verify links' signature
-/// and check whether link file number meet each step's threshold.
+/// and check whether link file number meets each step's threshold.
 /// Returns only validated link files.
 fn verify_link_signature_thresholds(
     layout: &LayoutMetadata,
@@ -431,7 +431,7 @@ fn get_summary_link(
 /// that contains public keys to verify the root layout signatures, a path to a
 /// directory from where it can load link metadata files, which are treated as
 /// signed evidence for the steps defined in the layout, a step name, and a
-/// paramater dictionary used for parameter substitution. The step name only
+/// parameter dictionary used for parameter substitution. The step name only
 /// matters for sublayouts, where it's important to associate the summary of that
 /// step with a unique name. The verification routine is as follows:
 ///
@@ -447,7 +447,7 @@ fn get_summary_link(
 /// 9. Verify artifact rules for inspections of layout
 ///
 /// in_toto_verify returns a summary link wrapped in a Metablock object or an error.
-/// If any of the verification routines fail, verification is aborted anderror is
+/// If any of the verification routines fail, verification is aborted and error is
 /// returned.
 ///
 /// # Parameters

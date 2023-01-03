@@ -710,6 +710,18 @@ impl PublicKey {
         )
     }
 
+    /// Parse PEM as an Subject Public Key Info (SPKI) key.
+    ///
+    /// See the documentation on `KeyValue` for more information on SPKI.
+    pub fn from_pem_spki(pem: &str, scheme: SignatureScheme) -> Result<Self> {
+        let der_bytes = pem::parse(pem).unwrap();
+        Self::from_spki_with_keyid_hash_algorithms(
+            &der_bytes.contents,
+            scheme,
+            python_sslib_compatibility_keyid_hash_algorithms(),
+        )
+    }
+
     /// Parse DER bytes as an SPKI key and the `keyid_hash_algorithms`.
     ///
     /// See the documentation on `KeyValue` for more information on SPKI.
@@ -1148,6 +1160,7 @@ mod test {
     use super::*;
     use pretty_assertions::assert_eq;
     use serde_json::{self, json};
+    use std::str;
 
     const RSA_2048_PK8: &'static [u8] = include_bytes!("../tests/rsa/rsa-2048.pk8.der");
     const RSA_2048_SPKI: &'static [u8] = include_bytes!("../tests/rsa/rsa-2048.spki.der");
@@ -1676,6 +1689,30 @@ mod test {
     }
 
     #[test]
+    fn parse_public_rsa_from_pem_spki() {
+        let pem = str::from_utf8(&DEMO_PUBLIC_KEY).unwrap();
+        let key = PublicKey::from_pem_spki(&pem, SignatureScheme::RsaSsaPssSha256).unwrap();
+        assert_eq!(key.typ, KeyType::Rsa);
+        assert_eq!(key.scheme, SignatureScheme::RsaSsaPssSha256);
+    }
+
+    #[test]
+    fn parse_public_ed25519_from_pem_spki() {
+        let pem = pubkey_as_pem(&PublicKey::from_ed25519(ED25519_1_PUBLIC_KEY).unwrap());
+        let key = PublicKey::from_pem_spki(&pem, SignatureScheme::Ed25519).unwrap();
+        assert_eq!(key.typ, KeyType::Ed25519);
+        assert_eq!(key.scheme, SignatureScheme::Ed25519);
+    }
+
+    #[test]
+    fn parse_public_key_ecdsa_from_pem_spki() {
+        let pem = str::from_utf8(&ECDSA_PUBLIC_KEY).unwrap();
+        let public_key = PublicKey::from_pem_spki(&pem, SignatureScheme::EcdsaP256Sha256).unwrap();
+        assert_eq!(public_key.typ(), &KeyType::Ecdsa);
+        assert_eq!(public_key.scheme(), &SignatureScheme::EcdsaP256Sha256);
+    }
+
+    #[test]
     fn compatibility_keyid_with_python_in_toto() {
         let der = pem::parse(DEMO_PUBLIC_KEY)
             .expect("parse alice.pub in pem format failed")
@@ -1700,5 +1737,15 @@ mod test {
         let sig = &meta.signatures[0];
         let res = key.verify(msg.as_bytes(), &sig);
         assert!(res.is_ok(), "{:?}", res);
+    }
+
+    fn pubkey_as_pem(key: &PublicKey) -> String {
+        pem::encode(&pem::Pem {
+            tag: PEM_PUBLIC_KEY.to_string(),
+            contents: key.as_spki().unwrap(),
+        })
+        .trim()
+        .replace("\r\n", "\n")
+        .to_string()
     }
 }

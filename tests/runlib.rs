@@ -132,6 +132,35 @@ fn in_toto_run_record_new_file() {
 }
 
 #[test]
+fn in_toto_run_new_line_in_stdout() {
+    // Initialization
+    let dir = tempdir().unwrap();
+    let dir_canonical = canonicalize(dir.path()).unwrap();
+    let dir_path = dir_canonical.to_str().unwrap();
+
+    // Create file
+    write(format!("{}/foo.txt", dir_path), "lorem ipsum").unwrap();
+
+    let byproducts = ByProducts::new()
+        .set_return_value(0)
+        .set_stderr(String::from(""))
+        .set_stdout(String::from("Cloning into 'some-project'...\n"));
+
+    let link = LinkMetadataBuilder::new()
+        .name(String::from("test"))
+        .add_material(VirtualTargetPath::new(format!("{}/foo.txt", dir_path)).unwrap())
+        .add_product(VirtualTargetPath::new(format!("{}/foo.txt", dir_path)).unwrap())
+        .byproducts(byproducts)
+        .signed::<Json>(&TEST_PRIVATE_KEY)
+        .unwrap();
+
+    assert!(link.verify(1, [TEST_PRIVATE_KEY.public()]).is_ok());
+
+    // Clean-up work
+    dir.close().unwrap();
+}
+
+#[test]
 fn in_toto_run_record_modified_file() {
     // TODO
 }

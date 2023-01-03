@@ -261,11 +261,7 @@ impl MetablockBuilder {
     /// Construct a new `Metablock` using the included signatures, sorting the signatures by
     /// `KeyId`.
     pub fn build(self) -> Metablock {
-        let mut signatures = self
-            .signatures
-            .into_iter()
-            .map(|(_k, v)| v)
-            .collect::<Vec<_>>();
+        let mut signatures = self.signatures.into_values().collect::<Vec<_>>();
         signatures.sort_unstable_by(|a, b| a.key_id().cmp(b.key_id()));
 
         Metablock {

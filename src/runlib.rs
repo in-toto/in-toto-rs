@@ -127,7 +127,7 @@ pub fn record_artifacts(
                         Some(str) => String::from(str),
                         None => break,
                     };
-                    if symlink_metadata(&s_path)?.file_type().is_file() {
+                    if symlink_metadata(s_path)?.file_type().is_file() {
                         let (virtual_target_path, hashes) =
                             record_artifact(&path, hash_algorithms, lstrip_paths)?;
                         if artifacts.contains_key(&virtual_target_path) {

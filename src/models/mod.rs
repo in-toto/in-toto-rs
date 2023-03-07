@@ -6,14 +6,14 @@ mod layout;
 mod link;
 mod metadata;
 mod predicate;
-mod state;
+mod statement;
 
 pub use helpers::*;
 pub use layout::*;
 pub use link::*;
 pub use metadata::*;
-pub use predicate::{PredicateLayout, PredicateVersion, PredicateWrapper};
-pub use state::{StateLayout, StateWrapper, StatementVer};
+pub use predicate::{PredicateLayout, PredicateVer, PredicateWrapper};
+pub use statement::{StatementVer, StatementWrapper};
 
 #[cfg(test)]
 mod test {

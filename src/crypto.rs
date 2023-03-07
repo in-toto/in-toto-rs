@@ -69,9 +69,9 @@ fn python_sslib_compatibility_keyid_hash_algorithms() -> Option<Vec<String>> {
 /// let _ = map.insert(HashAlgorithm::Sha256, HashValue::new(vec![0x02, 0x03]));
 /// assert_eq!(hash_preference(&map).unwrap().0, &HashAlgorithm::Sha512);
 /// ```
-pub fn hash_preference<'a>(
-    hashes: &'a HashMap<HashAlgorithm, HashValue>,
-) -> Result<(&'static HashAlgorithm, &'a HashValue)> {
+pub fn hash_preference(
+    hashes: &HashMap<HashAlgorithm, HashValue>,
+) -> Result<(&'static HashAlgorithm, &HashValue)> {
     for alg in HASH_ALG_PREFS {
         match hashes.get(alg) {
             Some(v) => return Ok((alg, v)),
@@ -591,24 +591,24 @@ impl PrivateKey {
     /// Sign a message.
     pub fn sign(&self, msg: &[u8]) -> Result<Signature> {
         let value = match (&self.private, &self.public.scheme) {
-            (&PrivateKeyType::Rsa(ref rsa), &SignatureScheme::RsaSsaPssSha256) => {
+            (PrivateKeyType::Rsa(rsa), &SignatureScheme::RsaSsaPssSha256) => {
                 let rng = SystemRandom::new();
                 let mut buf = vec![0; rsa.public_modulus_len()];
                 rsa.sign(&RSA_PSS_SHA256, &rng, msg, &mut buf)
                     .map_err(|_| Error::Opaque("Failed to sign message.".into()))?;
                 SignatureValue(buf)
             }
-            (&PrivateKeyType::Rsa(ref rsa), &SignatureScheme::RsaSsaPssSha512) => {
+            (PrivateKeyType::Rsa(rsa), &SignatureScheme::RsaSsaPssSha512) => {
                 let rng = SystemRandom::new();
                 let mut buf = vec![0; rsa.public_modulus_len()];
                 rsa.sign(&RSA_PSS_SHA512, &rng, msg, &mut buf)
                     .map_err(|_| Error::Opaque("Failed to sign message.".into()))?;
                 SignatureValue(buf)
             }
-            (&PrivateKeyType::Ed25519(ref ed), &SignatureScheme::Ed25519) => {
+            (PrivateKeyType::Ed25519(ed), &SignatureScheme::Ed25519) => {
                 SignatureValue(ed.sign(msg).as_ref().into())
             }
-            (&PrivateKeyType::Ecdsa(ref ec), &SignatureScheme::EcdsaP256Sha256) => {
+            (PrivateKeyType::Ecdsa(ec), &SignatureScheme::EcdsaP256Sha256) => {
                 let rng = SystemRandom::new();
                 let s = ec
                     .sign(&rng, msg)

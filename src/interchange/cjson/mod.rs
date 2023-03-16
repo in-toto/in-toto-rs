@@ -324,12 +324,18 @@ impl Value {
                 buf.extend(b"false");
                 Ok(())
             }
-            Value::Number(Number::I64(n)) => itoa::write(buf, n)
-                .map(|_| ())
-                .map_err(|err| format!("Write error: {}", err)),
-            Value::Number(Number::U64(n)) => itoa::write(buf, n)
-                .map(|_| ())
-                .map_err(|err| format!("Write error: {}", err)),
+            Value::Number(Number::I64(n)) => {
+                let mut buffer = itoa::Buffer::new();
+                let txt = buffer.format(n);
+                buf.extend(txt.as_bytes());
+                Ok(())
+            }
+            Value::Number(Number::U64(n)) => {
+                let mut buffer = itoa::Buffer::new();
+                let txt = buffer.format(n);
+                buf.extend(txt.as_bytes());
+                Ok(())
+            }
             Value::String(ref s) => {
                 // this mess is abusing serde_json to get json escaping
                 let s = serde_json::Value::String(s.clone());

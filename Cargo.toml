@@ -18,7 +18,7 @@ name = "in_toto"
 path = "./src/lib.rs"
 
 [dependencies]
-chrono = { version = "0.4", features = [ "serde" ] }
+chrono = { version = "0.4", features = [ "clock", "serde" ], default-features = false }
 data-encoding = "2.0.0-rc.2"
 derp = "0.0.14"
 futures-executor = "0.3.1"
@@ -26,10 +26,10 @@ futures-io = "0.3.1"
 futures-util = { version = "0.3.1", features = [ "compat", "io" ] }
 http = "0.2"
 hyper = { version = "0.14", default-features = false }
-itoa = "0.4"
+itoa = "1"
 log = "0.4"
 ring = { version = "0.16" }
-parking_lot = "0.11"
+parking_lot = "0.12"
 percent-encoding = "2.1"
 serde = "1"
 serde_derive = "1"

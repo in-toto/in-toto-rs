@@ -18,7 +18,7 @@ name = "in_toto"
 path = "./src/lib.rs"
 
 [dependencies]
-chrono = { version = "0.4", features = [ "serde" ] }
+chrono = { version = "0.4", features = [ "clock", "serde" ], default-features = false }
 data-encoding = "2.0.0-rc.2"
 derp = "0.0.14"
 futures-executor = "0.3.1"

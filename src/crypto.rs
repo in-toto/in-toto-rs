@@ -316,7 +316,7 @@ pub enum KeyType {
 }
 
 impl KeyType {
-    fn from_oid(oid: &[u8]) -> Result<Self> {
+    pub fn from_oid(oid: &[u8]) -> Result<Self> {
         match oid {
             x if x == RSA_SPKI_OID => Ok(KeyType::Rsa),
             x if x == ED25519_SPKI_OID => Ok(KeyType::Ed25519),
@@ -328,7 +328,7 @@ impl KeyType {
         }
     }
 
-    fn as_oid(&self) -> Result<&'static [u8]> {
+    pub fn as_oid(&self) -> Result<&'static [u8]> {
         match *self {
             KeyType::Rsa => Ok(RSA_SPKI_OID),
             KeyType::Ed25519 => Ok(ED25519_SPKI_OID),

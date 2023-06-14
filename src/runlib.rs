@@ -374,7 +374,7 @@ fn dir_entry_to_path(
             }
         }
     };
-    Ok(clean(&path))
+    Ok(clean(path).into_os_string().into_string().unwrap())
 }
 
 #[cfg(test)]

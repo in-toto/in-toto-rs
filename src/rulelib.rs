@@ -16,7 +16,7 @@ use crate::{Error, Result};
 /// occurs, just warn it and return None.
 fn canonicalize_path(path: &VirtualTargetPath) -> Option<VirtualTargetPath> {
     let path = path_clean::clean(path.value());
-    VirtualTargetPath::new(path).ok()
+    VirtualTargetPath::new(path.into_os_string().into_string().unwrap()).ok()
 }
 
 /// Apply match rule. The parameters:

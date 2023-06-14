@@ -535,7 +535,7 @@ mod tests {
         error::Error::VerificationFailure,
         models::Metablock,
     };
-    use std::path::{Path, PathBuf};
+    use std::path::Path;
 
     use super::in_toto_verify;
 
@@ -555,7 +555,7 @@ mod tests {
         let public_key_string =
             fs::read_to_string(public_key_file).expect("read public key failed");
         let pem = pem::parse(public_key_string).expect("parse pem failed");
-        let pub_key = PublicKey::from_spki(&pem.contents, SignatureScheme::RsaSsaPssSha256)
+        let pub_key = PublicKey::from_spki(pem.contents(), SignatureScheme::RsaSsaPssSha256)
             .expect("create public key failed");
         let key_id =
             KeyId::from_str("556caebdc0877eed53d419b60eddb1e57fa773e4e31d70698b588f3e9cc48b35")

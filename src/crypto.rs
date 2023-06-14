@@ -142,10 +142,7 @@ fn shim_public_key(
         KeyType::Ed25519 => HEXLOWER.encode(public_key),
         KeyType::Rsa => {
             let contents = write_spki(public_key, key_type)?;
-            let public_pem = pem::Pem {
-                tag: PEM_PUBLIC_KEY.to_string(),
-                contents,
-            };
+            let public_pem = pem::Pem::new(PEM_PUBLIC_KEY.to_string(), contents);
             pem::encode(&public_pem)
                 .replace("\r\n", "\n")
                 .trim()
@@ -716,7 +713,7 @@ impl PublicKey {
     pub fn from_pem_spki(pem: &str, scheme: SignatureScheme) -> Result<Self> {
         let der_bytes = pem::parse(pem).unwrap();
         Self::from_spki_with_keyid_hash_algorithms(
-            &der_bytes.contents,
+            der_bytes.contents(),
             scheme,
             python_sslib_compatibility_keyid_hash_algorithms(),
         )
@@ -942,7 +939,7 @@ impl<'de> Deserialize<'de> for PublicKey {
                 })?;
 
                 PublicKey::from_spki_with_keyid_hash_algorithms(
-                    &pub_pem.contents,
+                    pub_pem.contents(),
                     intermediate.scheme().clone(),
                     intermediate.keyid_hash_algorithms().clone(),
                 )
@@ -1423,13 +1420,10 @@ mod test {
     fn serde_rsa_public_key() {
         let der = RSA_2048_SPKI;
         let pub_key = PublicKey::from_spki(der, SignatureScheme::RsaSsaPssSha256).unwrap();
-        let pem = pem::encode(&pem::Pem {
-            tag: PEM_PUBLIC_KEY.to_string(),
-            contents: der.to_vec(),
-        })
-        .trim()
-        .replace("\r\n", "\n")
-        .to_string();
+        let pem = pem::encode(&pem::Pem::new(PEM_PUBLIC_KEY.to_string(), der.to_vec()))
+            .trim()
+            .replace("\r\n", "\n")
+            .to_string();
         let encoded = serde_json::to_value(&pub_key).unwrap();
         let jsn = json!({
             "keyid": "c2620e94b6ff57f433c24436013a89d403fa6934a2ee490f44f897176c2c52e9",
@@ -1448,10 +1442,10 @@ mod test {
 
     #[test]
     fn de_ser_rsa_public_key_with_keyid_hash_algo() {
-        let pem = pem::encode(&pem::Pem {
-            tag: PEM_PUBLIC_KEY.to_string(),
-            contents: RSA_2048_SPKI.to_vec(),
-        })
+        let pem = pem::encode(&pem::Pem::new(
+            PEM_PUBLIC_KEY.to_string(),
+            RSA_2048_SPKI.to_vec(),
+        ))
         .trim()
         .replace("\r\n", "\n")
         .to_string();
@@ -1475,10 +1469,10 @@ mod test {
 
     #[test]
     fn de_ser_rsa_public_key_without_keyid_hash_algo() {
-        let pem = pem::encode(&pem::Pem {
-            tag: PEM_PUBLIC_KEY.to_string(),
-            contents: RSA_2048_SPKI.to_vec(),
-        })
+        let pem = pem::encode(&pem::Pem::new(
+            PEM_PUBLIC_KEY.to_string(),
+            RSA_2048_SPKI.to_vec(),
+        ))
         .trim()
         .replace("\r\n", "\n")
         .to_string();
@@ -1714,20 +1708,16 @@ mod test {
 
     #[test]
     fn compatibility_keyid_with_python_in_toto() {
-        let der = pem::parse(DEMO_PUBLIC_KEY)
-            .expect("parse alice.pub in pem format failed")
-            .contents;
-        let key = PublicKey::from_spki(&der, SignatureScheme::RsaSsaPssSha256)
+        let der = pem::parse(DEMO_PUBLIC_KEY).expect("parse alice.pub in pem format failed");
+        let key = PublicKey::from_spki(der.contents(), SignatureScheme::RsaSsaPssSha256)
             .expect("create PublicKey failed");
         assert_eq!(key.key_id.0, DEMO_KEY_ID);
     }
 
     #[test]
     fn compatibility_rsa_verify_with_python_in_toto() {
-        let der = pem::parse(DEMO_PUBLIC_KEY)
-            .expect("parse alice.pub in pem format failed")
-            .contents;
-        let key = PublicKey::from_spki(&der, SignatureScheme::RsaSsaPssSha256)
+        let der = pem::parse(DEMO_PUBLIC_KEY).expect("parse alice.pub in pem format failed");
+        let key = PublicKey::from_spki(der.contents(), SignatureScheme::RsaSsaPssSha256)
             .expect("create PublicKey failed");
         let meta: Metablock = serde_json::from_slice(DEMO_LAYOUT).expect("failed to deserialize");
         let msg = meta.metadata.to_bytes().expect("failed to canonicalize");
@@ -1740,10 +1730,10 @@ mod test {
     }
 
     fn pubkey_as_pem(key: &PublicKey) -> String {
-        pem::encode(&pem::Pem {
-            tag: PEM_PUBLIC_KEY.to_string(),
-            contents: key.as_spki().unwrap(),
-        })
+        pem::encode(&pem::Pem::new(
+            PEM_PUBLIC_KEY.to_string(),
+            key.as_spki().unwrap(),
+        ))
         .trim()
         .replace("\r\n", "\n")
         .to_string()

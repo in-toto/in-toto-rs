@@ -276,7 +276,7 @@ mod tests {
     use std::{fs, str::FromStr};
 
     use assert_json_diff::assert_json_eq;
-    use chrono::{DateTime, NaiveDateTime, Utc};
+    use chrono::{NaiveDateTime, Utc, TimeZone};
     use serde_json::json;
 
     use crate::{
@@ -318,10 +318,7 @@ mod tests {
         let owner_private_key = PrivateKey::from_ed25519(OWNER_PRIVATE_KEY).unwrap();
         let layout_metadata = Box::new(
             LayoutMetadataBuilder::new()
-                .expires(DateTime::<Utc>::from_utc(
-                    NaiveDateTime::from_timestamp(0, 0),
-                    Utc,
-                ))
+                .expires(Utc.from_utc_datetime(&NaiveDateTime::from_timestamp_opt(0, 0).unwrap()))
                 .add_key(alice_public_key.clone())
                 .add_key(bob_public_key.clone())
                 .add_step(

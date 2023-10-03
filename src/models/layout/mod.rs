@@ -3,7 +3,6 @@
 use std::collections::BTreeMap;
 
 use chrono::prelude::*;
-use chrono::TimeZone;
 use chrono::{DateTime, Utc};
 use log::warn;
 use serde_derive::{Deserialize, Serialize};
@@ -74,8 +73,9 @@ impl Layout {
 }
 
 fn parse_datetime(ts: &str) -> Result<DateTime<Utc>> {
-    Utc.datetime_from_str(ts, "%FT%TZ")
-        .map_err(|e| Error::Encoding(format!("Can't parse DateTime: {:?}", e)))
+    let dt = DateTime::parse_from_rfc3339(ts)
+        .map_err(|e| Error::Encoding(format!("Can't parse DateTime: {:?}", e)))?;
+    Ok(dt.with_timezone(&Utc))
 }
 
 fn format_datetime(ts: &DateTime<Utc>) -> String {
@@ -85,7 +85,7 @@ fn format_datetime(ts: &DateTime<Utc>) -> String {
 #[cfg(test)]
 mod test {
     use assert_json_diff::assert_json_eq;
-    use chrono::{DateTime, NaiveDateTime, Utc};
+    use chrono::{NaiveDateTime, Utc, TimeZone};
     use serde_json::json;
 
     use crate::{crypto::PublicKey, models::layout::format_datetime};
@@ -105,13 +105,13 @@ mod test {
     fn parse_datetime_test() {
         let time_str = "1970-01-01T00:00:00Z".to_string();
         let parsed_dt = parse_datetime(&time_str[..]).unwrap();
-        let dt = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(0, 0), Utc);
+        let dt = Utc.from_utc_datetime(&NaiveDateTime::from_timestamp_opt(0, 0).unwrap());
         assert_eq!(parsed_dt, dt);
     }
 
     #[test]
     fn format_datetime_test() {
-        let dt = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(0, 0), Utc);
+        let dt = Utc.from_utc_datetime(&NaiveDateTime::from_timestamp_opt(0, 0).unwrap());
         let generated_dt_str = format_datetime(&dt);
         let dt_str = "1970-01-01T00:00:00Z".to_string();
         assert_eq!(dt_str, generated_dt_str);
@@ -123,10 +123,7 @@ mod test {
             PublicKey::from_spki(BOB_PUB_KEY, crate::crypto::SignatureScheme::RsaSsaPssSha256)
                 .unwrap();
         let metadata = LayoutMetadataBuilder::new()
-            .expires(DateTime::<Utc>::from_utc(
-                NaiveDateTime::from_timestamp(0, 0),
-                Utc,
-            ))
+            .expires(Utc.from_utc_datetime(&NaiveDateTime::from_timestamp_opt(0, 0).unwrap()))
             .add_key(alice_key.clone())
             .add_key(bob_key.clone())
             .add_step(

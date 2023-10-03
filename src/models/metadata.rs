@@ -276,7 +276,7 @@ mod tests {
     use std::{fs, str::FromStr};
 
     use assert_json_diff::assert_json_eq;
-    use chrono::{NaiveDateTime, Utc, TimeZone};
+    use chrono::{NaiveDateTime, TimeZone, Utc};
     use serde_json::json;
 
     use crate::{

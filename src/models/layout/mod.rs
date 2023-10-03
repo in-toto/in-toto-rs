@@ -85,7 +85,7 @@ fn format_datetime(ts: &DateTime<Utc>) -> String {
 #[cfg(test)]
 mod test {
     use assert_json_diff::assert_json_eq;
-    use chrono::{NaiveDateTime, Utc, TimeZone};
+    use chrono::{NaiveDateTime, TimeZone, Utc};
     use serde_json::json;
 
     use crate::{crypto::PublicKey, models::layout::format_datetime};

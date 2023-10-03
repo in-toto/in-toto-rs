@@ -3,7 +3,6 @@
 use std::collections::BTreeMap;
 
 use chrono::prelude::*;
-use chrono::TimeZone;
 use chrono::{DateTime, Utc};
 use log::warn;
 use serde_derive::{Deserialize, Serialize};
@@ -74,7 +73,8 @@ impl Layout {
 }
 
 fn parse_datetime(ts: &str) -> Result<DateTime<Utc>> {
-    Utc.datetime_from_str(ts, "%FT%TZ")
+    DateTime::parse_from_str(ts, "%FT%TZ")
+        .map(Into::into)
         .map_err(|e| Error::Encoding(format!("Can't parse DateTime: {:?}", e)))
 }
 

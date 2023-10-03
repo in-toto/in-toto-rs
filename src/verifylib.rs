@@ -512,7 +512,7 @@ pub fn in_toto_verify(
 
     // Execute inspection commands (generates link metadata for each inspection)
     let inspection_link_files = run_all_inspections(&layout)?;
-    reduced_link_files.extend(inspection_link_files.into_iter());
+    reduced_link_files.extend(inspection_link_files);
 
     let inspects = layout
         .inspect

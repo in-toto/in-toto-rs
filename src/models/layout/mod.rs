@@ -14,7 +14,7 @@ use crate::{Error, Result};
 use self::{inspection::Inspection, step::Step};
 
 pub mod inspection;
-pub mod metadata;
+mod metadata;
 pub mod rule;
 pub mod step;
 pub mod supply_chain_item;

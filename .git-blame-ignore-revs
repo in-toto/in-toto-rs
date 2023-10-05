@@ -1,0 +1,7 @@
+# Ignore calls to `cargo fmt`
+#
+# To learn more, see
+#     https://docs.github.com/en/repositories/working-with-files/using-files/viewing-a-file#ignore-commits-in-the-blame-view
+
+# Run cargo fmt changing max width to 80
+e66afe2850768076ce4f4c5f101e9dcc61697ba2

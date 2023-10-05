@@ -8,7 +8,7 @@ use crate::Result;
 use serde_derive::{Deserialize, Serialize};
 
 pub mod byproducts;
-pub mod metadata;
+mod metadata;
 pub use metadata::{LinkMetadata, LinkMetadataBuilder};
 
 use crate::models::{TargetDescription, VirtualTargetPath};

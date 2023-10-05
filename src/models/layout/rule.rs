@@ -251,7 +251,8 @@ impl Serialize for ArtifactRule {
                     to_be_serialized.append(&mut vec!["IN", dst]);
                 }
                 to_be_serialized.append(&mut vec!["FROM", from]);
-                let mut seq = serializer.serialize_seq(Some(to_be_serialized.len()))?;
+                let mut seq =
+                    serializer.serialize_seq(Some(to_be_serialized.len()))?;
                 for e in to_be_serialized {
                     seq.serialize_element(e)?;
                 }
@@ -273,7 +274,10 @@ impl ArtifactRuleVisitor {
 impl<'de> Visitor<'de> for ArtifactRuleVisitor {
     type Value = ArtifactRule;
 
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn expecting(
+        &self,
+        formatter: &mut std::fmt::Formatter,
+    ) -> std::fmt::Result {
         formatter.write_str("An Artifact Rule for in-toto")
     }
 
@@ -312,20 +316,25 @@ impl<'de> Visitor<'de> for ArtifactRuleVisitor {
 
                 match &in_or_with[..] {
                     "IN" => {
-                        let source_path_prefix: String = seq
-                            .next_element()?
-                            .ok_or_else(|| de::Error::invalid_length(len, &self))?;
+                        let source_path_prefix: String =
+                            seq.next_element()?.ok_or_else(|| {
+                                de::Error::invalid_length(len, &self)
+                            })?;
                         len += 1;
 
                         in_src = Some(source_path_prefix);
 
-                        let in_: String = seq
-                            .next_element()?
-                            .ok_or_else(|| de::Error::invalid_length(len, &self))?;
+                        let in_: String =
+                            seq.next_element()?.ok_or_else(|| {
+                                de::Error::invalid_length(len, &self)
+                            })?;
                         len += 1;
 
                         if in_ != "WITH" {
-                            Err(de::Error::invalid_value(Unexpected::Str(&in_), &"IN"))?
+                            Err(de::Error::invalid_value(
+                                Unexpected::Str(&in_),
+                                &"IN",
+                            ))?
                         }
                     }
                     "WITH" => {}
@@ -358,19 +367,24 @@ impl<'de> Visitor<'de> for ArtifactRuleVisitor {
 
                 match &in_or_from[..] {
                     "IN" => {
-                        let destination_path_prefix: String = seq
-                            .next_element()?
-                            .ok_or_else(|| de::Error::invalid_length(len, &self))?;
+                        let destination_path_prefix: String =
+                            seq.next_element()?.ok_or_else(|| {
+                                de::Error::invalid_length(len, &self)
+                            })?;
                         len += 1;
                         in_dst = Some(destination_path_prefix);
 
-                        let from_: String = seq
-                            .next_element()?
-                            .ok_or_else(|| de::Error::invalid_length(len, &self))?;
+                        let from_: String =
+                            seq.next_element()?.ok_or_else(|| {
+                                de::Error::invalid_length(len, &self)
+                            })?;
                         len += 1;
 
                         if from_ != "FROM" {
-                            return Err(de::Error::invalid_value(Unexpected::Str(&from_), &"FROM"));
+                            return Err(de::Error::invalid_value(
+                                Unexpected::Str(&from_),
+                                &"FROM",
+                            ));
                         }
                     }
                     "FROM" => {}
@@ -394,7 +408,9 @@ impl<'de> Visitor<'de> for ArtifactRuleVisitor {
                     from,
                 })
             }
-            others => Err(de::Error::custom(format!("Unexpected token {}", others))),
+            others => {
+                Err(de::Error::custom(format!("Unexpected token {}", others)))
+            }
         }
     }
 }
@@ -404,7 +420,11 @@ impl<'de> Deserialize<'de> for ArtifactRule {
     where
         D: serde::Deserializer<'de>,
     {
-        deserializer.deserialize_struct("ArtifactRule", &["inner"], ArtifactRuleVisitor::new())
+        deserializer.deserialize_struct(
+            "ArtifactRule",
+            &["inner"],
+            ArtifactRuleVisitor::new(),
+        )
     }
 }
 
@@ -478,7 +498,11 @@ pub mod test {
         ]);
 
         let json_serialize = serde_json::to_value(&rule).unwrap();
-        assert_eq!(json, json_serialize, "{:#?} != {:#?}", json, json_serialize);
+        assert_eq!(
+            json, json_serialize,
+            "{:#?} != {:#?}",
+            json, json_serialize
+        );
     }
 
     #[test]
@@ -528,7 +552,11 @@ pub mod test {
         ]);
 
         let json_serialize = serde_json::to_value(&rule).unwrap();
-        assert_eq!(json, json_serialize, "{:#?} != {:#?}", json, json_serialize);
+        assert_eq!(
+            json, json_serialize,
+            "{:#?} != {:#?}",
+            json, json_serialize
+        );
     }
 
     #[rstest]
@@ -538,9 +566,16 @@ pub mod test {
     #[case(ArtifactRule::Allow("./artifact".into()), json!(["ALLOW", "./artifact"]))]
     #[case(ArtifactRule::Require("./artifact".into()), json!(["REQUIRE", "./artifact"]))]
     #[case(ArtifactRule::Disallow("./artifact".into()), json!(["DISALLOW", "./artifact"]))]
-    fn serialize_tests(#[case] rule: ArtifactRule, #[case] json: serde_json::Value) {
+    fn serialize_tests(
+        #[case] rule: ArtifactRule,
+        #[case] json: serde_json::Value,
+    ) {
         let json_serialize = serde_json::to_value(&rule).unwrap();
-        assert_eq!(json, json_serialize, "{:#?} != {:#?}", json, json_serialize);
+        assert_eq!(
+            json, json_serialize,
+            "{:#?} != {:#?}",
+            json, json_serialize
+        );
     }
 
     #[test]

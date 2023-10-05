@@ -7,7 +7,8 @@ use std::os::unix::fs::OpenOptionsExt;
 fn main() {
     // Generate a new Ed25519 signing key
     let key = PrivateKey::new(KeyType::Ed25519).unwrap();
-    let mut privkey = PrivateKey::from_pkcs8(&key, SignatureScheme::Ed25519).unwrap();
+    let mut privkey =
+        PrivateKey::from_pkcs8(&key, SignatureScheme::Ed25519).unwrap();
     println!("Generated keypair {:?}", &privkey.public());
 
     let mut target = OpenOptions::new()
@@ -19,7 +20,8 @@ fn main() {
     target.write_all(&key).unwrap();
 
     let loaded_key = fs::read("test-key").unwrap();
-    privkey = PrivateKey::from_pkcs8(&loaded_key, SignatureScheme::Ed25519).unwrap();
+    privkey =
+        PrivateKey::from_pkcs8(&loaded_key, SignatureScheme::Ed25519).unwrap();
 
     println!("loaded keypair: {:?}", &privkey.public())
 }

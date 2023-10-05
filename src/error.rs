@@ -142,7 +142,8 @@ mod tests {
         assert_eq!(err.to_string(), "not found");
         assert_eq!(Error::NotFound.to_string(), "not found");
 
-        let err = Error::from(io::Error::from(std::io::ErrorKind::PermissionDenied));
+        let err =
+            Error::from(io::Error::from(std::io::ErrorKind::PermissionDenied));
         assert_eq!(err.to_string(), "opaque: IO: Kind(PermissionDenied)");
     }
 }

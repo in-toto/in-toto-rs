@@ -49,7 +49,10 @@ pub mod test {
     use super::LinkV02;
     use crate::{
         interchange::{DataInterchange, Json},
-        models::{byproducts::ByProducts, PredicateLayout, PredicateVer, PredicateWrapper},
+        models::{
+            byproducts::ByProducts, PredicateLayout, PredicateVer,
+            PredicateWrapper,
+        },
     };
 
     pub static STR_PREDICATE_LINK_V02: Lazy<String> = Lazy::new(|| {
@@ -106,8 +109,11 @@ pub mod test {
 
     #[test]
     fn deserialize_predicate() {
-        let value: Value = serde_json::from_str(&STR_PREDICATE_LINK_V02).unwrap();
-        let predicate = PredicateWrapper::from_value(value, PredicateVer::LinkV0_2).unwrap();
+        let value: Value =
+            serde_json::from_str(&STR_PREDICATE_LINK_V02).unwrap();
+        let predicate =
+            PredicateWrapper::from_value(value, PredicateVer::LinkV0_2)
+                .unwrap();
         let real = Box::new(PREDICATE_LINK_V02.clone()).into_enum();
 
         assert_eq!(predicate, real);
@@ -115,7 +121,8 @@ pub mod test {
 
     #[test]
     fn deserialize_auto() {
-        let value: Value = serde_json::from_str(&STR_PREDICATE_LINK_V02).unwrap();
+        let value: Value =
+            serde_json::from_str(&STR_PREDICATE_LINK_V02).unwrap();
         let predicate = PredicateWrapper::try_from_value(value).unwrap();
         let real = Box::new(PREDICATE_LINK_V02.clone()).into_enum();
 
@@ -124,12 +131,14 @@ pub mod test {
 
     #[test]
     fn deserialize_dismatch() {
-        let value: Value = serde_json::from_str(&STR_PREDICATE_LINK_V02).unwrap();
+        let value: Value =
+            serde_json::from_str(&STR_PREDICATE_LINK_V02).unwrap();
         for version in PredicateVer::iter() {
             if version == PredicateVer::LinkV0_2 {
                 continue;
             }
-            let predicate = PredicateWrapper::from_value(value.clone(), version);
+            let predicate =
+                PredicateWrapper::from_value(value.clone(), version);
 
             assert!(predicate.is_err());
         }

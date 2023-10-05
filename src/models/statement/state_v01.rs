@@ -5,8 +5,8 @@ use serde_derive::{Deserialize, Serialize};
 use crate::{
     interchange::{DataInterchange, Json},
     models::{
-        LinkMetadata, PredicateLayout, PredicateVer, PredicateWrapper, TargetDescription,
-        VirtualTargetPath,
+        LinkMetadata, PredicateLayout, PredicateVer, PredicateWrapper,
+        TargetDescription, VirtualTargetPath,
     },
     Error,
 };
@@ -43,15 +43,19 @@ impl StateLayout for StateV01 {
 }
 
 impl FromMerge for StateV01 {
-    fn merge(meta: LinkMetadata, predicate: Option<Box<dyn PredicateLayout>>) -> Result<StateV01> {
+    fn merge(
+        meta: LinkMetadata,
+        predicate: Option<Box<dyn PredicateLayout>>,
+    ) -> Result<StateV01> {
         if predicate.is_none() {
             return Err(Error::AttestationFormatDismatch(
                 StatementVer::V0_1.to_string(),
                 "None".to_string(),
             ));
         }
-        let p = predicate
-            .ok_or_else(|| Error::Programming("match rules failed for StateV01".to_string()))?;
+        let p = predicate.ok_or_else(|| {
+            Error::Programming("match rules failed for StateV01".to_string())
+        })?;
         let version = StatementVer::V0_1.into();
         Ok(StateV01 {
             typ: version,
@@ -144,7 +148,8 @@ pub mod test {
     #[test]
     fn deserialize_statement() {
         let value: Value = serde_json::from_str(&STR_V01).unwrap();
-        let link = StatementWrapper::from_value(value, StatementVer::V0_1).unwrap();
+        let link =
+            StatementWrapper::from_value(value, StatementVer::V0_1).unwrap();
         let real = Box::new(STATE_V01.clone()).into_enum();
 
         assert_eq!(link, real);

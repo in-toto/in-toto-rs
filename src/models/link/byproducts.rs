@@ -75,7 +75,10 @@ impl ByProducts {
     /// Set other fields.
     /// Warning: This operation will overwrite all the present other-field
     /// set by `set_other_field` or `set_other_fields` before.
-    pub fn set_other_fields(mut self, other_fields: BTreeMap<String, String>) -> Self {
+    pub fn set_other_fields(
+        mut self,
+        other_fields: BTreeMap<String, String>,
+    ) -> Self {
         self.other_fields = other_fields;
         self
     }
@@ -175,7 +178,8 @@ mod tests {
             .set_other_field("key1".into(), "value1".into())
             .set_other_field("key2".into(), "value2".into());
 
-        let deserialized_byproducts: ByProducts = serde_json::from_str(json).unwrap();
+        let deserialized_byproducts: ByProducts =
+            serde_json::from_str(json).unwrap();
         assert_eq!(byproducts, deserialized_byproducts);
     }
 
@@ -199,7 +203,8 @@ mod tests {
             .set_stdout("".into())
             .set_other_fields(other_fields);
 
-        let deserialized_byproducts: ByProducts = serde_json::from_str(json).unwrap();
+        let deserialized_byproducts: ByProducts =
+            serde_json::from_str(json).unwrap();
         assert_eq!(byproducts, deserialized_byproducts);
     }
 }

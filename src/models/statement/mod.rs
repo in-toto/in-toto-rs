@@ -39,7 +39,9 @@ impl From<StatementVer> for String {
     fn from(value: StatementVer) -> Self {
         match value {
             StatementVer::Naive => "link".to_string(),
-            StatementVer::V0_1 => "https://in-toto.io/Statement/v0.1".to_string(),
+            StatementVer::V0_1 => {
+                "https://in-toto.io/Statement/v0.1".to_string()
+            }
         }
     }
 }
@@ -55,9 +57,12 @@ impl Serialize for StatementVer {
 }
 
 impl<'de> Deserialize<'de> for StatementVer {
-    fn deserialize<D: Deserializer<'de>>(de: D) -> ::std::result::Result<Self, D::Error> {
+    fn deserialize<D: Deserializer<'de>>(
+        de: D,
+    ) -> ::std::result::Result<Self, D::Error> {
         let target: String = Deserialize::deserialize(de)?;
-        StatementVer::try_from(target).map_err(|e| DeserializeError::custom(format!("{:?}", e)))
+        StatementVer::try_from(target)
+            .map_err(|e| DeserializeError::custom(format!("{:?}", e)))
     }
 }
 
@@ -77,7 +82,9 @@ pub enum StatementWrapper {
     V0_1(StateV01),
 }
 impl<'de> Deserialize<'de> for StatementWrapper {
-    fn deserialize<D: Deserializer<'de>>(de: D) -> ::std::result::Result<Self, D::Error> {
+    fn deserialize<D: Deserializer<'de>>(
+        de: D,
+    ) -> ::std::result::Result<Self, D::Error> {
         let value = Value::deserialize(de)?;
         StatementWrapper::try_from_value(value)
             .map_err(|e| DeserializeError::custom(format!("{:?}", e)))
@@ -85,7 +92,10 @@ impl<'de> Deserialize<'de> for StatementWrapper {
 }
 
 pub trait FromMerge: Sized {
-    fn merge(meta: LinkMetadata, predicate: Option<Box<dyn PredicateLayout>>) -> Result<Self>;
+    fn merge(
+        meta: LinkMetadata,
+        predicate: Option<Box<dyn PredicateLayout>>,
+    ) -> Result<Self>;
 }
 
 impl StatementWrapper {
@@ -102,8 +112,12 @@ impl StatementWrapper {
         version: StatementVer,
     ) -> Self {
         match version {
-            StatementVer::Naive => Self::Naive(StateNaive::merge(meta, predicate).unwrap()),
-            StatementVer::V0_1 => Self::V0_1(StateV01::merge(meta, predicate).unwrap()),
+            StatementVer::Naive => {
+                Self::Naive(StateNaive::merge(meta, predicate).unwrap())
+            }
+            StatementVer::V0_1 => {
+                Self::V0_1(StateV01::merge(meta, predicate).unwrap())
+            }
         }
     }
 

@@ -12,7 +12,9 @@ use super::rule::ArtifactRule;
 use super::supply_chain_item::SupplyChainItem;
 
 /// Wrapper type for a command in step.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Deserialize)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Deserialize,
+)]
 pub struct Command(Vec<String>);
 
 impl Command {
@@ -205,7 +207,11 @@ mod test {
             "threshold": 1
           }
         );
-        assert_eq!(json, json_serialize, "{:#?} != {:#?}", json, json_serialize);
+        assert_eq!(
+            json, json_serialize,
+            "{:#?} != {:#?}",
+            json, json_serialize
+        );
         Ok(())
     }
 

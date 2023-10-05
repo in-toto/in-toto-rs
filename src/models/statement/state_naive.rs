@@ -76,7 +76,9 @@ pub mod test {
     use super::StateNaive;
     use crate::interchange::{DataInterchange, Json};
     use crate::models::byproducts::ByProducts;
-    use crate::models::statement::{StateLayout, StatementVer, StatementWrapper};
+    use crate::models::statement::{
+        StateLayout, StatementVer, StatementWrapper,
+    };
     use crate::models::test::BLANK_META;
 
     pub static STR_NAIVE: Lazy<String> = Lazy::new(|| {
@@ -115,7 +117,11 @@ pub mod test {
 
     #[test]
     fn create_statement_from_meta() {
-        let state = StatementWrapper::from_meta(BLANK_META.clone(), None, StatementVer::Naive);
+        let state = StatementWrapper::from_meta(
+            BLANK_META.clone(),
+            None,
+            StatementVer::Naive,
+        );
         let real = Box::new(STATE_NAIVE.clone()).into_enum();
 
         assert_eq!(state, real);
@@ -133,7 +139,8 @@ pub mod test {
     #[test]
     fn deserialize_statement() {
         let value: Value = serde_json::from_str(&STR_NAIVE).unwrap();
-        let link = StatementWrapper::from_value(value, StatementVer::Naive).unwrap();
+        let link =
+            StatementWrapper::from_value(value, StatementVer::Naive).unwrap();
         let real = Box::new(STATE_NAIVE.clone()).into_enum();
 
         assert_eq!(link, real);

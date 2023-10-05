@@ -7,7 +7,8 @@ fn main() {
     // Generate a new Ed25519 signing key
     let key = PrivateKey::new(KeyType::Ed25519).unwrap();
     println!("Generated keypair: {:?}", key);
-    let privkey = PrivateKey::from_pkcs8(&key, SignatureScheme::Ed25519).unwrap();
+    let privkey =
+        PrivateKey::from_pkcs8(&key, SignatureScheme::Ed25519).unwrap();
 
     let link = LinkMetadataBuilder::new()
         .name(String::from("test"))

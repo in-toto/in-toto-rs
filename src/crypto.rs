@@ -305,13 +305,13 @@ pub enum KeyType {
 impl KeyType {
     pub fn from_oid(oid: &[u8]) -> Result<Self> {
         match oid {
-            x if x == RSA_SPKI_OID => Ok(KeyType::Rsa),
-            x if x == ED25519_SPKI_OID => Ok(KeyType::Ed25519),
-            x if x == ECC_SPKI_OID => Ok(KeyType::Ecdsa),
-            x => Err(Error::Encoding(format!(
-                "Unknown OID: {}",
-                x.iter().map(|b| format!("{:x}", b)).collect::<String>()
-            ))),
+            RSA_SPKI_OID => Ok(KeyType::Rsa),
+            ED25519_SPKI_OID => Ok(KeyType::Ed25519),
+            ECC_SPKI_OID => Ok(KeyType::Ecdsa),
+            oid => {
+                let oid = HEXLOWER.encode(oid);
+                Err(Error::Encoding(format!("Unknown OID: {}", oid)))
+            }
         }
     }
 

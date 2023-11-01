@@ -21,8 +21,8 @@ impl Command {
     }
 }
 
-impl AsRef<Vec<String>> for Command {
-    fn as_ref(&self) -> &Vec<String> {
+impl AsRef<[String]> for Command {
+    fn as_ref(&self) -> &[String] {
         &self.0
     }
 }

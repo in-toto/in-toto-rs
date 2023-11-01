@@ -255,10 +255,10 @@ impl DataInterchange for Json {
     ///     r#"{"o":{"0":null,"a":[1,2,3],"f":false,"n":123,"s":"string","t":true}}"#
     /// );
     /// ```
-    fn to_writer<W, T: Sized>(mut writer: W, value: &T) -> Result<()>
+    fn to_writer<W, T>(mut writer: W, value: &T) -> Result<()>
     where
         W: Write,
-        T: Serialize,
+        T: Serialize + Sized,
     {
         let bytes = Self::canonicalize(&Self::serialize(value)?)?;
         writer.write_all(&bytes)?;

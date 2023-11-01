@@ -118,10 +118,10 @@ impl DataInterchange for JsonPretty {
     ///   }
     /// }"#);
     /// ```
-    fn to_writer<W, T: Sized>(writer: W, value: &T) -> Result<()>
+    fn to_writer<W, T>(writer: W, value: &T) -> Result<()>
     where
         W: Write,
-        T: Serialize,
+        T: Serialize + Sized,
     {
         Ok(serde_json::to_writer_pretty(
             writer,

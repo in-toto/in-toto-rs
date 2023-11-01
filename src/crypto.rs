@@ -533,7 +533,7 @@ impl PrivateKey {
     }
 
     fn rsa_from_pkcs8(der_key: &[u8], scheme: SignatureScheme) -> Result<Self> {
-        if let SignatureScheme::Ed25519 = scheme {
+        if SignatureScheme::Ed25519 == scheme {
             return Err(Error::IllegalArgument(
                 "RSA keys do not support the Ed25519 signing scheme".into(),
             ));

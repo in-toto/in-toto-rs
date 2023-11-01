@@ -147,10 +147,7 @@ fn shim_public_key(
         }
     };
 
-    let private_key = match private_key {
-        true => Some(""),
-        false => None,
-    };
+    let private_key = private_key.then_some("");
 
     Ok(shims::PublicKey::new(
         key_type.clone(),

@@ -428,8 +428,7 @@ impl PrivateKey {
             ));
         }
 
-        let private_key_bytes = &key[..ED25519_PRIVATE_KEY_LENGTH];
-        let public_key_bytes = &key[ED25519_PUBLIC_KEY_LENGTH..];
+        let (private_key_bytes, public_key_bytes) = key.split_at(ED25519_PRIVATE_KEY_LENGTH);
 
         let key = Ed25519KeyPair::from_seed_and_public_key(private_key_bytes, public_key_bytes)
             .map_err(|err| Error::Encoding(err.to_string()))?;

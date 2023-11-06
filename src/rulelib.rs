@@ -171,12 +171,13 @@ pub(crate) fn apply_rules_on_link(
     let modified: BTreeSet<_> = material_paths
         .intersection(&product_paths)
         .cloned()
-        .filter_map(
-            |name| match src_link.materials[&name] != src_link.products[&name] {
-                true => Some(name),
-                false => None,
-            },
-        )
+        .filter_map(|name| {
+            if src_link.materials[&name] != src_link.products[&name] {
+                Some(name)
+            } else {
+                None
+            }
+        })
         .collect();
 
     #[derive(Debug)]
@@ -227,8 +228,8 @@ pub(crate) fn apply_rules_on_link(
                 ArtifactRule::Delete(_) => filtered.intersection(&deleted).cloned().collect(),
                 ArtifactRule::Modify(_) => filtered.intersection(&modified).cloned().collect(),
                 ArtifactRule::Allow(_) => filtered,
-                ArtifactRule::Require(_) => match queue.contains(rule.pattern()) {
-                    false => {
+                ArtifactRule::Require(_) => {
+                    if !queue.contains(rule.pattern()) {
                         return Err(Error::ArtifactRuleError(format!(
                             r#"artifact verification failed for {:?} in REQUIRE '{:?}',
                         because {:?} is not in {:?}"#,
@@ -236,19 +237,21 @@ pub(crate) fn apply_rules_on_link(
                             rule.pattern(),
                             rule.pattern(),
                             queue
-                        )))
+                        )));
+                    } else {
+                        BTreeSet::new()
                     }
-                    true => BTreeSet::new(),
-                },
-                ArtifactRule::Disallow(_) => match !filtered.is_empty() {
-                    true => {
+                }
+                ArtifactRule::Disallow(_) => {
+                    if !filtered.is_empty() {
                         return Err(Error::ArtifactRuleError(format!(
                             r#"artifact verification failed for {:?} in DISALLOW, because {:?} is disallowed by rule {:?} in {}"#,
                             verification_data.src_type, filtered, rule, item_name,
-                        )))
+                        )));
+                    } else {
+                        BTreeSet::new()
                     }
-                    false => BTreeSet::new(),
-                },
+                }
                 ArtifactRule::Match { .. } => {
                     verify_match_rule(rule, artifacts, &queue, reduced_link_files)
                 }

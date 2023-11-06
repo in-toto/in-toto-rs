@@ -401,9 +401,10 @@ fn get_summary_link(
     name: &str,
 ) -> Result<Metablock> {
     let builder = LinkMetadataBuilder::new();
-    let link_metadata = match layout.steps.is_empty() {
-        true => builder.build()?,
-        false => builder
+    let link_metadata = if layout.steps.is_empty() {
+        builder.build()?
+    } else {
+        builder
             .materials(reduced_link_files[layout.steps[0].name()].materials.clone())
             .products(
                 reduced_link_files[layout.steps[layout.steps.len() - 1].name()]
@@ -421,7 +422,7 @@ fn get_summary_link(
                     .clone(),
             )
             .name(name.to_string())
-            .build()?,
+            .build()?
     };
     Metablock::new(MetadataWrapper::Link(link_metadata), &[])
 }

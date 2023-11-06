@@ -53,9 +53,10 @@ impl Layout {
         let keys_with_correct_key_id = self
             .keys
             .into_iter()
-            .filter(|(key_id, pkey)| match key_id == pkey.key_id() {
-                true => true,
-                false => {
+            .filter(|(key_id, pkey)| {
+                if key_id == pkey.key_id() {
+                    true
+                } else {
                     warn!("Malformed key of ID {:?}", key_id);
                     false
                 }

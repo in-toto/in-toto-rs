@@ -147,10 +147,7 @@ fn shim_public_key(
         }
     };
 
-    let private_key = match private_key {
-        true => Some(""),
-        false => None,
-    };
+    let private_key = private_key.then_some("");
 
     Ok(shims::PublicKey::new(
         key_type.clone(),
@@ -308,13 +305,13 @@ pub enum KeyType {
 impl KeyType {
     pub fn from_oid(oid: &[u8]) -> Result<Self> {
         match oid {
-            x if x == RSA_SPKI_OID => Ok(KeyType::Rsa),
-            x if x == ED25519_SPKI_OID => Ok(KeyType::Ed25519),
-            x if x == ECC_SPKI_OID => Ok(KeyType::Ecdsa),
-            x => Err(Error::Encoding(format!(
-                "Unknown OID: {}",
-                x.iter().map(|b| format!("{:x}", b)).collect::<String>()
-            ))),
+            RSA_SPKI_OID => Ok(KeyType::Rsa),
+            ED25519_SPKI_OID => Ok(KeyType::Ed25519),
+            ECC_SPKI_OID => Ok(KeyType::Ecdsa),
+            oid => {
+                let oid = HEXLOWER.encode(oid);
+                Err(Error::Encoding(format!("Unknown OID: {}", oid)))
+            }
         }
     }
 
@@ -428,8 +425,7 @@ impl PrivateKey {
             ));
         }
 
-        let private_key_bytes = &key[..ED25519_PRIVATE_KEY_LENGTH];
-        let public_key_bytes = &key[ED25519_PUBLIC_KEY_LENGTH..];
+        let (private_key_bytes, public_key_bytes) = key.split_at(ED25519_PRIVATE_KEY_LENGTH);
 
         let key = Ed25519KeyPair::from_seed_and_public_key(private_key_bytes, public_key_bytes)
             .map_err(|err| Error::Encoding(err.to_string()))?;
@@ -537,7 +533,7 @@ impl PrivateKey {
     }
 
     fn rsa_from_pkcs8(der_key: &[u8], scheme: SignatureScheme) -> Result<Self> {
-        if let SignatureScheme::Ed25519 = scheme {
+        if SignatureScheme::Ed25519 == scheme {
             return Err(Error::IllegalArgument(
                 "RSA keys do not support the Ed25519 signing scheme".into(),
             ));

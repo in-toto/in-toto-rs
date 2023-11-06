@@ -33,10 +33,10 @@ pub trait DataInterchange: Debug + PartialEq + Clone {
 
     /// Write a struct to a stream.
     #[allow(clippy::wrong_self_convention)]
-    fn to_writer<W, T: Sized>(writer: W, value: &T) -> Result<()>
+    fn to_writer<W, T>(writer: W, value: &T) -> Result<()>
     where
         W: Write,
-        T: Serialize;
+        T: Serialize + Sized;
 
     /// Read a struct from a stream.
     fn from_reader<R, T>(rdr: R) -> Result<T>

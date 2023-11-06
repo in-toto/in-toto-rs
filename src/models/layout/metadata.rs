@@ -164,7 +164,9 @@ impl Serialize for LayoutMetadata {
 }
 
 impl<'de> Deserialize<'de> for LayoutMetadata {
-    fn deserialize<D: Deserializer<'de>>(de: D) -> ::std::result::Result<Self, D::Error> {
+    fn deserialize<D: Deserializer<'de>>(
+        de: D,
+    ) -> ::std::result::Result<Self, D::Error> {
         let intermediate: Layout = Deserialize::deserialize(de)?;
         intermediate
             .try_into()

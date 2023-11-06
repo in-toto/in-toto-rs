@@ -293,7 +293,9 @@ impl DataInterchange for Json {
     }
 }
 
-fn canonicalize(jsn: &serde_json::Value) -> std::result::Result<Vec<u8>, String> {
+fn canonicalize(
+    jsn: &serde_json::Value,
+) -> std::result::Result<Vec<u8>, String> {
     let converted = convert(jsn)?;
     let mut buf = Vec::new();
     let _ = converted.write(&mut buf); // Vec<u8> impl always succeeds (or panics).
@@ -339,7 +341,8 @@ impl Value {
             Value::String(ref s) => {
                 // this mess is abusing serde_json to get json escaping
                 let s = serde_json::Value::String(s.clone());
-                let s = serde_json::to_string(&s).map_err(|e| format!("{:?}", e))?;
+                let s = serde_json::to_string(&s)
+                    .map_err(|e| format!("{:?}", e))?;
                 buf.extend(s.as_bytes());
                 Ok(())
             }
@@ -367,7 +370,8 @@ impl Value {
 
                     // this mess is abusing serde_json to get json escaping
                     let k = serde_json::Value::String(k.clone());
-                    let k = serde_json::to_string(&k).map_err(|e| format!("{:?}", e))?;
+                    let k = serde_json::to_string(&k)
+                        .map_err(|e| format!("{:?}", e))?;
                     buf.extend(k.as_bytes());
 
                     buf.push(b':');

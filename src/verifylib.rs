@@ -12,8 +12,8 @@ use log::{debug, info, warn};
 use crate::{
     crypto::{KeyId, PublicKey},
     models::{
-        step::Step, supply_chain_item::SupplyChainItem, LayoutMetadata, LinkMetadata,
-        LinkMetadataBuilder, Metablock, MetadataWrapper,
+        step::Step, supply_chain_item::SupplyChainItem, LayoutMetadata,
+        LinkMetadata, LinkMetadataBuilder, Metablock, MetadataWrapper,
     },
     rulelib::apply_rules_on_link,
     runlib::in_toto_run,
@@ -80,10 +80,14 @@ fn load_links_for_layout(
         let mut path_pattern = PathBuf::from(link_dir);
         path_pattern.push(pattern);
         let path_pattern = path_pattern.to_str().ok_or_else(|| {
-            Error::VerificationFailure(format!("Pathbuf convert to str failed: {:?}", path_pattern))
+            Error::VerificationFailure(format!(
+                "Pathbuf convert to str failed: {:?}",
+                path_pattern
+            ))
         })?;
-        let matched_files = glob(path_pattern)
-            .map_err(|e| Error::VerificationFailure(format!("Path glob error: {}", e)))?;
+        let matched_files = glob(path_pattern).map_err(|e| {
+            Error::VerificationFailure(format!("Path glob error: {}", e))
+        })?;
         for link_path in matched_files.flatten() {
             // load link from the disk, canbe either a linkfile or a layout file
             let link_metablock = load_linkfile(&link_path)?;
@@ -91,9 +95,17 @@ fn load_links_for_layout(
             // Get the key-id that signed this link file
             let signer_short_key_id = link_path
                 .file_name()
-                .ok_or_else(|| Error::VerificationFailure("link_file name get failed.".into()))?
+                .ok_or_else(|| {
+                    Error::VerificationFailure(
+                        "link_file name get failed.".into(),
+                    )
+                })?
                 .to_str()
-                .ok_or_else(|| Error::VerificationFailure("link_file name get failed.".into()))?
+                .ok_or_else(|| {
+                    Error::VerificationFailure(
+                        "link_file name get failed.".into(),
+                    )
+                })?
                 .to_string();
 
             // by trim filename's start <step-name>." and end ".link"
@@ -102,7 +114,11 @@ fn load_links_for_layout(
                 .trim_start_matches(&step.name)
                 .trim_start_matches('.');
 
-            match_signatures(link_metablock, signer_short_key_id, &mut links_per_step);
+            match_signatures(
+                link_metablock,
+                signer_short_key_id,
+                &mut links_per_step,
+            );
         }
 
         let lins_per_step_len = links_per_step.len();
@@ -139,7 +155,8 @@ fn verify_link_signature_thresholds_step(
         if let Some(authorized_key) = pubkeys.get(signer_key_id) {
             let authorized_key = vec![authorized_key];
             if link_metablock.verify(1, authorized_key).is_ok() {
-                metablocks.insert(signer_key_id.clone(), link_metablock.clone());
+                metablocks
+                    .insert(signer_key_id.clone(), link_metablock.clone());
             }
         }
         // in-toto v0.9's signature doesn't have a cert field,
@@ -205,13 +222,18 @@ fn verify_sublayouts(
                     debug!("Verifying sublayout {}...", step_name);
                     let mut layout_key_dict = HashMap::new();
                     let pubkey = layout.keys.get(keyid).ok_or_else(|| {
-                        Error::VerificationFailure(format!("Can not find public key {:?}", keyid))
+                        Error::VerificationFailure(format!(
+                            "Can not find public key {:?}",
+                            keyid
+                        ))
                     })?;
                     layout_key_dict.insert(keyid.to_owned(), pubkey.clone());
 
-                    let sub_link_dir = format!("{step_name}.{}", keyid.prefix());
+                    let sub_link_dir =
+                        format!("{step_name}.{}", keyid.prefix());
 
-                    let sublayout_link_dir_path = Path::new(link_dir).join(&sub_link_dir);
+                    let sublayout_link_dir_path =
+                        Path::new(link_dir).join(&sub_link_dir);
 
                     let sublayout_link_dir_path =
                         sublayout_link_dir_path.to_str().ok_or_else(|| {
@@ -229,7 +251,9 @@ fn verify_sublayouts(
                     )?;
 
                     match summary_link.metadata {
-                        MetadataWrapper::Layout(_) => panic!("unexpected layout"),
+                        MetadataWrapper::Layout(_) => {
+                            panic!("unexpected layout")
+                        }
                         MetadataWrapper::Link(inner) => inner,
                     }
                 }
@@ -254,7 +278,10 @@ fn verify_all_steps_command_alignment(
     for step in &layout.steps {
         let expected_command = &step.expected_command;
         let key_link_dict = link_files.get(&step.name).ok_or_else(|| {
-            Error::VerificationFailure(format!("can not find LinkMetadata of step {}", step.name))
+            Error::VerificationFailure(format!(
+                "can not find LinkMetadata of step {}",
+                step.name
+            ))
         })?;
         for link in key_link_dict.values() {
             let command = &link.command;
@@ -286,9 +313,13 @@ fn verify_threshold_constraints(
             continue;
         }
 
-        let key_link_per_step = link_files.get(&step.name).ok_or_else(|| {
-            Error::VerificationFailure(format!("step {} does not have validated links.", step.name))
-        })?;
+        let key_link_per_step =
+            link_files.get(&step.name).ok_or_else(|| {
+                Error::VerificationFailure(format!(
+                    "step {} does not have validated links.",
+                    step.name
+                ))
+            })?;
         if key_link_per_step.len() < step.threshold as usize {
             return Err(Error::VerificationFailure(format!(
                 "step {} does not be performed by enough functionaries.",
@@ -296,9 +327,13 @@ fn verify_threshold_constraints(
             )));
         }
 
-        let reference_keyid = key_link_per_step.keys().next().ok_or_else(|| {
-            Error::VerificationFailure(format!("step {} does not have enough key ids.", step.name))
-        })?;
+        let reference_keyid =
+            key_link_per_step.keys().next().ok_or_else(|| {
+                Error::VerificationFailure(format!(
+                    "step {} does not have enough key ids.",
+                    step.name
+                ))
+            })?;
         let reference_link = &key_link_per_step[reference_keyid];
 
         for link in key_link_per_step.values() {
@@ -360,13 +395,16 @@ fn verify_all_item_rules(
 /// Layout's inspect field and iteratively run each command defined
 /// in the Inspection's `run` field using `runlib::in_toto_run`, which
 /// returns a Metablock object containing a Link object.
-fn run_all_inspections(layout: &LayoutMetadata) -> Result<HashMap<String, LinkMetadata>> {
+fn run_all_inspections(
+    layout: &LayoutMetadata,
+) -> Result<HashMap<String, LinkMetadata>> {
     let material_paths = ["."];
     let product_paths = ["."];
     let mut inspection_links = HashMap::new();
 
     for inspect in &layout.inspect {
-        let cmd_args: Vec<&str> = inspect.run.as_ref().iter().map(|arg| &arg[..]).collect();
+        let cmd_args: Vec<&str> =
+            inspect.run.as_ref().iter().map(|arg| &arg[..]).collect();
 
         let metablock = in_toto_run(
             inspect.name(),
@@ -405,7 +443,9 @@ fn get_summary_link(
         builder.build()?
     } else {
         builder
-            .materials(reduced_link_files[layout.steps[0].name()].materials.clone())
+            .materials(
+                reduced_link_files[layout.steps[0].name()].materials.clone(),
+            )
             .products(
                 reduced_link_files[layout.steps[layout.steps.len() - 1].name()]
                     .products
@@ -489,7 +529,8 @@ pub fn in_toto_verify(
     let steps_links_metadata = load_links_for_layout(&layout, link_dir)?;
 
     // Verify signatures and signature thresholds for steps of layout
-    let link_files = verify_link_signature_thresholds(&layout, steps_links_metadata)?;
+    let link_files =
+        verify_link_signature_thresholds(&layout, steps_links_metadata)?;
 
     // Verify sublayouts recursively
     let link_files = verify_sublayouts(&layout, link_files, link_dir)?;
@@ -550,17 +591,21 @@ mod tests {
 
         let root_layout_file = working_dir.join("root.layout");
         let raw = fs::read(root_layout_file).expect("read layout failed");
-        let layout =
-            serde_json::from_slice::<Metablock>(&raw).expect("deserialize metablock failed");
+        let layout = serde_json::from_slice::<Metablock>(&raw)
+            .expect("deserialize metablock failed");
         let public_key_file = working_dir.join("alice.pub");
-        let public_key_string =
-            fs::read_to_string(public_key_file).expect("read public key failed");
+        let public_key_string = fs::read_to_string(public_key_file)
+            .expect("read public key failed");
         let pem = pem::parse(public_key_string).expect("parse pem failed");
-        let pub_key = PublicKey::from_spki(pem.contents(), SignatureScheme::RsaSsaPssSha256)
-            .expect("create public key failed");
-        let key_id =
-            KeyId::from_str("556caebdc0877eed53d419b60eddb1e57fa773e4e31d70698b588f3e9cc48b35")
-                .expect("key id parse failed");
+        let pub_key = PublicKey::from_spki(
+            pem.contents(),
+            SignatureScheme::RsaSsaPssSha256,
+        )
+        .expect("create public key failed");
+        let key_id = KeyId::from_str(
+            "556caebdc0877eed53d419b60eddb1e57fa773e4e31d70698b588f3e9cc48b35",
+        )
+        .expect("key id parse failed");
         let layout_keys = HashMap::from([(key_id, pub_key)]);
         let result = in_toto_verify(&layout, layout_keys, "../links", None);
         match result {

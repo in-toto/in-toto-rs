@@ -16,12 +16,20 @@ pub struct PaeV1;
 fn consume_load_len(raw: &[u8]) -> Result<(usize, &[u8])> {
     let mut iter = raw.splitn(2, |num| *num == SPLIT_U8);
     let length_raw = iter.next().ok_or_else(|| {
-        Error::PAEParseFailed(format!("split '{}' failed for {:?}", SPLIT, raw.to_owned()))
+        Error::PAEParseFailed(format!(
+            "split '{}' failed for {:?}",
+            SPLIT,
+            raw.to_owned()
+        ))
     })?;
 
-    let length = str::from_utf8(length_raw)?
-        .parse::<usize>()
-        .map_err(|_| Error::PAEParseFailed(format!("parse to int failed for {:?}", length_raw)))?;
+    let length =
+        str::from_utf8(length_raw)?.parse::<usize>().map_err(|_| {
+            Error::PAEParseFailed(format!(
+                "parse to int failed for {:?}",
+                length_raw
+            ))
+        })?;
     let next = iter.next().ok_or_else(|| {
         Error::PAEParseFailed(format!(
             "prefix {} strip failed for {:?}",
@@ -64,10 +72,16 @@ impl DSSEParser for PaeV1 {
         let (payload_ver_len, raw) = consume_load_len(raw)?;
         let payload_ver = str::from_utf8(&raw[0..payload_ver_len])?
             .parse::<String>()
-            .map_err(|_| Error::PAEParseFailed(format!("parse to string failed for {:?}", raw)))?;
+            .map_err(|_| {
+                Error::PAEParseFailed(format!(
+                    "parse to string failed for {:?}",
+                    raw
+                ))
+            })?;
 
         // Extract payload from bytes
-        let (payload_len, raw) = consume_load_len(&raw[(payload_ver_len + 1)..])?;
+        let (payload_len, raw) =
+            consume_load_len(&raw[(payload_ver_len + 1)..])?;
         let payload = raw[0..payload_len].to_vec();
 
         Ok((payload, payload_ver))
@@ -83,8 +97,9 @@ mod pae_test {
 
     use crate::models::envelope::{pae_test::SERIALIZE_SRC_DATAS, DSSEVersion};
 
-    static SERIALIZE_RESULT_DATAS: Lazy<HashMap<String, &str>> = Lazy::new(|| {
-        let real_serialized_file = HashMap::from([
+    static SERIALIZE_RESULT_DATAS: Lazy<HashMap<String, &str>> = Lazy::new(
+        || {
+            let real_serialized_file = HashMap::from([
             ("blank_test".to_string(), "DSSEv1 4 link 0 "),
             (
                 "blank_envelope_naive_test".to_string(),
@@ -95,8 +110,9 @@ mod pae_test {
                 "DSSEv1 33 https://in-toto.io/statement/v0.1 52 {\"payload\":[],\"payload_type\":\"link\",\"signatures\":[]}",
             ),
         ]);
-        real_serialized_file
-    });
+            real_serialized_file
+        },
+    );
 
     #[test]
     fn test_pack() {
@@ -108,7 +124,11 @@ mod pae_test {
 
             let real = std::str::from_utf8(&outer).unwrap();
             let right = *SERIALIZE_RESULT_DATAS.get(&file_tuple.name).unwrap();
-            assert_eq!(real, right, "pack assert failed for {}", file_tuple.name);
+            assert_eq!(
+                real, right,
+                "pack assert failed for {}",
+                file_tuple.name
+            );
         }
     }
 
@@ -125,7 +145,11 @@ mod pae_test {
             let real = str::from_utf8(&inner).unwrap();
             let right = file_tuple.inner_payload;
 
-            assert_eq!(real, right, "unpack assert failed for {}", file_tuple.name);
+            assert_eq!(
+                real, right,
+                "unpack assert failed for {}",
+                file_tuple.name
+            );
         }
     }
 }

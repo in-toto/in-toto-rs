@@ -13,7 +13,8 @@ use crate::Result;
 
 use crate::models::step::Command;
 use crate::models::{
-    Link, Metablock, Metadata, MetadataType, MetadataWrapper, TargetDescription, VirtualTargetPath,
+    Link, Metablock, Metadata, MetadataType, MetadataWrapper,
+    TargetDescription, VirtualTargetPath,
 };
 
 use super::byproducts::ByProducts;
@@ -53,13 +54,19 @@ impl LinkMetadataBuilder {
     }
 
     /// Set the materials for this metadata
-    pub fn materials(mut self, materials: BTreeMap<VirtualTargetPath, TargetDescription>) -> Self {
+    pub fn materials(
+        mut self,
+        materials: BTreeMap<VirtualTargetPath, TargetDescription>,
+    ) -> Self {
         self.materials = materials;
         self
     }
 
     /// Set the products for this metadata
-    pub fn products(mut self, products: BTreeMap<VirtualTargetPath, TargetDescription>) -> Self {
+    pub fn products(
+        mut self,
+        products: BTreeMap<VirtualTargetPath, TargetDescription>,
+    ) -> Self {
         self.products = products;
         self
     }
@@ -67,8 +74,11 @@ impl LinkMetadataBuilder {
     pub fn add_material(mut self, material_path: VirtualTargetPath) -> Self {
         let file = File::open(material_path.to_string()).unwrap();
         let mut reader = BufReader::new(file);
-        let (_length, hashes) =
-            crypto::calculate_hashes(&mut reader, &[crypto::HashAlgorithm::Sha256]).unwrap();
+        let (_length, hashes) = crypto::calculate_hashes(
+            &mut reader,
+            &[crypto::HashAlgorithm::Sha256],
+        )
+        .unwrap();
         self.materials.insert(material_path, hashes);
         self
     }
@@ -76,8 +86,11 @@ impl LinkMetadataBuilder {
     pub fn add_product(mut self, material_path: VirtualTargetPath) -> Self {
         let file = File::open(material_path.to_string()).unwrap();
         let mut reader = BufReader::new(file);
-        let (_length, hashes) =
-            crypto::calculate_hashes(&mut reader, &[crypto::HashAlgorithm::Sha256]).unwrap();
+        let (_length, hashes) = crypto::calculate_hashes(
+            &mut reader,
+            &[crypto::HashAlgorithm::Sha256],
+        )
+        .unwrap();
         self.products.insert(material_path, hashes);
         self
     }
@@ -186,7 +199,9 @@ impl Serialize for LinkMetadata {
 }
 
 impl<'de> Deserialize<'de> for LinkMetadata {
-    fn deserialize<D: Deserializer<'de>>(de: D) -> ::std::result::Result<Self, D::Error> {
+    fn deserialize<D: Deserializer<'de>>(
+        de: D,
+    ) -> ::std::result::Result<Self, D::Error> {
         let intermediate: Link = Deserialize::deserialize(de)?;
         intermediate
             .try_into()
@@ -199,14 +214,18 @@ mod test {
     use serde_json::json;
 
     use crate::models::{
-        byproducts::ByProducts, step::Command, LinkMetadata, LinkMetadataBuilder, VirtualTargetPath,
+        byproducts::ByProducts, step::Command, LinkMetadata,
+        LinkMetadataBuilder, VirtualTargetPath,
     };
 
     #[test]
     fn serialize_linkmetadata() {
         let link_metadata = LinkMetadataBuilder::new()
             .name("".into())
-            .add_product(VirtualTargetPath::new("tests/test_link/foo.tar.gz".into()).unwrap())
+            .add_product(
+                VirtualTargetPath::new("tests/test_link/foo.tar.gz".into())
+                    .unwrap(),
+            )
             .byproducts(
                 ByProducts::new()
                     .set_return_value(0)
@@ -217,7 +236,8 @@ mod test {
             .build()
             .unwrap();
 
-        let serialized_linkmetadata = serde_json::to_value(link_metadata).unwrap();
+        let serialized_linkmetadata =
+            serde_json::to_value(link_metadata).unwrap();
         let json = json!({
             "_type": "link",
             "name": "",
@@ -260,7 +280,10 @@ mod test {
 
         let link_metadata = LinkMetadataBuilder::new()
             .name("".into())
-            .add_product(VirtualTargetPath::new("tests/test_link/foo.tar.gz".into()).unwrap())
+            .add_product(
+                VirtualTargetPath::new("tests/test_link/foo.tar.gz".into())
+                    .unwrap(),
+            )
             .byproducts(
                 ByProducts::new()
                     .set_return_value(0)
@@ -271,7 +294,8 @@ mod test {
             .build()
             .unwrap();
 
-        let deserialized_link_metadata: LinkMetadata = serde_json::from_str(json).unwrap();
+        let deserialized_link_metadata: LinkMetadata =
+            serde_json::from_str(json).unwrap();
         assert_eq!(link_metadata, deserialized_link_metadata);
     }
 }

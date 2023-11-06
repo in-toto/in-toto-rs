@@ -4,7 +4,9 @@ use serde_derive::{Deserialize, Serialize};
 
 use crate::supply_chain_item_derive;
 
-use super::{rule::ArtifactRule, step::Command, supply_chain_item::SupplyChainItem};
+use super::{
+    rule::ArtifactRule, step::Command, supply_chain_item::SupplyChainItem,
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Inspection {
@@ -58,7 +60,9 @@ mod test {
     use serde_json::json;
 
     use super::Inspection;
-    use crate::models::rule::test::{generate_materials_rule, generate_products_rule};
+    use crate::models::rule::test::{
+        generate_materials_rule, generate_products_rule,
+    };
 
     #[test]
     fn serialize_inspection() {

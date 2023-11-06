@@ -15,7 +15,11 @@ pub struct EnvelopeFile {
 impl EnvelopeFile {
     #[allow(dead_code)]
     // TODO: remove #[allow(dead_code)] after metadata deploy
-    pub fn new(payload: String, payload_type: String, signatures: Vec<Signature>) -> Self {
+    pub fn new(
+        payload: String,
+        payload_type: String,
+        signatures: Vec<Signature>,
+    ) -> Self {
         Self {
             payload,
             payload_type,
@@ -75,8 +79,9 @@ mod test_envelope_file {
         packet: &'a str,
     }
 
-    pub static SERIALIZE_DATAS: Lazy<Vec<EnvelopeFileTuple>> = Lazy::new(|| {
-        vec![
+    pub static SERIALIZE_DATAS: Lazy<Vec<EnvelopeFileTuple>> = Lazy::new(
+        || {
+            vec![
             EnvelopeFileTuple {
                 name: "blank_test".to_string(),
                 payload: "114514".to_string(),
@@ -92,7 +97,8 @@ mod test_envelope_file {
                 packet: "{\"payload\":\"in-toto-rs\",\"payload_type\":\"https://in-toto.io/statement/v0.1\",\"signatures\":[]}",
             },
         ]
-    });
+        },
+    );
 
     #[test]
     fn serialize_link() {
@@ -113,7 +119,8 @@ mod test_envelope_file {
     #[test]
     fn deserialize_link() {
         for item in SERIALIZE_DATAS.iter() {
-            let envelope_file = EnvelopeFile::from_bytes(item.packet.as_bytes()).unwrap();
+            let envelope_file =
+                EnvelopeFile::from_bytes(item.packet.as_bytes()).unwrap();
             assert_eq!(
                 envelope_file.payload(),
                 &item.payload,

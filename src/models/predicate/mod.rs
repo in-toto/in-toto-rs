@@ -31,8 +31,12 @@ impl TryFrom<String> for PredicateVer {
     fn try_from(target: String) -> Result<Self> {
         match target.as_str() {
             "https://in-toto.io/Link/v0.2" => Ok(PredicateVer::LinkV0_2),
-            "https://slsa.dev/provenance/v0.1" => Ok(PredicateVer::SLSAProvenanceV0_1),
-            "https://slsa.dev/provenance/v0.2" => Ok(PredicateVer::SLSAProvenanceV0_2),
+            "https://slsa.dev/provenance/v0.1" => {
+                Ok(PredicateVer::SLSAProvenanceV0_1)
+            }
+            "https://slsa.dev/provenance/v0.2" => {
+                Ok(PredicateVer::SLSAProvenanceV0_2)
+            }
             _ => Err(Error::StringConvertFailed(target)),
         }
     }
@@ -41,9 +45,15 @@ impl TryFrom<String> for PredicateVer {
 impl From<PredicateVer> for String {
     fn from(value: PredicateVer) -> Self {
         match value {
-            PredicateVer::LinkV0_2 => "https://in-toto.io/Link/v0.2".to_string(),
-            PredicateVer::SLSAProvenanceV0_1 => "https://slsa.dev/provenance/v0.1".to_string(),
-            PredicateVer::SLSAProvenanceV0_2 => "https://slsa.dev/provenance/v0.2".to_string(),
+            PredicateVer::LinkV0_2 => {
+                "https://in-toto.io/Link/v0.2".to_string()
+            }
+            PredicateVer::SLSAProvenanceV0_1 => {
+                "https://slsa.dev/provenance/v0.1".to_string()
+            }
+            PredicateVer::SLSAProvenanceV0_2 => {
+                "https://slsa.dev/provenance/v0.2".to_string()
+            }
         }
     }
 }
@@ -59,9 +69,12 @@ impl Serialize for PredicateVer {
 }
 
 impl<'de> Deserialize<'de> for PredicateVer {
-    fn deserialize<D: Deserializer<'de>>(de: D) -> ::std::result::Result<Self, D::Error> {
+    fn deserialize<D: Deserializer<'de>>(
+        de: D,
+    ) -> ::std::result::Result<Self, D::Error> {
         let target: String = Deserialize::deserialize(de)?;
-        PredicateVer::try_from(target).map_err(|e| DeserializeError::custom(format!("{:?}", e)))
+        PredicateVer::try_from(target)
+            .map_err(|e| DeserializeError::custom(format!("{:?}", e)))
     }
 }
 
@@ -74,7 +87,9 @@ pub enum PredicateWrapper {
 }
 
 impl<'de> Deserialize<'de> for PredicateWrapper {
-    fn deserialize<D: Deserializer<'de>>(de: D) -> ::std::result::Result<Self, D::Error> {
+    fn deserialize<D: Deserializer<'de>>(
+        de: D,
+    ) -> ::std::result::Result<Self, D::Error> {
         let value = Value::deserialize(de)?;
         PredicateWrapper::try_from_value(value)
             .map_err(|e| DeserializeError::custom(format!("{:?}", e)))

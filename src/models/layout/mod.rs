@@ -74,8 +74,9 @@ impl Layout {
 }
 
 fn parse_datetime(ts: &str) -> Result<DateTime<Utc>> {
-    let dt = DateTime::parse_from_rfc3339(ts)
-        .map_err(|e| Error::Encoding(format!("Can't parse DateTime: {:?}", e)))?;
+    let dt = DateTime::parse_from_rfc3339(ts).map_err(|e| {
+        Error::Encoding(format!("Can't parse DateTime: {:?}", e))
+    })?;
     Ok(dt.with_timezone(&Utc))
 }
 
@@ -99,20 +100,26 @@ mod test {
         Layout, LayoutMetadataBuilder,
     };
 
-    const ALICE_PUB_KEY: &'static [u8] = include_bytes!("../../../tests/ed25519/ed25519-1.pub");
-    const BOB_PUB_KEY: &'static [u8] = include_bytes!("../../../tests/rsa/rsa-4096.spki.der");
+    const ALICE_PUB_KEY: &'static [u8] =
+        include_bytes!("../../../tests/ed25519/ed25519-1.pub");
+    const BOB_PUB_KEY: &'static [u8] =
+        include_bytes!("../../../tests/rsa/rsa-4096.spki.der");
 
     #[test]
     fn parse_datetime_test() {
         let time_str = "1970-01-01T00:00:00Z".to_string();
         let parsed_dt = parse_datetime(&time_str[..]).unwrap();
-        let dt = Utc.from_utc_datetime(&NaiveDateTime::from_timestamp_opt(0, 0).unwrap());
+        let dt = Utc.from_utc_datetime(
+            &NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
+        );
         assert_eq!(parsed_dt, dt);
     }
 
     #[test]
     fn format_datetime_test() {
-        let dt = Utc.from_utc_datetime(&NaiveDateTime::from_timestamp_opt(0, 0).unwrap());
+        let dt = Utc.from_utc_datetime(
+            &NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
+        );
         let generated_dt_str = format_datetime(&dt);
         let dt_str = "1970-01-01T00:00:00Z".to_string();
         assert_eq!(dt_str, generated_dt_str);
@@ -120,11 +127,15 @@ mod test {
 
     fn get_example_layout_metadata() -> Layout {
         let alice_key = PublicKey::from_ed25519(ALICE_PUB_KEY).unwrap();
-        let bob_key =
-            PublicKey::from_spki(BOB_PUB_KEY, crate::crypto::SignatureScheme::RsaSsaPssSha256)
-                .unwrap();
+        let bob_key = PublicKey::from_spki(
+            BOB_PUB_KEY,
+            crate::crypto::SignatureScheme::RsaSsaPssSha256,
+        )
+        .unwrap();
         let metadata = LayoutMetadataBuilder::new()
-            .expires(Utc.from_utc_datetime(&NaiveDateTime::from_timestamp_opt(0, 0).unwrap()))
+            .expires(Utc.from_utc_datetime(
+                &NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
+            ))
             .add_key(alice_key.clone())
             .add_key(bob_key.clone())
             .add_step(
@@ -144,7 +155,9 @@ mod test {
                         in_dst: None,
                         from: "write-code".into(),
                     })
-                    .add_expected_product(ArtifactRule::Create("foo.tar.gz".into()))
+                    .add_expected_product(ArtifactRule::Create(
+                        "foo.tar.gz".into(),
+                    ))
                     .add_key(bob_key.key_id().to_owned())
                     .expected_command("tar zcvf foo.tar.gz foo.py".into()),
             )

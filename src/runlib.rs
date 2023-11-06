@@ -27,14 +27,18 @@ pub fn record_artifact(
 ) -> Result<(VirtualTargetPath, TargetDescription)> {
     let file = File::open(path)?;
     let mut reader = BufReader::new(file);
-    let (_length, hashes) = crypto::calculate_hashes(&mut reader, hash_algorithms)?;
+    let (_length, hashes) =
+        crypto::calculate_hashes(&mut reader, hash_algorithms)?;
     let lstripped_path = apply_left_strip(path, lstrip_paths)?;
     Ok((VirtualTargetPath::new(lstripped_path)?, hashes))
 }
 
 /// Given an artifact path in `&str` format, left strip path for given artifact based an optional array of `lstrip_paths` provided,
 /// returning the stripped file path in String format wrapped in `Result`.
-fn apply_left_strip(path: &str, lstrip_paths: Option<&[&str]>) -> Result<String> {
+fn apply_left_strip(
+    path: &str,
+    lstrip_paths: Option<&[&str]>,
+) -> Result<String> {
     // If lstrip_paths is None, skip strip.
     // Else, check if path starts with any given lstrip paths and strip
     if lstrip_paths.is_none() {
@@ -94,7 +98,9 @@ pub fn record_artifacts(
             let mut map = vec![];
             for hash in hashes {
                 if !available_algorithms.contains_key(*hash) {
-                    return Err(Error::UnknownHashAlgorithm((*hash).to_string()));
+                    return Err(Error::UnknownHashAlgorithm(
+                        (*hash).to_string(),
+                    ));
                 }
                 let value = available_algorithms.get(*hash).unwrap();
                 map.push(value.clone());
@@ -106,7 +112,8 @@ pub fn record_artifacts(
     let hash_algorithms = &hash_algorithms[..];
 
     // Initialize artifacts
-    let mut artifacts: BTreeMap<VirtualTargetPath, TargetDescription> = BTreeMap::new();
+    let mut artifacts: BTreeMap<VirtualTargetPath, TargetDescription> =
+        BTreeMap::new();
     // For each path provided, walk the directory and add all files to artifacts
     for path in paths {
         // Normalize path
@@ -123,13 +130,17 @@ pub fn record_artifacts(
                 } else {
                     visited_sym_links.insert(String::from(&path));
                     // s_path: the actual path the symbolic link is pointing to
-                    let s_path = match std::fs::read_link(&path)?.as_path().to_str() {
-                        Some(str) => String::from(str),
-                        None => break,
-                    };
+                    let s_path =
+                        match std::fs::read_link(&path)?.as_path().to_str() {
+                            Some(str) => String::from(str),
+                            None => break,
+                        };
                     if symlink_metadata(s_path)?.file_type().is_file() {
-                        let (virtual_target_path, hashes) =
-                            record_artifact(&path, hash_algorithms, lstrip_paths)?;
+                        let (virtual_target_path, hashes) = record_artifact(
+                            &path,
+                            hash_algorithms,
+                            lstrip_paths,
+                        )?;
                         if artifacts.contains_key(&virtual_target_path) {
                             return Err(Error::LinkGatheringError(format!(
                                 "non unique stripped path {}",
@@ -173,7 +184,10 @@ pub fn record_artifacts(
 /// # use in_toto::runlib::{run_command};
 /// let byproducts = run_command(&["sh", "-c", "printf hello"], Some("tests")).unwrap();
 /// ```
-pub fn run_command(cmd_args: &[&str], run_dir: Option<&str>) -> Result<ByProducts> {
+pub fn run_command(
+    cmd_args: &[&str],
+    run_dir: Option<&str>,
+) -> Result<ByProducts> {
     // Format output into Byproduct
 
     if cmd_args.is_empty() {
@@ -240,10 +254,9 @@ pub fn run_command(cmd_args: &[&str], run_dir: Option<&str>) -> Result<ByProduct
             )))
         }
     };
-    let status = output
-        .status
-        .code()
-        .ok_or_else(|| Error::RunLibError("Process terminated by signal".to_string()))?;
+    let status = output.status.code().ok_or_else(|| {
+        Error::RunLibError("Process terminated by signal".to_string())
+    })?;
 
     let byproducts = ByProducts::new()
         .set_stdout(stdout)
@@ -294,13 +307,15 @@ pub fn in_toto_run(
     // env: Option<BTreeMap<String, String>>
 ) -> Result<Metablock> {
     // Record Materials: Given the material_paths, recursively traverse and record files in given path(s)
-    let materials = record_artifacts(material_paths, hash_algorithms, lstrip_paths)?;
+    let materials =
+        record_artifacts(material_paths, hash_algorithms, lstrip_paths)?;
 
     // Execute commands provided in cmd_args
     let byproducts = run_command(cmd_args, run_dir)?;
 
     // Record Products: Given the product_paths, recursively traverse and record files in given path(s)
-    let products = record_artifacts(product_paths, hash_algorithms, lstrip_paths)?;
+    let products =
+        record_artifacts(product_paths, hash_algorithms, lstrip_paths)?;
 
     // Create link based on values collected above
     let link_metadata_builder = LinkMetadataBuilder::new()
@@ -398,7 +413,8 @@ mod test {
 
     #[test]
     fn test_record_artifacts() {
-        let mut expected: BTreeMap<VirtualTargetPath, TargetDescription> = BTreeMap::new();
+        let mut expected: BTreeMap<VirtualTargetPath, TargetDescription> =
+            BTreeMap::new();
         expected.insert(
             VirtualTargetPath::new("tests/test_runlib/.hidden/foo".to_string()).unwrap(),
             create_target_description(
@@ -433,7 +449,8 @@ mod test {
 
     #[test]
     fn test_prefix_record_artifacts() {
-        let mut expected: BTreeMap<VirtualTargetPath, TargetDescription> = BTreeMap::new();
+        let mut expected: BTreeMap<VirtualTargetPath, TargetDescription> =
+            BTreeMap::new();
         expected.insert(
             VirtualTargetPath::new("world".to_string()).unwrap(),
             create_target_description(
@@ -511,7 +528,8 @@ mod test {
 
     #[test]
     fn test_run_command() {
-        let byproducts = run_command(&["sh", "-c", "printf hello"], Some("tests")).unwrap();
+        let byproducts =
+            run_command(&["sh", "-c", "printf hello"], Some("tests")).unwrap();
         let expected = ByProducts::new()
             .set_stderr("".to_string())
             .set_stdout("hello".to_string())

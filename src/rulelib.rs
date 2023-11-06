@@ -57,25 +57,29 @@ fn verify_match_rule(
                 Artifact::Products => &dst_link.products,
             };
 
-            let src_artifacts: BTreeMap<VirtualTargetPath, TargetDescription> = src_artifacts
-                .iter()
-                .map(|(path, value)| {
-                    (
-                        canonicalize_path(path).unwrap_or_else(|| path.clone()),
-                        value.clone(),
-                    )
-                })
-                .collect();
+            let src_artifacts: BTreeMap<VirtualTargetPath, TargetDescription> =
+                src_artifacts
+                    .iter()
+                    .map(|(path, value)| {
+                        (
+                            canonicalize_path(path)
+                                .unwrap_or_else(|| path.clone()),
+                            value.clone(),
+                        )
+                    })
+                    .collect();
 
-            let dst_artifacts: BTreeMap<VirtualTargetPath, TargetDescription> = dst_artifact
-                .iter()
-                .map(|(path, value)| {
-                    (
-                        canonicalize_path(path).unwrap_or_else(|| path.clone()),
-                        value.clone(),
-                    )
-                })
-                .collect();
+            let dst_artifacts: BTreeMap<VirtualTargetPath, TargetDescription> =
+                dst_artifact
+                    .iter()
+                    .map(|(path, value)| {
+                        (
+                            canonicalize_path(path)
+                                .unwrap_or_else(|| path.clone()),
+                            value.clone(),
+                        )
+                    })
+                    .collect();
 
             let dst_prefix = {
                 match in_dst {
@@ -108,8 +112,9 @@ fn verify_match_rule(
                     .value()
                     .strip_prefix(&src_prefix)
                     .unwrap_or_else(|| src_path.value());
-                let src_base_path = VirtualTargetPath::new(src_base_path.to_string())
-                    .expect("Unexpected VirtualTargetPath creation failed");
+                let src_base_path =
+                    VirtualTargetPath::new(src_base_path.to_string())
+                        .expect("Unexpected VirtualTargetPath creation failed");
 
                 if let Err(e) = src_base_path.matches(pattern.value()) {
                     warn!("match failed: {}", e.to_string());
@@ -147,7 +152,10 @@ pub(crate) fn apply_rules_on_link(
 
     // get the LinkMetadata for the given SupplyChainItem (`step` or `inspection`)
     let src_link = reduced_link_files.get(item_name).ok_or_else(|| {
-        Error::VerificationFailure(format!("can not find link metadata of step {}", item_name,))
+        Error::VerificationFailure(format!(
+            "can not find link metadata of step {}",
+            item_name,
+        ))
     })?;
 
     // materials of this link
@@ -166,8 +174,10 @@ pub(crate) fn apply_rules_on_link(
 
     // prepare sets of artifacts for `create`, `delete` and `modify` rules.
     // these are calculated from the link's materials and products
-    let created: BTreeSet<_> = product_paths.difference(&material_paths).cloned().collect();
-    let deleted: BTreeSet<_> = material_paths.difference(&product_paths).cloned().collect();
+    let created: BTreeSet<_> =
+        product_paths.difference(&material_paths).cloned().collect();
+    let deleted: BTreeSet<_> =
+        material_paths.difference(&product_paths).cloned().collect();
     let modified: BTreeSet<_> = material_paths
         .intersection(&product_paths)
         .cloned()
@@ -224,9 +234,15 @@ pub(crate) fn apply_rules_on_link(
                 .cloned()
                 .collect();
             let consumed = match rule {
-                ArtifactRule::Create(_) => filtered.intersection(&created).cloned().collect(),
-                ArtifactRule::Delete(_) => filtered.intersection(&deleted).cloned().collect(),
-                ArtifactRule::Modify(_) => filtered.intersection(&modified).cloned().collect(),
+                ArtifactRule::Create(_) => {
+                    filtered.intersection(&created).cloned().collect()
+                }
+                ArtifactRule::Delete(_) => {
+                    filtered.intersection(&deleted).cloned().collect()
+                }
+                ArtifactRule::Modify(_) => {
+                    filtered.intersection(&modified).cloned().collect()
+                }
                 ArtifactRule::Allow(_) => filtered,
                 ArtifactRule::Require(_) => {
                     if !queue.contains(rule.pattern()) {
@@ -246,15 +262,21 @@ pub(crate) fn apply_rules_on_link(
                     if !filtered.is_empty() {
                         return Err(Error::ArtifactRuleError(format!(
                             r#"artifact verification failed for {:?} in DISALLOW, because {:?} is disallowed by rule {:?} in {}"#,
-                            verification_data.src_type, filtered, rule, item_name,
+                            verification_data.src_type,
+                            filtered,
+                            rule,
+                            item_name,
                         )));
                     } else {
                         BTreeSet::new()
                     }
                 }
-                ArtifactRule::Match { .. } => {
-                    verify_match_rule(rule, artifacts, &queue, reduced_link_files)
-                }
+                ArtifactRule::Match { .. } => verify_match_rule(
+                    rule,
+                    artifacts,
+                    &queue,
+                    reduced_link_files,
+                ),
             };
 
             queue = queue.difference(&consumed).cloned().collect();
@@ -276,10 +298,12 @@ mod tests {
     #[case("test/../../1/2", "../1/2")]
     #[case("../././../1/2", "../../1/2")]
     fn canonicalize_path(#[case] given: &str, #[case] expected: &str) {
-        let expected =
-            Some(VirtualTargetPath::new(expected.to_string()).expect("Unexpected creation failed"));
-        let processed =
-            VirtualTargetPath::new(given.to_string()).expect("Unexpected creation failed");
+        let expected = Some(
+            VirtualTargetPath::new(expected.to_string())
+                .expect("Unexpected creation failed"),
+        );
+        let processed = VirtualTargetPath::new(given.to_string())
+            .expect("Unexpected creation failed");
         let processed = super::canonicalize_path(&processed);
         assert_eq!(expected, processed);
     }
@@ -318,16 +342,21 @@ mod tests {
         #[case] items_metadata: &str,
         #[case] expected: &str,
     ) {
-        let rule = serde_json::from_str(rule).expect("Parse artifact rule failed");
-        let src_artifacts =
-            serde_json::from_str(src_artifacts).expect("Parse Source Artifacts failed");
-        let src_artifact_queue =
-            serde_json::from_str(src_artifact_queue).expect("Parse Source Artifact Queue failed");
-        let items_metadata =
-            serde_json::from_str(items_metadata).expect("Parse Metadata HashMap failed");
+        let rule =
+            serde_json::from_str(rule).expect("Parse artifact rule failed");
+        let src_artifacts = serde_json::from_str(src_artifacts)
+            .expect("Parse Source Artifacts failed");
+        let src_artifact_queue = serde_json::from_str(src_artifact_queue)
+            .expect("Parse Source Artifact Queue failed");
+        let items_metadata = serde_json::from_str(items_metadata)
+            .expect("Parse Metadata HashMap failed");
         let expected = serde_json::from_str(expected).expect("Parse  failed");
-        let got =
-            super::verify_match_rule(&rule, &src_artifacts, &src_artifact_queue, &items_metadata);
+        let got = super::verify_match_rule(
+            &rule,
+            &src_artifacts,
+            &src_artifact_queue,
+            &items_metadata,
+        );
         assert_eq!(got, expected);
     }
 }

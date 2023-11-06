@@ -66,8 +66,9 @@ mod pae_test {
         pub(crate) payload_ver: String,
     }
 
-    pub static SERIALIZE_SRC_DATAS: Lazy<Vec<EnvelopeFileTuple>> = Lazy::new(|| {
-        vec![
+    pub static SERIALIZE_SRC_DATAS: Lazy<Vec<EnvelopeFileTuple>> = Lazy::new(
+        || {
+            vec![
             EnvelopeFileTuple {
                 name: "blank_test".to_string(),
                 inner_payload: "",
@@ -84,5 +85,6 @@ mod pae_test {
                 payload_ver: "https://in-toto.io/statement/v0.1".to_string(),
             },
         ]
-    });
+        },
+    );
 }

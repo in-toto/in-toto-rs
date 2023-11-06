@@ -23,7 +23,9 @@ impl Serialize for TimeStamp {
 }
 
 impl<'de> Deserialize<'de> for TimeStamp {
-    fn deserialize<D: Deserializer<'de>>(de: D) -> ::std::result::Result<Self, D::Error> {
+    fn deserialize<D: Deserializer<'de>>(
+        de: D,
+    ) -> ::std::result::Result<Self, D::Error> {
         let form: &str = Deserialize::deserialize(de)?;
         DateTime::parse_from_rfc3339(form)
             .map(TimeStamp)
@@ -136,8 +138,8 @@ pub mod test {
     use strum::IntoEnumIterator;
 
     use super::{
-        Builder, Completeness, Material, ProvenanceMetadata, Recipe, SLSAProvenanceV01, TimeStamp,
-        TypeURI,
+        Builder, Completeness, Material, ProvenanceMetadata, Recipe,
+        SLSAProvenanceV01, TimeStamp, TypeURI,
     };
     use crate::{
         interchange::{DataInterchange, Json},
@@ -175,54 +177,65 @@ pub mod test {
         data.to_string()
     });
 
-    pub static PREDICATE_PROVEN_V01: Lazy<SLSAProvenanceV01> = Lazy::new(|| SLSAProvenanceV01 {
-        builder: Builder {
-            id: TypeURI("https://github.com/Attestations/GitHubHostedActions@v1".to_string()),
-        },
-        recipe: Some(Recipe {
-            typ: TypeURI("https://github.com/Attestations/GitHubActionsWorkflow@v1".to_string()),
-            defined_in_material: Some(0),
-            entry_point: Some("build.yaml:maketgz".to_string()),
-            arguments: None,
-            environment: None,
-        }),
-        metadata: Some(ProvenanceMetadata {
-            build_invocation_id: Some("test_invocation_id".to_string()),
-            build_started_on: None,
-            build_finished_on: None,
-            completeness: Some(Completeness {
+    pub static PREDICATE_PROVEN_V01: Lazy<SLSAProvenanceV01> =
+        Lazy::new(|| SLSAProvenanceV01 {
+            builder: Builder {
+                id: TypeURI(
+                    "https://github.com/Attestations/GitHubHostedActions@v1"
+                        .to_string(),
+                ),
+            },
+            recipe: Some(Recipe {
+                typ: TypeURI(
+                    "https://github.com/Attestations/GitHubActionsWorkflow@v1"
+                        .to_string(),
+                ),
+                defined_in_material: Some(0),
+                entry_point: Some("build.yaml:maketgz".to_string()),
                 arguments: None,
-                environment: Some(true),
-                materials: None,
+                environment: None,
             }),
-            reproducible: None,
-        }),
-        materials: Some(vec![
-            Material {
-                uri: Some(TypeURI(
-                    "git+https://github.com/curl/curl-docker@master".to_string(),
-                )),
-                digest: Some(HashMap::from([(
-                    "sha1".to_string(),
-                    "d6525c840a62b398424a78d792f457477135d0cf".to_string(),
-                )])),
-            },
-            Material {
-                uri: Some(TypeURI(
-                    "github_hosted_vm:ubuntu-18.04:20210123.1".to_string(),
-                )),
-                digest: None,
-            },
-        ]),
-    });
+            metadata: Some(ProvenanceMetadata {
+                build_invocation_id: Some("test_invocation_id".to_string()),
+                build_started_on: None,
+                build_finished_on: None,
+                completeness: Some(Completeness {
+                    arguments: None,
+                    environment: Some(true),
+                    materials: None,
+                }),
+                reproducible: None,
+            }),
+            materials: Some(vec![
+                Material {
+                    uri: Some(TypeURI(
+                        "git+https://github.com/curl/curl-docker@master"
+                            .to_string(),
+                    )),
+                    digest: Some(HashMap::from([(
+                        "sha1".to_string(),
+                        "d6525c840a62b398424a78d792f457477135d0cf".to_string(),
+                    )])),
+                },
+                Material {
+                    uri: Some(TypeURI(
+                        "github_hosted_vm:ubuntu-18.04:20210123.1".to_string(),
+                    )),
+                    digest: None,
+                },
+            ]),
+        });
 
     #[test]
     fn serialize_deserialize_datetime() {
-        let datetime = TimeStamp(DateTime::parse_from_rfc3339("2020-08-19T08:38:00Z").unwrap());
+        let datetime = TimeStamp(
+            DateTime::parse_from_rfc3339("2020-08-19T08:38:00Z").unwrap(),
+        );
         let datetime_raw = "\"2020-08-19T08:38:00Z\"";
 
         // serialize
-        let buf = Json::canonicalize(&Json::serialize(&datetime).unwrap()).unwrap();
+        let buf =
+            Json::canonicalize(&Json::serialize(&datetime).unwrap()).unwrap();
         let datetime_serialized = str::from_utf8(&buf).unwrap();
         assert_eq!(datetime_raw, datetime_serialized);
 
@@ -234,7 +247,8 @@ pub mod test {
 
     #[test]
     fn into_trait_equal() {
-        let predicate = PredicateWrapper::SLSAProvenanceV0_1(PREDICATE_PROVEN_V01.clone());
+        let predicate =
+            PredicateWrapper::SLSAProvenanceV0_1(PREDICATE_PROVEN_V01.clone());
         let real = Box::new(PREDICATE_PROVEN_V01.clone()).into_enum();
 
         assert_eq!(predicate, real);
@@ -256,9 +270,13 @@ pub mod test {
 
     #[test]
     fn deserialize_predicate() {
-        let value: Value = serde_json::from_str(&STR_PREDICATE_PROVEN_V01).unwrap();
-        let predicate =
-            PredicateWrapper::from_value(value, PredicateVer::SLSAProvenanceV0_1).unwrap();
+        let value: Value =
+            serde_json::from_str(&STR_PREDICATE_PROVEN_V01).unwrap();
+        let predicate = PredicateWrapper::from_value(
+            value,
+            PredicateVer::SLSAProvenanceV0_1,
+        )
+        .unwrap();
         let real = Box::new(PREDICATE_PROVEN_V01.clone()).into_enum();
 
         assert_eq!(predicate, real);
@@ -266,7 +284,8 @@ pub mod test {
 
     #[test]
     fn deserialize_auto() {
-        let value: Value = serde_json::from_str(&STR_PREDICATE_PROVEN_V01).unwrap();
+        let value: Value =
+            serde_json::from_str(&STR_PREDICATE_PROVEN_V01).unwrap();
         let predicate = PredicateWrapper::try_from_value(value).unwrap();
         let real = Box::new(PREDICATE_PROVEN_V01.clone()).into_enum();
 
@@ -275,12 +294,14 @@ pub mod test {
 
     #[test]
     fn deserialize_dismatch() {
-        let value: Value = serde_json::from_str(&STR_PREDICATE_PROVEN_V01).unwrap();
+        let value: Value =
+            serde_json::from_str(&STR_PREDICATE_PROVEN_V01).unwrap();
         for version in PredicateVer::iter() {
             if version == PredicateVer::SLSAProvenanceV0_1 {
                 continue;
             }
-            let predicate = PredicateWrapper::from_value(value.clone(), version);
+            let predicate =
+                PredicateWrapper::from_value(value.clone(), version);
 
             assert!(predicate.is_err());
         }

@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use serde_derive::{Deserialize, Serialize};
 
-use super::slsa_provenance_v01::{Builder, Material, ProvenanceMetadata, TypeURI};
+use super::slsa_provenance_v01::{
+    Builder, Material, ProvenanceMetadata, TypeURI,
+};
 use super::{PredicateLayout, PredicateVer, PredicateWrapper};
 use crate::interchange::{DataInterchange, Json};
 use crate::Result;
@@ -121,12 +123,13 @@ pub mod test {
         data.to_string()
     });
 
-    pub static PREDICATE_PROVEN_V02: Lazy<SLSAProvenanceV02> = Lazy::new(|| {
-        let digest = HashMap::from([(
-            "sha1".to_string(),
-            "d6525c840a62b398424a78d792f457477135d0cf".to_string(),
-        )]);
-        SLSAProvenanceV02 {
+    pub static PREDICATE_PROVEN_V02: Lazy<SLSAProvenanceV02> = Lazy::new(
+        || {
+            let digest = HashMap::from([(
+                "sha1".to_string(),
+                "d6525c840a62b398424a78d792f457477135d0cf".to_string(),
+            )]);
+            SLSAProvenanceV02 {
             builder: Builder {
                 id: TypeURI("https://github.com/Attestations/GitHubHostedActions@v1".to_string()),
             },
@@ -174,11 +177,13 @@ pub mod test {
                 },
             ]),
         }
-    });
+        },
+    );
 
     #[test]
     fn into_trait_equal() {
-        let predicate = PredicateWrapper::SLSAProvenanceV0_2(PREDICATE_PROVEN_V02.clone());
+        let predicate =
+            PredicateWrapper::SLSAProvenanceV0_2(PREDICATE_PROVEN_V02.clone());
         let real = Box::new(PREDICATE_PROVEN_V02.clone()).into_enum();
 
         assert_eq!(predicate, real);
@@ -200,9 +205,13 @@ pub mod test {
 
     #[test]
     fn deserialize_predicate() {
-        let value: Value = serde_json::from_str(&STR_PREDICATE_PROVEN_V02).unwrap();
-        let predicate =
-            PredicateWrapper::from_value(value, PredicateVer::SLSAProvenanceV0_2).unwrap();
+        let value: Value =
+            serde_json::from_str(&STR_PREDICATE_PROVEN_V02).unwrap();
+        let predicate = PredicateWrapper::from_value(
+            value,
+            PredicateVer::SLSAProvenanceV0_2,
+        )
+        .unwrap();
         let real = Box::new(PREDICATE_PROVEN_V02.clone()).into_enum();
 
         assert_eq!(predicate, real);
@@ -210,7 +219,8 @@ pub mod test {
 
     #[test]
     fn deserialize_auto() {
-        let value: Value = serde_json::from_str(&STR_PREDICATE_PROVEN_V02).unwrap();
+        let value: Value =
+            serde_json::from_str(&STR_PREDICATE_PROVEN_V02).unwrap();
         let predicate = PredicateWrapper::try_from_value(value).unwrap();
         let real = Box::new(PREDICATE_PROVEN_V02.clone()).into_enum();
 
@@ -219,12 +229,14 @@ pub mod test {
 
     #[test]
     fn deserialize_dismatch() {
-        let value: Value = serde_json::from_str(&STR_PREDICATE_PROVEN_V02).unwrap();
+        let value: Value =
+            serde_json::from_str(&STR_PREDICATE_PROVEN_V02).unwrap();
         for version in PredicateVer::iter() {
             if version == PredicateVer::SLSAProvenanceV0_2 {
                 continue;
             }
-            let predicate = PredicateWrapper::from_value(value.clone(), version);
+            let predicate =
+                PredicateWrapper::from_value(value.clone(), version);
 
             assert!(predicate.is_err());
         }

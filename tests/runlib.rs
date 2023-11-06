@@ -12,7 +12,8 @@ use tempfile::tempdir;
 extern crate lazy_static;
 
 lazy_static! {
-    pub static ref TEST_KEY: Vec<u8> = PrivateKey::new(KeyType::Ed25519).unwrap();
+    pub static ref TEST_KEY: Vec<u8> =
+        PrivateKey::new(KeyType::Ed25519).unwrap();
     pub static ref TEST_PRIVATE_KEY: PrivateKey = PrivateKey::from_pkcs8(
         &PrivateKey::new(KeyType::Ed25519).unwrap(),
         SignatureScheme::Ed25519
@@ -58,8 +59,12 @@ fn in_toto_run_record_file() {
     let expected = LinkMetadataBuilder::new()
         .name(String::from("test"))
         .byproducts(byproducts)
-        .add_material(VirtualTargetPath::new(format!("{}/foo.txt", dir_path)).unwrap())
-        .add_product(VirtualTargetPath::new(format!("{}/foo.txt", dir_path)).unwrap())
+        .add_material(
+            VirtualTargetPath::new(format!("{}/foo.txt", dir_path)).unwrap(),
+        )
+        .add_product(
+            VirtualTargetPath::new(format!("{}/foo.txt", dir_path)).unwrap(),
+        )
         .signed::<Json>(&TEST_PRIVATE_KEY)
         .unwrap();
 
@@ -118,9 +123,15 @@ fn in_toto_run_record_new_file() {
     // Expected value
     let expected = LinkMetadataBuilder::new()
         .name(String::from("test"))
-        .add_material(VirtualTargetPath::new(format!("{}/foo.txt", dir_path)).unwrap())
-        .add_product(VirtualTargetPath::new(format!("{}/foo.txt", dir_path)).unwrap())
-        .add_product(VirtualTargetPath::new(format!("{}/bar.txt", dir_path)).unwrap())
+        .add_material(
+            VirtualTargetPath::new(format!("{}/foo.txt", dir_path)).unwrap(),
+        )
+        .add_product(
+            VirtualTargetPath::new(format!("{}/foo.txt", dir_path)).unwrap(),
+        )
+        .add_product(
+            VirtualTargetPath::new(format!("{}/bar.txt", dir_path)).unwrap(),
+        )
         .byproducts(byproducts)
         .signed::<Json>(&TEST_PRIVATE_KEY)
         .unwrap();
@@ -148,8 +159,12 @@ fn in_toto_run_new_line_in_stdout() {
 
     let link = LinkMetadataBuilder::new()
         .name(String::from("test"))
-        .add_material(VirtualTargetPath::new(format!("{}/foo.txt", dir_path)).unwrap())
-        .add_product(VirtualTargetPath::new(format!("{}/foo.txt", dir_path)).unwrap())
+        .add_material(
+            VirtualTargetPath::new(format!("{}/foo.txt", dir_path)).unwrap(),
+        )
+        .add_product(
+            VirtualTargetPath::new(format!("{}/foo.txt", dir_path)).unwrap(),
+        )
         .byproducts(byproducts)
         .signed::<Json>(&TEST_PRIVATE_KEY)
         .unwrap();
@@ -190,10 +205,20 @@ fn in_toto_run_record_symlink_file() {
     // Expected value
     let expected = LinkMetadataBuilder::new()
         .name(String::from("test"))
-        .add_material(VirtualTargetPath::new(format!("{}/foo.txt", dir_path)).unwrap())
-        .add_material(VirtualTargetPath::new(format!("{}/symfile.txt", dir_path)).unwrap())
-        .add_product(VirtualTargetPath::new(format!("{}/foo.txt", dir_path)).unwrap())
-        .add_product(VirtualTargetPath::new(format!("{}/symfile.txt", dir_path)).unwrap())
+        .add_material(
+            VirtualTargetPath::new(format!("{}/foo.txt", dir_path)).unwrap(),
+        )
+        .add_material(
+            VirtualTargetPath::new(format!("{}/symfile.txt", dir_path))
+                .unwrap(),
+        )
+        .add_product(
+            VirtualTargetPath::new(format!("{}/foo.txt", dir_path)).unwrap(),
+        )
+        .add_product(
+            VirtualTargetPath::new(format!("{}/symfile.txt", dir_path))
+                .unwrap(),
+        )
         .byproducts(byproducts)
         .signed::<Json>(&TEST_PRIVATE_KEY)
         .unwrap();

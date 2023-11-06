@@ -31,7 +31,10 @@ impl VirtualTargetPath {
     /// Judge if this [`VirtualTargetPath`] matches the given pattern
     pub(crate) fn matches(&self, pattern: &str) -> Result<bool> {
         let matcher = glob::Pattern::new(pattern).map_err(|e| {
-            Error::IllegalArgument(format!("Pattern matcher creation failed: {}", e))
+            Error::IllegalArgument(format!(
+                "Pattern matcher creation failed: {}",
+                e
+            ))
         })?;
         Ok(matcher.matches(self.value()))
     }
@@ -56,9 +59,12 @@ impl AsRef<str> for VirtualTargetPath {
 }
 
 impl<'de> Deserialize<'de> for VirtualTargetPath {
-    fn deserialize<D: Deserializer<'de>>(de: D) -> ::std::result::Result<Self, D::Error> {
+    fn deserialize<D: Deserializer<'de>>(
+        de: D,
+    ) -> ::std::result::Result<Self, D::Error> {
         let s: String = Deserialize::deserialize(de)?;
-        VirtualTargetPath::new(s).map_err(|e| DeserializeError::custom(format!("{:?}", e)))
+        VirtualTargetPath::new(s)
+            .map_err(|e| DeserializeError::custom(format!("{:?}", e)))
     }
 }
 
@@ -69,7 +75,8 @@ mod tests {
     #[test]
     fn serialize_virtual_target_path() {
         let path = VirtualTargetPath::from("foo.py");
-        let serialized = serde_json::to_string(&path).expect("serialize failed");
+        let serialized =
+            serde_json::to_string(&path).expect("serialize failed");
         let expected = "\"foo.py\"";
         assert!(serialized == expected);
     }

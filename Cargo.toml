@@ -1,6 +1,6 @@
 [package]
 name = "in-toto"
-edition = "2018"
+edition = "2021"
 version = "0.3.1"
 authors = ["Santiago Torres-Arias <santiagotorres@purdue.edu>",
            "Qijia 'Joy' Liu <joyliu.q@gmail.com>"]

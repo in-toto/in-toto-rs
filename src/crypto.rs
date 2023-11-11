@@ -569,10 +569,10 @@ impl PrivateKey {
             Error::Encoding("Could not parse key as PKCS#8v2".into())
         })?;
 
-        if key.public_modulus_len() < 256 {
+        if key.public().modulus_len() < 256 {
             return Err(Error::IllegalArgument(format!(
                 "RSA public modulus must be 2048 or greater. Found {}",
-                key.public_modulus_len() * 8
+                key.public().modulus_len() * 8
             )));
         }
 
@@ -593,9 +593,12 @@ impl PrivateKey {
         der_key: &[u8],
         scheme: SignatureScheme,
     ) -> Result<Self> {
-        let key_pair =
-            EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_ASN1_SIGNING, der_key)
-                .unwrap();
+        let key_pair = EcdsaKeyPair::from_pkcs8(
+            &ECDSA_P256_SHA256_ASN1_SIGNING,
+            der_key,
+            &SystemRandom::new(),
+        )
+        .unwrap();
         let public = PublicKey::new(
             KeyType::Ecdsa,
             scheme,
@@ -611,7 +614,7 @@ impl PrivateKey {
         let value = match (&self.private, &self.public.scheme) {
             (PrivateKeyType::Rsa(rsa), &SignatureScheme::RsaSsaPssSha256) => {
                 let rng = SystemRandom::new();
-                let mut buf = vec![0; rsa.public_modulus_len()];
+                let mut buf = vec![0; rsa.public().modulus_len()];
                 rsa.sign(&RSA_PSS_SHA256, &rng, msg, &mut buf).map_err(
                     |_| Error::Opaque("Failed to sign message.".into()),
                 )?;
@@ -619,7 +622,7 @@ impl PrivateKey {
             }
             (PrivateKeyType::Rsa(rsa), &SignatureScheme::RsaSsaPssSha512) => {
                 let rng = SystemRandom::new();
-                let mut buf = vec![0; rsa.public_modulus_len()];
+                let mut buf = vec![0; rsa.public().modulus_len()];
                 rsa.sign(&RSA_PSS_SHA512, &rng, msg, &mut buf).map_err(
                     |_| Error::Opaque("Failed to sign message.".into()),
                 )?;

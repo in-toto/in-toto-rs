@@ -28,7 +28,7 @@ http = "0.2"
 hyper = { version = "0.14", default-features = false }
 itoa = "1"
 log = "0.4"
-ring = { version = "0.16" }
+ring = { version = "0.17" }
 parking_lot = "0.12"
 percent-encoding = "2.1"
 serde = "1"

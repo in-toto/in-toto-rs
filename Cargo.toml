@@ -25,7 +25,7 @@ futures-executor = "0.3.1"
 futures-io = "0.3.1"
 futures-util = { version = "0.3.1", features = [ "compat", "io" ] }
 http = "0.2"
-hyper = { version = "0.14", default-features = false }
+hyper = { version = "1.0", default-features = false }
 itoa = "1"
 log = "0.4"
 ring = { version = "0.17" }

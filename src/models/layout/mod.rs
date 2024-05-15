@@ -87,7 +87,7 @@ fn format_datetime(ts: &DateTime<Utc>) -> String {
 #[cfg(test)]
 mod test {
     use assert_json_diff::assert_json_eq;
-    use chrono::{NaiveDateTime, TimeZone, Utc};
+    use chrono::DateTime;
     use serde_json::json;
 
     use crate::{crypto::PublicKey, models::layout::format_datetime};
@@ -109,17 +109,13 @@ mod test {
     fn parse_datetime_test() {
         let time_str = "1970-01-01T00:00:00Z".to_string();
         let parsed_dt = parse_datetime(&time_str[..]).unwrap();
-        let dt = Utc.from_utc_datetime(
-            &NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
-        );
+        let dt = DateTime::from_timestamp(0, 0).unwrap();
         assert_eq!(parsed_dt, dt);
     }
 
     #[test]
     fn format_datetime_test() {
-        let dt = Utc.from_utc_datetime(
-            &NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
-        );
+        let dt = DateTime::from_timestamp(0, 0).unwrap();
         let generated_dt_str = format_datetime(&dt);
         let dt_str = "1970-01-01T00:00:00Z".to_string();
         assert_eq!(dt_str, generated_dt_str);
@@ -133,9 +129,7 @@ mod test {
         )
         .unwrap();
         let metadata = LayoutMetadataBuilder::new()
-            .expires(Utc.from_utc_datetime(
-                &NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
-            ))
+            .expires(DateTime::from_timestamp(0, 0).unwrap())
             .add_key(alice_key.clone())
             .add_key(bob_key.clone())
             .add_step(

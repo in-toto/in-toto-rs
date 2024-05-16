@@ -109,13 +109,13 @@ mod test {
     fn parse_datetime_test() {
         let time_str = "1970-01-01T00:00:00Z".to_string();
         let parsed_dt = parse_datetime(&time_str[..]).unwrap();
-        let dt = DateTime::from_timestamp(0, 0).unwrap();
+        let dt = DateTime::UNIX_EPOCH;
         assert_eq!(parsed_dt, dt);
     }
 
     #[test]
     fn format_datetime_test() {
-        let dt = DateTime::from_timestamp(0, 0).unwrap();
+        let dt = DateTime::UNIX_EPOCH;
         let generated_dt_str = format_datetime(&dt);
         let dt_str = "1970-01-01T00:00:00Z".to_string();
         assert_eq!(dt_str, generated_dt_str);
@@ -129,7 +129,7 @@ mod test {
         )
         .unwrap();
         let metadata = LayoutMetadataBuilder::new()
-            .expires(DateTime::from_timestamp(0, 0).unwrap())
+            .expires(DateTime::UNIX_EPOCH)
             .add_key(alice_key.clone())
             .add_key(bob_key.clone())
             .add_step(

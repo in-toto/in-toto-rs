@@ -363,7 +363,7 @@ mod tests {
             PrivateKey::from_ed25519(OWNER_PRIVATE_KEY).unwrap();
         let layout_metadata = Box::new(
             LayoutMetadataBuilder::new()
-                .expires(DateTime::from_timestamp(0, 0).unwrap())
+                .expires(DateTime::UNIX_EPOCH)
                 .add_key(alice_public_key.clone())
                 .add_key(bob_public_key.clone())
                 .add_step(

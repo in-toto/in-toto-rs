@@ -40,9 +40,9 @@ impl VirtualTargetPath {
     }
 }
 
-impl ToString for VirtualTargetPath {
-    fn to_string(&self) -> String {
-        self.0.clone()
+impl std::fmt::Display for VirtualTargetPath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0.clone())
     }
 }
 

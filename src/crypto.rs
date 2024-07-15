@@ -350,14 +350,18 @@ impl FromStr for KeyType {
     }
 }
 
-impl ToString for KeyType {
-    fn to_string(&self) -> String {
-        match *self {
-            KeyType::Ed25519 => "ed25519".to_string(),
-            KeyType::Rsa => "rsa".to_string(),
-            KeyType::Ecdsa => "ecdsa".to_string(),
-            KeyType::Unknown(ref s) => s.to_string(),
-        }
+impl fmt::Display for KeyType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match *self {
+                KeyType::Ed25519 => "ed25519",
+                KeyType::Rsa => "rsa",
+                KeyType::Ecdsa => "ecdsa",
+                KeyType::Unknown(ref s) => s,
+            }
+        )
     }
 }
 

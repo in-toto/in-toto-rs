@@ -1,5 +1,6 @@
 //! Supporting Functions and Types (VirtualTargetPath)
 use std::collections::HashMap;
+use std::fmt;
 use std::fmt::Debug;
 use std::str;
 
@@ -40,9 +41,9 @@ impl VirtualTargetPath {
     }
 }
 
-impl ToString for VirtualTargetPath {
-    fn to_string(&self) -> String {
-        self.0.clone()
+impl fmt::Display for VirtualTargetPath {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 

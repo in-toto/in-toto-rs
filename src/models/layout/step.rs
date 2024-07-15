@@ -2,8 +2,8 @@
 
 use std::str::FromStr;
 
-use serde::ser::{Serialize, Serializer};
-use serde_derive::{Deserialize, Serialize};
+use serde::ser::Serializer;
+use serde::{Deserialize, Serialize};
 
 use crate::crypto::KeyId;
 use crate::{supply_chain_item_derive, Error, Result};

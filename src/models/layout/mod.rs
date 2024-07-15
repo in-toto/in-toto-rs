@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use chrono::prelude::*;
 use chrono::{DateTime, Utc};
 use log::warn;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 use crate::crypto::{KeyId, PublicKey};
 use crate::{Error, Result};

@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, fmt::Debug};
 
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 use super::{FromMerge, StateLayout, StatementVer, StatementWrapper};
 use crate::models::{LinkMetadata, TargetDescription, VirtualTargetPath};

@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use chrono::{DateTime, FixedOffset, SecondsFormat};
-use serde::de::{Deserialize, Deserializer, Error as DeserializeError};
-use serde::ser::{Serialize, Serializer};
-use serde_derive::{Deserialize, Serialize};
+use serde::de::{Deserializer, Error as DeserializeError};
+use serde::ser::Serializer;
+use serde::{Deserialize, Serialize};
 
 use super::{PredicateLayout, PredicateVer, PredicateWrapper};
 use crate::interchange::{DataInterchange, Json};

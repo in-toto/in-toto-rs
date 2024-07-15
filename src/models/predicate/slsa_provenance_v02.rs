@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 use super::slsa_provenance_v01::{
     Builder, Material, ProvenanceMetadata, TypeURI,

@@ -7,9 +7,9 @@ pub use state_v01::StateV01;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
-use serde::de::{Deserialize, Deserializer, Error as DeserializeError};
-use serde::ser::{Serialize, Serializer};
-use serde_derive::Serialize;
+use serde::de::{Deserializer, Error as DeserializeError};
+use serde::ser::Serializer;
+use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 

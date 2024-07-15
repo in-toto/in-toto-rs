@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use std::str;
 
 use serde::de::{Deserialize, Deserializer, Error as DeserializeError};
-use serde_derive::Serialize;
+use serde::Serialize;
 
 use crate::crypto::{HashAlgorithm, HashValue};
 use crate::{Error, Result};

@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use std::str;
 
 use crate::Result;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 pub mod byproducts;
 mod metadata;

@@ -1,6 +1,6 @@
 //! in-toto layout's Inspection
 
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 use crate::supply_chain_item_derive;
 

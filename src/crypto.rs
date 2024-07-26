@@ -9,9 +9,9 @@ use ring::signature::{
     ECDSA_P256_SHA256_ASN1_SIGNING, ED25519, RSA_PSS_2048_8192_SHA256,
     RSA_PSS_2048_8192_SHA512, RSA_PSS_SHA256, RSA_PSS_SHA512,
 };
-use serde::de::{Deserialize, Deserializer, Error as DeserializeError};
-use serde::ser::{Error as SerializeError, Serialize, Serializer};
-use serde_derive::{Deserialize, Serialize};
+use serde::de::{Deserializer, Error as DeserializeError};
+use serde::ser::{Error as SerializeError, Serializer};
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::{self, Debug, Display};
@@ -350,14 +350,18 @@ impl FromStr for KeyType {
     }
 }
 
-impl ToString for KeyType {
-    fn to_string(&self) -> String {
-        match *self {
-            KeyType::Ed25519 => "ed25519".to_string(),
-            KeyType::Rsa => "rsa".to_string(),
-            KeyType::Ecdsa => "ecdsa".to_string(),
-            KeyType::Unknown(ref s) => s.to_string(),
-        }
+impl fmt::Display for KeyType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match *self {
+                KeyType::Ed25519 => "ed25519",
+                KeyType::Rsa => "rsa",
+                KeyType::Ecdsa => "ecdsa",
+                KeyType::Unknown(ref s) => s,
+            }
+        )
     }
 }
 

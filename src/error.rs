@@ -96,18 +96,6 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<http::Error> for Error {
-    fn from(err: http::Error) -> Error {
-        Error::Opaque(format!("Http: {:?}", err))
-    }
-}
-
-impl From<hyper::Error> for Error {
-    fn from(err: hyper::Error) -> Error {
-        Error::Opaque(format!("Hyper: {:?}", err))
-    }
-}
-
 impl From<DecodeError> for Error {
     fn from(err: DecodeError) -> Error {
         Error::Encoding(format!("{:?}", err))
@@ -117,12 +105,6 @@ impl From<DecodeError> for Error {
 impl From<derp::Error> for Error {
     fn from(err: derp::Error) -> Error {
         Error::Encoding(format!("DER: {:?}", err))
-    }
-}
-
-impl From<tempfile::PersistError> for Error {
-    fn from(err: tempfile::PersistError) -> Error {
-        Error::Opaque(format!("Error persisting temp file: {:?}", err))
     }
 }
 

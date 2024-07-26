@@ -2,7 +2,7 @@
 //use chrono::offset::Utc;
 //use chrono::prelude::*;
 
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 use crate::crypto;
 

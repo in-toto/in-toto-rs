@@ -143,8 +143,7 @@ pub fn record_artifacts(
                         )?;
                         if artifacts.contains_key(&virtual_target_path) {
                             return Err(Error::LinkGatheringError(format!(
-                                "non unique stripped path {}",
-                                virtual_target_path.to_string()
+                                "non unique stripped path {virtual_target_path}"
                             )));
                         }
                         artifacts.insert(virtual_target_path, hashes);
@@ -157,8 +156,7 @@ pub fn record_artifacts(
                     record_artifact(&path, hash_algorithms, lstrip_paths)?;
                 if artifacts.contains_key(&virtual_target_path) {
                     return Err(Error::LinkGatheringError(format!(
-                        "non unique stripped path {}",
-                        virtual_target_path.to_string()
+                        "non unique stripped path {virtual_target_path}"
                     )));
                 }
                 artifacts.insert(virtual_target_path, hashes);

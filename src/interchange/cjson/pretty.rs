@@ -37,7 +37,7 @@ impl DataInterchange for JsonPretty {
     }
 
     /// ```
-    /// # use serde_derive::Deserialize;
+    /// # use serde::Deserialize;
     /// # use serde_json::json;
     /// # use std::collections::HashMap;
     /// # use in_toto::interchange::{DataInterchange, JsonPretty};
@@ -63,7 +63,7 @@ impl DataInterchange for JsonPretty {
     }
 
     /// ```
-    /// # use serde_derive::Serialize;
+    /// # use serde::Serialize;
     /// # use serde_json::json;
     /// # use std::collections::HashMap;
     /// # use in_toto::interchange::{DataInterchange, JsonPretty};

@@ -10,9 +10,9 @@ use serde_json::Value;
 pub use slsa_provenance_v01::SLSAProvenanceV01;
 pub use slsa_provenance_v02::SLSAProvenanceV02;
 
-use serde::de::{Deserialize, Deserializer, Error as DeserializeError};
-use serde::ser::{Serialize, Serializer};
-use serde_derive::Serialize;
+use serde::de::{Deserializer, Error as DeserializeError};
+use serde::ser::Serializer;
+use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 

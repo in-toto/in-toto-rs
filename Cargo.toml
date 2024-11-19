@@ -27,7 +27,7 @@ ring = { version = "0.17" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 untrusted = "0.7"
-thiserror = "1.0"
+thiserror = "2.0"
 walkdir = "2"
 path-clean = "1.0.1"
 strum = "0.26"

@@ -478,7 +478,6 @@ fn get_summary_link(
 ///
 /// 1. Verify layout signature(s) using passed key(s)
 /// 2. Verify layout expiration date
-/// // 3. Substitute parameters in layout
 /// 3. Load link metadata files for steps of layout
 /// 4. Verify signatures and signature thresholds for steps of layout
 /// 5. Verify sublayouts recursively
@@ -496,7 +495,7 @@ fn get_summary_link(
 /// * `layout_keys`: A `key_id` to `Pubkey` map defined in layout.
 /// * `link_dir`: The directory where link files are stored.
 /// * `step_name`(Optional): A name assigned to the returned link. This is mostly
-/// useful during recursive sublayout verification.
+///   useful during recursive sublayout verification.
 ///
 /// # Side-Effects
 /// * I/O: Read link files from the disk.
@@ -504,7 +503,7 @@ fn get_summary_link(
 ///
 /// # Return Value
 /// * A LinkMetadata which summarizes the materials
-/// and products of the whole software supply chain.
+///   and products of the whole software supply chain.
 pub fn in_toto_verify(
     layout: &Metablock,
     layout_keys: HashMap<KeyId, PublicKey>,

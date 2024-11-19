@@ -2,9 +2,11 @@
 //! # Metadata & MetadataWrapper
 //! Metadata is the top level abstract for both layout metadata and link
 //! metadata. Metadata it is devided into two types
+//!
 //! * enum `MetadataWrapper` is used to do serialize, deserialize and
-//! other object unsafe operations.
+//!   other object unsafe operations.
 //! * trait `Metadata` is used to work for trait object.
+//!
 //! The reason please refer to issue <https://github.com/in-toto/in-toto-rs/issues/33>
 //!
 //! # Metablock
@@ -112,7 +114,7 @@ pub trait Metadata {
 /// All signed files (link and layout files) have the format.
 /// * `signatures`: A pubkey => signature map. signatures are for the metadata.
 /// * `metadata`: <ROLE> dictionary. Also known as signed metadata. e.g., link
-/// or layout.
+///   or layout.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Metablock {
     pub signatures: Vec<Signature>,

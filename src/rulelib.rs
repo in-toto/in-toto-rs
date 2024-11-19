@@ -24,6 +24,7 @@ fn canonicalize_path(path: &VirtualTargetPath) -> Option<VirtualTargetPath> {
 /// * `src_artifacts`: artifacts of a given link (either Products or Materials)
 /// * `src_artifact_queue`: artifact paths (canonicalized) of the same link (either Products or Materials)
 /// * `items_metadata`: a <name> to <link> hashmap
+///
 /// This function will match the artifact paths of `src_artifact_queue`
 /// and the `dst_artifacts`. Here `dst_artifacts` can be calculated
 /// by indexing the step name from `items_metadata`. Return value is

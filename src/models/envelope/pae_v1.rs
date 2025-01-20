@@ -47,7 +47,7 @@ impl DSSEParser for PaeV1 {
             "{prefix}{split}{payload_ver_len}{split}{payload_ver}{split}{payload_len}{split}",
             prefix = PREFIX,
             split = SPLIT,
-            payload_ver_len = payload_ver.as_bytes().len(),
+            payload_ver_len = payload_ver.len(),
             payload_ver = payload_ver.as_str(),
             payload_len = payload.len(),
         );

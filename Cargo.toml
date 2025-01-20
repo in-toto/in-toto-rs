@@ -20,7 +20,7 @@ path = "./src/lib.rs"
 [dependencies]
 chrono = { version = "0.4", features = [ "clock", "serde" ], default-features = false }
 data-encoding = "2"
-derp = "0.0.14"
+derp = "0.0.15"
 itoa = "1"
 log = "0.4"
 ring = { version = "0.17" }

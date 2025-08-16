@@ -1067,9 +1067,9 @@ impl Debug for PublicKeyValue {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Signature {
     #[serde(rename = "keyid")]
-    key_id: KeyId,
+    pub key_id: KeyId,
     #[serde(rename = "sig")]
-    value: SignatureValue,
+    pub value: SignatureValue,
 }
 
 impl Signature {

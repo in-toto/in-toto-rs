@@ -1129,6 +1129,13 @@ impl HashValue {
         HashValue(bytes)
     }
 
+    /// Create a new `HashValue` from the given hex string.
+    ///
+    /// Note: It is unlikely that you ever want to do this manually.
+    pub fn from_hex(string: &str) -> Result<Self> {
+        Ok(HashValue(HEXLOWER.decode(string.as_bytes())?))
+    }
+
     /// An immutable reference to the bytes of the hash value.
     pub fn value(&self) -> &[u8] {
         &self.0
@@ -1933,5 +1940,36 @@ mod test {
         .trim()
         .replace("\r\n", "\n")
         .to_string()
+    }
+
+    #[test]
+    fn hashvalue_from_hex() {
+        let hex =
+            "9df2f9a721f5016874c5f78ae88d3df77f9e49ea6070f935bfeeb438cd73a158";
+        let hash = HashValue::from_hex(hex).unwrap();
+        assert_eq!(
+            hash,
+            HashValue(vec![
+                0x9d, 0xf2, 0xf9, 0xa7, 0x21, 0xf5, 0x01, 0x68, 0x74, 0xc5,
+                0xf7, 0x8a, 0xe8, 0x8d, 0x3d, 0xf7, 0x7f, 0x9e, 0x49, 0xea,
+                0x60, 0x70, 0xf9, 0x35, 0xbf, 0xee, 0xb4, 0x38, 0xcd, 0x73,
+                0xa1, 0x58
+            ])
+        );
+    }
+
+    #[test]
+    fn serde_hashvalue() {
+        let hex =
+            "9df2f9a721f5016874c5f78ae88d3df77f9e49ea6070f935bfeeb438cd73a158";
+        let hash = HashValue::from_hex(hex).unwrap();
+        let encoded = serde_json::to_value(&hash).unwrap();
+        let jsn = json!(
+            "9df2f9a721f5016874c5f78ae88d3df77f9e49ea6070f935bfeeb438cd73a158"
+        );
+        assert_eq!(encoded, jsn);
+
+        let decoded: HashValue = serde_json::from_value(encoded).unwrap();
+        assert_eq!(decoded, hash);
     }
 }

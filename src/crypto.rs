@@ -911,7 +911,7 @@ impl Ord for PublicKey {
 
 impl PartialOrd for PublicKey {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.key_id.cmp(&other.key_id))
+        Some(self.cmp(other))
     }
 }
 

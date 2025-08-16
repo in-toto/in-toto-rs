@@ -56,13 +56,9 @@ fn apply_left_strip(
             continue;
         }
         stripped_path = path.strip_prefix(l_path).ok_or_else(|| {
-            Error::from(io::Error::new(
-                std::io::ErrorKind::Other,
-                format!(
-                    "Lstrip Error: error stripping {} from path {}",
-                    l_path, path
-                ),
-            ))
+            Error::from(io::Error::other(format!(
+                "Lstrip Error: error stripping {l_path} from path {path}"
+            )))
         })?;
         find_prefix = l_path;
     }
@@ -237,19 +233,17 @@ pub fn run_command(
     let stdout = match String::from_utf8(output.stdout) {
         Ok(output) => output,
         Err(error) => {
-            return Err(Error::from(io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Utf8Error: {}", error),
-            )))
+            return Err(Error::from(io::Error::other(format!(
+                "Utf8Error: {error}"
+            ))));
         }
     };
     let stderr = match String::from_utf8(output.stderr) {
         Ok(output) => output,
         Err(error) => {
-            return Err(Error::from(io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Utf8Error: {}", error),
-            )))
+            return Err(Error::from(io::Error::other(format!(
+                "Utf8Error: {error}"
+            ))));
         }
     };
     let status = output.status.code().ok_or_else(|| {
@@ -359,10 +353,9 @@ fn dir_entry_to_path(
             if error.loop_ancestor().is_some() {
                 match error.path() {
                     None => {
-                        return Err(Error::from(io::Error::new(
-                            std::io::ErrorKind::Other,
-                            format!("Walkdir Error: {}", error),
-                        )))
+                        return Err(Error::from(io::Error::other(format!(
+                            "Walkdir Error: {error}"
+                        ))))
                     }
                     Some(error_path) => {
                         let sym_path = match error_path.to_str() {
@@ -380,10 +373,9 @@ fn dir_entry_to_path(
                     }
                 }
             } else {
-                return Err(Error::from(io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("Walkdir Error: {}", error),
-                )));
+                return Err(Error::from(io::Error::other(format!(
+                    "Walkdir Error: {error}"
+                ))));
             }
         }
     };

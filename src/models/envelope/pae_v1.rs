@@ -99,18 +99,17 @@ mod pae_test {
 
     static SERIALIZE_RESULT_DATAS: Lazy<HashMap<String, &str>> = Lazy::new(
         || {
-            let real_serialized_file = HashMap::from([
-            ("blank_test".to_string(), "DSSEv1 4 link 0 "),
-            (
-                "blank_envelope_naive_test".to_string(),
-                "DSSEv1 4 link 52 {\"payload\":[],\"payload_type\":\"link\",\"signatures\":[]}",
-            ),
-            (
-                "blank_envelope_v01_test".to_string(),
-                "DSSEv1 33 https://in-toto.io/statement/v0.1 52 {\"payload\":[],\"payload_type\":\"link\",\"signatures\":[]}",
-            ),
-        ]);
-            real_serialized_file
+            HashMap::from([
+                ("blank_test".to_string(), "DSSEv1 4 link 0 "),
+                (
+                    "blank_envelope_naive_test".to_string(),
+                    "DSSEv1 4 link 52 {\"payload\":[],\"payload_type\":\"link\",\"signatures\":[]}",
+                ),
+                (
+                    "blank_envelope_v01_test".to_string(),
+                    "DSSEv1 33 https://in-toto.io/statement/v0.1 52 {\"payload\":[],\"payload_type\":\"link\",\"signatures\":[]}",
+                ),
+            ])
         },
     );
 

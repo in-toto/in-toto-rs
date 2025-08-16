@@ -1,7 +1,7 @@
 use in_toto::crypto::PrivateKey;
 use in_toto::runlib::in_toto_run;
 
-const ED25519_1_PRIVATE_KEY: &'static [u8] =
+const ED25519_1_PRIVATE_KEY: &[u8] =
     include_bytes!("../tests/ed25519/ed25519-1");
 
 fn main() {

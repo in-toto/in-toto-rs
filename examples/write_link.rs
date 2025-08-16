@@ -1,7 +1,6 @@
 use in_toto::crypto::{KeyType, PrivateKey, SignatureScheme};
 use in_toto::interchange::Json;
 use in_toto::models::{LinkMetadataBuilder, VirtualTargetPath};
-use serde_json;
 
 fn main() {
     // Generate a new Ed25519 signing key

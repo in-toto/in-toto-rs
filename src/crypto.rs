@@ -1239,43 +1239,37 @@ mod test {
     use serde_json::{self, json};
     use std::str;
 
-    const RSA_2048_PK8: &'static [u8] =
-        include_bytes!("../tests/rsa/rsa-2048.pk8.der");
-    const RSA_2048_SPKI: &'static [u8] =
+    const RSA_2048_PK8: &[u8] = include_bytes!("../tests/rsa/rsa-2048.pk8.der");
+    const RSA_2048_SPKI: &[u8] =
         include_bytes!("../tests/rsa/rsa-2048.spki.der");
-    const RSA_2048_PKCS1: &'static [u8] =
+    const RSA_2048_PKCS1: &[u8] =
         include_bytes!("../tests/rsa/rsa-2048.pkcs1.der");
 
-    const RSA_4096_PK8: &'static [u8] =
-        include_bytes!("../tests/rsa/rsa-4096.pk8.der");
-    const RSA_4096_SPKI: &'static [u8] =
+    const RSA_4096_PK8: &[u8] = include_bytes!("../tests/rsa/rsa-4096.pk8.der");
+    const RSA_4096_SPKI: &[u8] =
         include_bytes!("../tests/rsa/rsa-4096.spki.der");
-    const RSA_4096_PKCS1: &'static [u8] =
+    const RSA_4096_PKCS1: &[u8] =
         include_bytes!("../tests/rsa/rsa-4096.pkcs1.der");
 
-    const ED25519_1_PRIVATE_KEY: &'static [u8] =
+    const ED25519_1_PRIVATE_KEY: &[u8] =
         include_bytes!("../tests/ed25519/ed25519-1");
-    const ED25519_1_PUBLIC_KEY: &'static [u8] =
+    const ED25519_1_PUBLIC_KEY: &[u8] =
         include_bytes!("../tests/ed25519/ed25519-1.pub");
-    const ED25519_1_PK8: &'static [u8] =
+    const ED25519_1_PK8: &[u8] =
         include_bytes!("../tests/ed25519/ed25519-1.pk8.der");
-    const ED25519_1_SPKI: &'static [u8] =
+    const ED25519_1_SPKI: &[u8] =
         include_bytes!("../tests/ed25519/ed25519-1.spki.der");
-    const ED25519_2_PK8: &'static [u8] =
+    const ED25519_2_PK8: &[u8] =
         include_bytes!("../tests/ed25519/ed25519-2.pk8.der");
 
-    const ECDSA_PK8: &'static [u8] =
-        include_bytes!("../tests/ecdsa/ec.pk8.der");
-    const ECDSA_SPKI: &'static [u8] =
-        include_bytes!("../tests/ecdsa/ec.spki.der");
-    const ECDSA_PUBLIC_KEY: &'static [u8] =
-        include_bytes!("../tests/ecdsa/ec.pub");
+    const ECDSA_PK8: &[u8] = include_bytes!("../tests/ecdsa/ec.pk8.der");
+    const ECDSA_SPKI: &[u8] = include_bytes!("../tests/ecdsa/ec.spki.der");
+    const ECDSA_PUBLIC_KEY: &[u8] = include_bytes!("../tests/ecdsa/ec.pub");
 
     const DEMO_KEY_ID: &str =
         "556caebdc0877eed53d419b60eddb1e57fa773e4e31d70698b588f3e9cc48b35";
-    const DEMO_PUBLIC_KEY: &'static [u8] =
-        include_bytes!("../tests/rsa/alice.pub");
-    const DEMO_LAYOUT: &'static [u8] =
+    const DEMO_PUBLIC_KEY: &[u8] = include_bytes!("../tests/rsa/alice.pub");
+    const DEMO_LAYOUT: &[u8] =
         include_bytes!("../tests/test_verifylib/workdir/root.layout");
 
     #[test]
@@ -1846,7 +1840,7 @@ mod test {
 
     #[test]
     fn test_public_key_hash() {
-        use std::hash::{BuildHasher, Hash, Hasher};
+        use std::hash::{BuildHasher, Hash};
 
         let key256 = PublicKey::from_spki(
             RSA_2048_SPKI,
@@ -1866,14 +1860,14 @@ mod test {
         let mut hasher512 = state.build_hasher();
         key512.hash(&mut hasher512);
 
-        assert_ne!(hasher256.finish(), hasher512.finish());
+        assert_ne!(state.hash_one(&key256), state.hash_one(&key512));
     }
 
     #[test]
     fn parse_public_rsa_from_pem_spki() {
-        let pem = str::from_utf8(&DEMO_PUBLIC_KEY).unwrap();
+        let pem = str::from_utf8(DEMO_PUBLIC_KEY).unwrap();
         let key =
-            PublicKey::from_pem_spki(&pem, SignatureScheme::RsaSsaPssSha256)
+            PublicKey::from_pem_spki(pem, SignatureScheme::RsaSsaPssSha256)
                 .unwrap();
         assert_eq!(key.typ, KeyType::Rsa);
         assert_eq!(key.scheme, SignatureScheme::RsaSsaPssSha256);
@@ -1892,9 +1886,9 @@ mod test {
 
     #[test]
     fn parse_public_key_ecdsa_from_pem_spki() {
-        let pem = str::from_utf8(&ECDSA_PUBLIC_KEY).unwrap();
+        let pem = str::from_utf8(ECDSA_PUBLIC_KEY).unwrap();
         let public_key =
-            PublicKey::from_pem_spki(&pem, SignatureScheme::EcdsaP256Sha256)
+            PublicKey::from_pem_spki(pem, SignatureScheme::EcdsaP256Sha256)
                 .unwrap();
         assert_eq!(public_key.typ(), &KeyType::Ecdsa);
         assert_eq!(public_key.scheme(), &SignatureScheme::EcdsaP256Sha256);
@@ -1928,7 +1922,7 @@ mod test {
             .expect("failed to parse metadata string")
             .replace("\\n", "\n");
         let sig = &meta.signatures[0];
-        let res = key.verify(msg.as_bytes(), &sig);
+        let res = key.verify(msg.as_bytes(), sig);
         assert!(res.is_ok(), "{:?}", res);
     }
 

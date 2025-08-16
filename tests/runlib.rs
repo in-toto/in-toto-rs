@@ -49,7 +49,7 @@ fn in_toto_run_record_file() {
 
     // Create file
     write(format!("{}/foo.txt", dir_path), "lorem ipsum").unwrap();
-    print!("Path: {}\n", dir_path);
+    println!("Path: {}", dir_path);
 
     // Expected value
     let byproducts = ByProducts::new()
@@ -72,8 +72,8 @@ fn in_toto_run_record_file() {
     let result = in_toto_run(
         "test",
         None,
-        &vec![dir_path],
-        &vec![dir_path],
+        &[dir_path],
+        &[dir_path],
         &["sh", "-c", "echo 'in_toto says hi'"],
         Some(&TEST_PRIVATE_KEY),
         None,
@@ -96,14 +96,14 @@ fn in_toto_run_record_new_file() {
 
     // Create file
     write(format!("{}/foo.txt", dir_path), "lorem ipsum").unwrap();
-    print!("Path: {}\n", dir_path);
+    println!("Path: {}", dir_path);
 
     // Result Value
     let result = in_toto_run(
         "test",
         None,
-        &vec![dir_path],
-        &vec![dir_path],
+        &[dir_path],
+        &[dir_path],
         &[
             "sh",
             "-c",
@@ -195,7 +195,7 @@ fn in_toto_run_record_symlink_file() {
     )
     .unwrap();
 
-    print!("Path: {}\n", dir_path);
+    println!("Path: {}", dir_path);
 
     let byproducts = ByProducts::new()
         .set_return_value(0)
@@ -227,8 +227,8 @@ fn in_toto_run_record_symlink_file() {
     let result = in_toto_run(
         "test",
         None,
-        &vec![dir_path],
-        &vec![dir_path],
+        &[dir_path],
+        &[dir_path],
         &["sh", "-c", "echo 'in_toto says hi'"],
         Some(&TEST_PRIVATE_KEY),
         None,

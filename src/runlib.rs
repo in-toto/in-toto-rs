@@ -430,10 +430,9 @@ mod test {
             record_artifacts(&["tests/test_runlib"], None, None).unwrap(),
             expected
         );
-        assert_eq!(record_artifacts(&["tests"], None, None).is_ok(), true);
-        assert_eq!(
+        assert!(record_artifacts(&["tests"], None, None).is_ok());
+        assert!(
             record_artifacts(&["file-does-not-exist"], None, None).is_err(),
-            true
         );
     }
 
@@ -458,15 +457,12 @@ mod test {
             expected
         );
         // conflict of file "left/world" and "right/world"
-        assert_eq!(
-            record_artifacts(
-                &["tests/test_prefix"],
-                None,
-                Some(&["tests/test_prefix/left/", "tests/test_prefix/right/"])
-            )
-            .is_err(),
-            true
-        );
+        assert!(record_artifacts(
+            &["tests/test_prefix"],
+            None,
+            Some(&["tests/test_prefix/left/", "tests/test_prefix/right/"])
+        )
+        .is_err());
     }
 
     #[test]
@@ -527,9 +523,6 @@ mod test {
 
         assert_eq!(byproducts, expected);
 
-        assert_eq!(
-            run_command(&["command-does-not-exist", "true"], None).is_err(),
-            true
-        );
+        assert!(run_command(&["command-does-not-exist", "true"], None).is_err());
     }
 }

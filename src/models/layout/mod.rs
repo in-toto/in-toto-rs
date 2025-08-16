@@ -100,9 +100,9 @@ mod test {
         Layout, LayoutMetadataBuilder,
     };
 
-    const ALICE_PUB_KEY: &'static [u8] =
+    const ALICE_PUB_KEY: &[u8] =
         include_bytes!("../../../tests/ed25519/ed25519-1.pub");
-    const BOB_PUB_KEY: &'static [u8] =
+    const BOB_PUB_KEY: &[u8] =
         include_bytes!("../../../tests/rsa/rsa-4096.spki.der");
 
     #[test]

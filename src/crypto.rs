@@ -911,7 +911,7 @@ impl Ord for PublicKey {
 
 impl PartialOrd for PublicKey {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.key_id.cmp(&other.key_id))
+        Some(self.cmp(other))
     }
 }
 
@@ -1067,9 +1067,9 @@ impl Debug for PublicKeyValue {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Signature {
     #[serde(rename = "keyid")]
-    key_id: KeyId,
+    pub key_id: KeyId,
     #[serde(rename = "sig")]
-    value: SignatureValue,
+    pub value: SignatureValue,
 }
 
 impl Signature {
@@ -1127,6 +1127,13 @@ impl HashValue {
     /// Create a new `HashValue` from the given digest bytes.
     pub fn new(bytes: Vec<u8>) -> Self {
         HashValue(bytes)
+    }
+
+    /// Create a new `HashValue` from the given hex string.
+    ///
+    /// Note: It is unlikely that you ever want to do this manually.
+    pub fn from_hex(string: &str) -> Result<Self> {
+        Ok(HashValue(HEXLOWER.decode(string.as_bytes())?))
     }
 
     /// An immutable reference to the bytes of the hash value.
@@ -1232,43 +1239,37 @@ mod test {
     use serde_json::{self, json};
     use std::str;
 
-    const RSA_2048_PK8: &'static [u8] =
-        include_bytes!("../tests/rsa/rsa-2048.pk8.der");
-    const RSA_2048_SPKI: &'static [u8] =
+    const RSA_2048_PK8: &[u8] = include_bytes!("../tests/rsa/rsa-2048.pk8.der");
+    const RSA_2048_SPKI: &[u8] =
         include_bytes!("../tests/rsa/rsa-2048.spki.der");
-    const RSA_2048_PKCS1: &'static [u8] =
+    const RSA_2048_PKCS1: &[u8] =
         include_bytes!("../tests/rsa/rsa-2048.pkcs1.der");
 
-    const RSA_4096_PK8: &'static [u8] =
-        include_bytes!("../tests/rsa/rsa-4096.pk8.der");
-    const RSA_4096_SPKI: &'static [u8] =
+    const RSA_4096_PK8: &[u8] = include_bytes!("../tests/rsa/rsa-4096.pk8.der");
+    const RSA_4096_SPKI: &[u8] =
         include_bytes!("../tests/rsa/rsa-4096.spki.der");
-    const RSA_4096_PKCS1: &'static [u8] =
+    const RSA_4096_PKCS1: &[u8] =
         include_bytes!("../tests/rsa/rsa-4096.pkcs1.der");
 
-    const ED25519_1_PRIVATE_KEY: &'static [u8] =
+    const ED25519_1_PRIVATE_KEY: &[u8] =
         include_bytes!("../tests/ed25519/ed25519-1");
-    const ED25519_1_PUBLIC_KEY: &'static [u8] =
+    const ED25519_1_PUBLIC_KEY: &[u8] =
         include_bytes!("../tests/ed25519/ed25519-1.pub");
-    const ED25519_1_PK8: &'static [u8] =
+    const ED25519_1_PK8: &[u8] =
         include_bytes!("../tests/ed25519/ed25519-1.pk8.der");
-    const ED25519_1_SPKI: &'static [u8] =
+    const ED25519_1_SPKI: &[u8] =
         include_bytes!("../tests/ed25519/ed25519-1.spki.der");
-    const ED25519_2_PK8: &'static [u8] =
+    const ED25519_2_PK8: &[u8] =
         include_bytes!("../tests/ed25519/ed25519-2.pk8.der");
 
-    const ECDSA_PK8: &'static [u8] =
-        include_bytes!("../tests/ecdsa/ec.pk8.der");
-    const ECDSA_SPKI: &'static [u8] =
-        include_bytes!("../tests/ecdsa/ec.spki.der");
-    const ECDSA_PUBLIC_KEY: &'static [u8] =
-        include_bytes!("../tests/ecdsa/ec.pub");
+    const ECDSA_PK8: &[u8] = include_bytes!("../tests/ecdsa/ec.pk8.der");
+    const ECDSA_SPKI: &[u8] = include_bytes!("../tests/ecdsa/ec.spki.der");
+    const ECDSA_PUBLIC_KEY: &[u8] = include_bytes!("../tests/ecdsa/ec.pub");
 
     const DEMO_KEY_ID: &str =
         "556caebdc0877eed53d419b60eddb1e57fa773e4e31d70698b588f3e9cc48b35";
-    const DEMO_PUBLIC_KEY: &'static [u8] =
-        include_bytes!("../tests/rsa/alice.pub");
-    const DEMO_LAYOUT: &'static [u8] =
+    const DEMO_PUBLIC_KEY: &[u8] = include_bytes!("../tests/rsa/alice.pub");
+    const DEMO_LAYOUT: &[u8] =
         include_bytes!("../tests/test_verifylib/workdir/root.layout");
 
     #[test]
@@ -1839,7 +1840,7 @@ mod test {
 
     #[test]
     fn test_public_key_hash() {
-        use std::hash::{BuildHasher, Hash, Hasher};
+        use std::hash::{BuildHasher, Hash};
 
         let key256 = PublicKey::from_spki(
             RSA_2048_SPKI,
@@ -1859,14 +1860,14 @@ mod test {
         let mut hasher512 = state.build_hasher();
         key512.hash(&mut hasher512);
 
-        assert_ne!(hasher256.finish(), hasher512.finish());
+        assert_ne!(state.hash_one(&key256), state.hash_one(&key512));
     }
 
     #[test]
     fn parse_public_rsa_from_pem_spki() {
-        let pem = str::from_utf8(&DEMO_PUBLIC_KEY).unwrap();
+        let pem = str::from_utf8(DEMO_PUBLIC_KEY).unwrap();
         let key =
-            PublicKey::from_pem_spki(&pem, SignatureScheme::RsaSsaPssSha256)
+            PublicKey::from_pem_spki(pem, SignatureScheme::RsaSsaPssSha256)
                 .unwrap();
         assert_eq!(key.typ, KeyType::Rsa);
         assert_eq!(key.scheme, SignatureScheme::RsaSsaPssSha256);
@@ -1885,9 +1886,9 @@ mod test {
 
     #[test]
     fn parse_public_key_ecdsa_from_pem_spki() {
-        let pem = str::from_utf8(&ECDSA_PUBLIC_KEY).unwrap();
+        let pem = str::from_utf8(ECDSA_PUBLIC_KEY).unwrap();
         let public_key =
-            PublicKey::from_pem_spki(&pem, SignatureScheme::EcdsaP256Sha256)
+            PublicKey::from_pem_spki(pem, SignatureScheme::EcdsaP256Sha256)
                 .unwrap();
         assert_eq!(public_key.typ(), &KeyType::Ecdsa);
         assert_eq!(public_key.scheme(), &SignatureScheme::EcdsaP256Sha256);
@@ -1921,7 +1922,7 @@ mod test {
             .expect("failed to parse metadata string")
             .replace("\\n", "\n");
         let sig = &meta.signatures[0];
-        let res = key.verify(msg.as_bytes(), &sig);
+        let res = key.verify(msg.as_bytes(), sig);
         assert!(res.is_ok(), "{:?}", res);
     }
 
@@ -1933,5 +1934,36 @@ mod test {
         .trim()
         .replace("\r\n", "\n")
         .to_string()
+    }
+
+    #[test]
+    fn hashvalue_from_hex() {
+        let hex =
+            "9df2f9a721f5016874c5f78ae88d3df77f9e49ea6070f935bfeeb438cd73a158";
+        let hash = HashValue::from_hex(hex).unwrap();
+        assert_eq!(
+            hash,
+            HashValue(vec![
+                0x9d, 0xf2, 0xf9, 0xa7, 0x21, 0xf5, 0x01, 0x68, 0x74, 0xc5,
+                0xf7, 0x8a, 0xe8, 0x8d, 0x3d, 0xf7, 0x7f, 0x9e, 0x49, 0xea,
+                0x60, 0x70, 0xf9, 0x35, 0xbf, 0xee, 0xb4, 0x38, 0xcd, 0x73,
+                0xa1, 0x58
+            ])
+        );
+    }
+
+    #[test]
+    fn serde_hashvalue() {
+        let hex =
+            "9df2f9a721f5016874c5f78ae88d3df77f9e49ea6070f935bfeeb438cd73a158";
+        let hash = HashValue::from_hex(hex).unwrap();
+        let encoded = serde_json::to_value(&hash).unwrap();
+        let jsn = json!(
+            "9df2f9a721f5016874c5f78ae88d3df77f9e49ea6070f935bfeeb438cd73a158"
+        );
+        assert_eq!(encoded, jsn);
+
+        let decoded: HashValue = serde_json::from_value(encoded).unwrap();
+        assert_eq!(decoded, hash);
     }
 }

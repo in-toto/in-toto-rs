@@ -117,8 +117,8 @@ fn verify_match_rule(
                     VirtualTargetPath::new(src_base_path.to_string())
                         .expect("Unexpected VirtualTargetPath creation failed");
 
-                if let Err(e) = src_base_path.matches(pattern.value()) {
-                    warn!("match failed: {}", e.to_string());
+                if let Err(err) = src_base_path.matches(pattern.value()) {
+                    warn!("match failed: {err}");
                     continue;
                 }
 

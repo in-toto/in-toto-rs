@@ -56,13 +56,9 @@ fn apply_left_strip(
             continue;
         }
         stripped_path = path.strip_prefix(l_path).ok_or_else(|| {
-            Error::from(io::Error::new(
-                std::io::ErrorKind::Other,
-                format!(
-                    "Lstrip Error: error stripping {} from path {}",
-                    l_path, path
-                ),
-            ))
+            Error::from(io::Error::other(format!(
+                "Lstrip Error: error stripping {l_path} from path {path}"
+            )))
         })?;
         find_prefix = l_path;
     }
@@ -237,19 +233,17 @@ pub fn run_command(
     let stdout = match String::from_utf8(output.stdout) {
         Ok(output) => output,
         Err(error) => {
-            return Err(Error::from(io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Utf8Error: {}", error),
-            )))
+            return Err(Error::from(io::Error::other(format!(
+                "Utf8Error: {error}"
+            ))));
         }
     };
     let stderr = match String::from_utf8(output.stderr) {
         Ok(output) => output,
         Err(error) => {
-            return Err(Error::from(io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Utf8Error: {}", error),
-            )))
+            return Err(Error::from(io::Error::other(format!(
+                "Utf8Error: {error}"
+            ))));
         }
     };
     let status = output.status.code().ok_or_else(|| {
@@ -359,10 +353,9 @@ fn dir_entry_to_path(
             if error.loop_ancestor().is_some() {
                 match error.path() {
                     None => {
-                        return Err(Error::from(io::Error::new(
-                            std::io::ErrorKind::Other,
-                            format!("Walkdir Error: {}", error),
-                        )))
+                        return Err(Error::from(io::Error::other(format!(
+                            "Walkdir Error: {error}"
+                        ))))
                     }
                     Some(error_path) => {
                         let sym_path = match error_path.to_str() {
@@ -380,10 +373,9 @@ fn dir_entry_to_path(
                     }
                 }
             } else {
-                return Err(Error::from(io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("Walkdir Error: {}", error),
-                )));
+                return Err(Error::from(io::Error::other(format!(
+                    "Walkdir Error: {error}"
+                ))));
             }
         }
     };
@@ -438,10 +430,9 @@ mod test {
             record_artifacts(&["tests/test_runlib"], None, None).unwrap(),
             expected
         );
-        assert_eq!(record_artifacts(&["tests"], None, None).is_ok(), true);
-        assert_eq!(
+        assert!(record_artifacts(&["tests"], None, None).is_ok());
+        assert!(
             record_artifacts(&["file-does-not-exist"], None, None).is_err(),
-            true
         );
     }
 
@@ -466,15 +457,12 @@ mod test {
             expected
         );
         // conflict of file "left/world" and "right/world"
-        assert_eq!(
-            record_artifacts(
-                &["tests/test_prefix"],
-                None,
-                Some(&["tests/test_prefix/left/", "tests/test_prefix/right/"])
-            )
-            .is_err(),
-            true
-        );
+        assert!(record_artifacts(
+            &["tests/test_prefix"],
+            None,
+            Some(&["tests/test_prefix/left/", "tests/test_prefix/right/"])
+        )
+        .is_err());
     }
 
     #[test]
@@ -535,9 +523,6 @@ mod test {
 
         assert_eq!(byproducts, expected);
 
-        assert_eq!(
-            run_command(&["command-does-not-exist", "true"], None).is_err(),
-            true
-        );
+        assert!(run_command(&["command-does-not-exist", "true"], None).is_err());
     }
 }

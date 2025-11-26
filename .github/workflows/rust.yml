@@ -33,4 +33,4 @@ jobs:
         with:
           components: clippy
       - name: Linting
-        run: cargo clippy -- -D warnings
+        run: cargo clippy --all-targets -- -D warnings

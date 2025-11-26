@@ -330,13 +330,13 @@ mod tests {
 
     use super::MetablockBuilder;
 
-    const ALICE_PRIVATE_KEY: &'static [u8] =
+    const ALICE_PRIVATE_KEY: &[u8] =
         include_bytes!("../../tests/ed25519/ed25519-1");
-    const ALICE_PUB_KEY: &'static [u8] =
+    const ALICE_PUB_KEY: &[u8] =
         include_bytes!("../../tests/ed25519/ed25519-1.pub");
-    const BOB_PUB_KEY: &'static [u8] =
+    const BOB_PUB_KEY: &[u8] =
         include_bytes!("../../tests/rsa/rsa-4096.spki.der");
-    const OWNER_PRIVATE_KEY: &'static [u8] =
+    const OWNER_PRIVATE_KEY: &[u8] =
         include_bytes!("../../tests/test_metadata/owner.der");
 
     #[test]

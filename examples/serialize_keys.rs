@@ -14,7 +14,7 @@ fn main() {
     let mut target = OpenOptions::new()
         .mode(0o640)
         .write(true)
-        .create(true)
+        .create_new(true)
         .open("test-key")
         .unwrap();
     target.write_all(&key).unwrap();

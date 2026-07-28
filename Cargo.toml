@@ -32,7 +32,7 @@ walkdir = "2"
 path-clean = "1.0.1"
 strum = "0.28"
 strum_macros = "0.28"
-pem = "3.0.0"
+pem = "4.0.0"
 glob = "0.3.0"
 
 [dev-dependencies]

@@ -17,134 +17,196 @@ use in_toto::crypto::{
 };
 use serde_json::Value;
 
-const FIXTURE: &str = include_str!("data/mldsa/mldsa65_fixture.json");
-const PRIVATE_PEM: &str = include_str!("data/mldsa/mldsa65_private.pem");
-const PUBLIC_PEM: &str = include_str!("data/mldsa/mldsa65_public.pem");
+/// Build the suite once per ML-DSA parameter set.
+///
+/// `$wrong` is a different parameter set, used to check that a key is never
+/// accepted under a scheme its OID disagrees with.
+macro_rules! interop_suite {
+    ($name:ident, $scheme:expr, $wrong:expr, $dir:literal) => {
+        mod $name {
+            use super::*;
 
-fn fixture() -> Value {
-    serde_json::from_str(FIXTURE).expect("fixture is valid json")
-}
+            const FIXTURE: &str =
+                include_str!(concat!("data/mldsa/", $dir, "_fixture.json"));
+            const PRIVATE_PEM: &str =
+                include_str!(concat!("data/mldsa/", $dir, "_private.pem"));
+            const PUBLIC_PEM: &str =
+                include_str!(concat!("data/mldsa/", $dir, "_public.pem"));
 
-fn private_key() -> PrivateKey {
-    let der = pem::parse(PRIVATE_PEM).expect("private key is valid pem");
-    PrivateKey::from_pkcs8(der.contents(), SignatureScheme::MlDsa65V1)
-        .expect("securesystemslib PKCS#8 key parses")
-}
+            fn fixture() -> Value {
+                serde_json::from_str(FIXTURE).expect("fixture is valid json")
+            }
 
-/// The keyid must match securesystemslib byte for byte, or metadata signed by
-/// one implementation cannot be looked up by the other.
-#[test]
-fn keyid_matches_securesystemslib() {
-    let f = fixture();
-    let expected = f["keyid"].as_str().unwrap();
+            fn private_key() -> PrivateKey {
+                let der =
+                    pem::parse(PRIVATE_PEM).expect("private key is valid pem");
+                PrivateKey::from_pkcs8(der.contents(), $scheme)
+                    .expect("securesystemslib PKCS#8 key parses")
+            }
 
-    let key = private_key();
-    let expected: KeyId = expected.parse().expect("fixture keyid parses");
-    assert_eq!(
-        key.key_id(),
-        &expected,
-        "keyid disagrees with securesystemslib"
-    );
-}
+            /// The keyid must match securesystemslib byte for byte, or metadata
+            /// signed by one implementation cannot be looked up by the other.
+            #[test]
+            fn keyid_matches_securesystemslib() {
+                let f = fixture();
+                let expected: KeyId = f["keyid"]
+                    .as_str()
+                    .unwrap()
+                    .parse()
+                    .expect("fixture keyid parses");
 
-/// The public key must serialise to the same PEM securesystemslib emits,
-/// including the absence of NULL AlgorithmIdentifier parameters.
-#[test]
-fn public_key_pem_roundtrips() {
-    let key = private_key();
-    let spki = key.public().as_spki().expect("spki encodes");
+                assert_eq!(
+                    private_key().key_id(),
+                    &expected,
+                    "keyid disagrees with securesystemslib"
+                );
+            }
 
-    let expected_der = pem::parse(PUBLIC_PEM).expect("public key is valid pem");
-    assert_eq!(
-        spki,
-        expected_der.contents(),
-        "SPKI DER differs from securesystemslib's"
-    );
+            /// The scheme in the fixture must be the one we claim to test.
+            #[test]
+            fn fixture_scheme_matches() {
+                let f = fixture();
+                let scheme: SignatureScheme =
+                    serde_json::from_value(f["scheme"].clone())
+                        .expect("scheme parses");
+                assert_eq!(scheme, $scheme);
+            }
 
-    // ...and parsing that PEM back yields the same key.
-    let parsed =
-        PublicKey::from_pem_spki(PUBLIC_PEM, SignatureScheme::MlDsa65V1)
-            .expect("public pem parses");
-    assert_eq!(&parsed, key.public());
-}
+            /// The public key must serialise to the same PEM securesystemslib
+            /// emits, including the absence of NULL AlgorithmIdentifier params.
+            #[test]
+            fn public_key_pem_roundtrips() {
+                let key = private_key();
+                let spki = key.public().as_spki().expect("spki encodes");
 
-/// We must reconstruct exactly the bytes securesystemslib signs.
-#[test]
-fn presign_string_matches_tap21() {
-    let f = fixture();
-    let msg = f["msg_utf8"].as_str().unwrap().as_bytes();
-    let expected = f["presign_hex"].as_str().unwrap();
+                let expected =
+                    pem::parse(PUBLIC_PEM).expect("public key is valid pem");
+                assert_eq!(
+                    spki,
+                    expected.contents(),
+                    "SPKI DER differs from securesystemslib's"
+                );
 
-    // b"tuf" || 0x01 || SHA-512(msg)
-    let mut expected_bytes = Vec::new();
-    expected_bytes.extend_from_slice(b"tuf");
-    expected_bytes.push(0x01);
-    expected_bytes.extend_from_slice(
-        ring::digest::digest(&ring::digest::SHA512, msg).as_ref(),
-    );
+                let parsed = PublicKey::from_pem_spki(PUBLIC_PEM, $scheme)
+                    .expect("public pem parses");
+                assert_eq!(&parsed, key.public());
+            }
 
-    assert_eq!(HEXLOWER.encode(&expected_bytes), expected);
-}
+            /// We must reconstruct exactly the bytes securesystemslib signs.
+            #[test]
+            fn presign_string_matches_tap21() {
+                let f = fixture();
+                let msg = f["msg_utf8"].as_str().unwrap().as_bytes();
 
-/// The headline check: a signature made by securesystemslib verifies here.
-#[test]
-fn verifies_securesystemslib_signature() {
-    let f = fixture();
-    let msg = f["msg_utf8"].as_str().unwrap().as_bytes();
-    let sig_bytes = HEXLOWER
-        .decode(f["signature_hex"].as_str().unwrap().as_bytes())
-        .expect("signature is hex");
+                // b"tuf" || 0x01 || SHA-512(msg)
+                let mut expected = Vec::new();
+                expected.extend_from_slice(b"tuf");
+                expected.push(0x01);
+                expected.extend_from_slice(
+                    ring::digest::digest(&ring::digest::SHA512, msg).as_ref(),
+                );
 
-    let key = private_key();
-    let signature = Signature {
-        key_id: key.key_id().clone(),
-        value: SignatureValue::new(sig_bytes),
+                assert_eq!(
+                    HEXLOWER.encode(&expected),
+                    f["presign_hex"].as_str().unwrap()
+                );
+            }
+
+            /// The headline check: a securesystemslib signature verifies here.
+            #[test]
+            fn verifies_securesystemslib_signature() {
+                let f = fixture();
+                let msg = f["msg_utf8"].as_str().unwrap().as_bytes();
+                let sig_bytes = HEXLOWER
+                    .decode(f["signature_hex"].as_str().unwrap().as_bytes())
+                    .expect("signature is hex");
+
+                let key = private_key();
+                let signature = Signature {
+                    key_id: key.key_id().clone(),
+                    value: SignatureValue::new(sig_bytes),
+                };
+
+                key.public()
+                    .verify(msg, &signature)
+                    .expect("securesystemslib signature must verify");
+            }
+
+            #[test]
+            fn sign_verify_roundtrip() {
+                let key = private_key();
+                let msg = b"rebuilderd attestation";
+
+                let sig = key.sign(msg).expect("signing works");
+                key.public()
+                    .verify(msg, &sig)
+                    .expect("own signature verifies");
+            }
+
+            #[test]
+            fn rejects_tampered_message() {
+                let key = private_key();
+                let sig = key.sign(b"original").expect("signing works");
+                assert!(key.public().verify(b"tampered", &sig).is_err());
+            }
+
+            /// Claiming the wrong parameter set must fail loudly rather than
+            /// verifying against a mismatched key.
+            #[test]
+            fn rejects_wrong_parameter_set() {
+                let der = pem::parse(PRIVATE_PEM).unwrap();
+                assert!(
+                    PrivateKey::from_pkcs8(der.contents(), $wrong).is_err()
+                );
+                assert!(PublicKey::from_pem_spki(PUBLIC_PEM, $wrong).is_err());
+            }
+
+            #[test]
+            fn generated_keys_work() {
+                let der = PrivateKey::new_mldsa($scheme).expect("keygen works");
+                let key = PrivateKey::from_pkcs8(&der, $scheme)
+                    .expect("generated key parses");
+                let sig = key.sign(b"hello").expect("signing works");
+                key.public().verify(b"hello", &sig).expect("verifies");
+            }
+        }
     };
-
-    key.public()
-        .verify(msg, &signature)
-        .expect("securesystemslib signature must verify");
 }
 
-#[test]
-fn sign_verify_roundtrip() {
-    let key = private_key();
-    let msg = b"rebuilderd attestation";
+interop_suite!(
+    mldsa44,
+    SignatureScheme::MlDsa44V1,
+    SignatureScheme::MlDsa65V1,
+    "mldsa44"
+);
+interop_suite!(
+    mldsa65,
+    SignatureScheme::MlDsa65V1,
+    SignatureScheme::MlDsa87V1,
+    "mldsa65"
+);
+interop_suite!(
+    mldsa87,
+    SignatureScheme::MlDsa87V1,
+    SignatureScheme::MlDsa44V1,
+    "mldsa87"
+);
 
-    let sig = key.sign(msg).expect("signing works");
-    key.public()
-        .verify(msg, &sig)
-        .expect("own signature verifies");
-}
-
+/// A signature from one parameter set must not verify under another.
 #[test]
-fn rejects_tampered_message() {
-    let key = private_key();
-    let sig = key.sign(b"original").expect("signing works");
-    assert!(key.public().verify(b"tampered", &sig).is_err());
-}
+fn signatures_do_not_cross_parameter_sets() {
+    let der = pem::parse(include_str!("data/mldsa/mldsa65_private.pem"))
+        .expect("valid pem");
+    let key =
+        PrivateKey::from_pkcs8(der.contents(), SignatureScheme::MlDsa65V1)
+            .expect("key parses");
+    let sig = key.sign(b"payload").expect("signing works");
 
-#[test]
-fn rejects_wrong_parameter_set() {
-    // The key is ML-DSA-65; claiming -87 must fail rather than silently
-    // verifying against the wrong parameter set.
-    let der = pem::parse(PRIVATE_PEM).unwrap();
-    assert!(
-        PrivateKey::from_pkcs8(der.contents(), SignatureScheme::MlDsa87V1)
-            .is_err()
-    );
-    assert!(
-        PublicKey::from_pem_spki(PUBLIC_PEM, SignatureScheme::MlDsa87V1)
-            .is_err()
-    );
-}
+    let other = pem::parse(include_str!("data/mldsa/mldsa87_private.pem"))
+        .expect("valid pem");
+    let other =
+        PrivateKey::from_pkcs8(other.contents(), SignatureScheme::MlDsa87V1)
+            .expect("key parses");
 
-#[test]
-fn generated_keys_work() {
-    let der = PrivateKey::new_mldsa(SignatureScheme::MlDsa44V1)
-        .expect("keygen works");
-    let key = PrivateKey::from_pkcs8(&der, SignatureScheme::MlDsa44V1)
-        .expect("generated key parses");
-    let sig = key.sign(b"hello").expect("signing works");
-    key.public().verify(b"hello", &sig).expect("verifies");
+    assert!(other.public().verify(b"payload", &sig).is_err());
 }

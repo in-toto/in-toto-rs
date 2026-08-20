@@ -2,6 +2,8 @@
 
 use data_encoding::HEXLOWER;
 use derp::{self, Der, Tag};
+#[cfg(feature = "mldsa")]
+use ml_dsa::pkcs8::{DecodePrivateKey, EncodePrivateKey};
 use ring::digest::{self, SHA256, SHA512};
 use ring::rand::SystemRandom;
 use ring::signature::{
@@ -38,6 +40,57 @@ const ED25519_SPKI_OID: &[u8] = &[0x2b, 0x65, 0x70];
 
 /// 1.2.840.10045.2.1 ecPublicKey (Elliptic Curve public key cryptography)
 const ECC_SPKI_OID: &[u8] = &[0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01];
+
+/// 2.16.840.1.101.3.4.3.17 id-ml-dsa-44 (RFC 9881)
+#[cfg(feature = "mldsa")]
+const MLDSA44_SPKI_OID: &[u8] =
+    &[0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x11];
+
+/// 2.16.840.1.101.3.4.3.18 id-ml-dsa-65 (RFC 9881)
+#[cfg(feature = "mldsa")]
+const MLDSA65_SPKI_OID: &[u8] =
+    &[0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x12];
+
+/// 2.16.840.1.101.3.4.3.19 id-ml-dsa-87 (RFC 9881)
+#[cfg(feature = "mldsa")]
+const MLDSA87_SPKI_OID: &[u8] =
+    &[0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x13];
+
+/// Domain separator for the TAP 21 pre-signing byte string.
+///
+/// NOTE: TAP 21 is a TUF document and hardcodes `tuf` here, even though the
+/// construction is applied to in-toto metadata as well. Whether the separator
+/// should be protocol-defined is an open question upstream; keep it isolated
+/// in [`tap21_presign`] so it is a one-line change if the answer is yes.
+#[cfg(feature = "mldsa")]
+const TAP21_DOMAIN_SEPARATOR: &[u8] = b"tuf";
+
+/// The only TAP 21 protocol version defined so far. Selects SHA-512 as the
+/// pre-hash and canonical JSON as the message canonicalization.
+#[cfg(feature = "mldsa")]
+const TAP21_VERSION: u8 = 0x01;
+
+/// Build the TAP 21 pre-signing byte string: `domain || version || H(msg)`.
+///
+/// The raw metadata is never signed directly; this keeps the payload handed to
+/// a signing device small and bounded.
+#[cfg(feature = "mldsa")]
+fn tap21_presign(msg: &[u8], version: u8) -> Result<Vec<u8>> {
+    if version != TAP21_VERSION {
+        return Err(Error::IllegalArgument(format!(
+            "Unsupported ml-dsa protocol version: {}",
+            version
+        )));
+    }
+
+    let mut out = Vec::with_capacity(
+        TAP21_DOMAIN_SEPARATOR.len() + 1 + SHA512.output_len(),
+    );
+    out.extend_from_slice(TAP21_DOMAIN_SEPARATOR);
+    out.push(version);
+    out.extend_from_slice(digest::digest(&SHA512, msg).as_ref());
+    Ok(out)
+}
 
 /// The length of an ed25519 private key in bytes
 const ED25519_PRIVATE_KEY_LENGTH: usize = 32;
@@ -137,7 +190,7 @@ fn shim_public_key(
     let key = match key_type {
         KeyType::Ed25519 => HEXLOWER.encode(public_key),
         KeyType::Rsa => {
-            let contents = write_spki(public_key, key_type)?;
+            let contents = write_spki(public_key, key_type, signature_scheme)?;
             let public_pem =
                 pem::Pem::new(PEM_PUBLIC_KEY.to_string(), contents);
             pem::encode(&public_pem)
@@ -146,6 +199,26 @@ fn shim_public_key(
                 .to_string()
         }
         KeyType::Ecdsa => HEXLOWER.encode(public_key),
+        // TAP 21: `keyval.public` is the PEM encoding of the DER
+        // SubjectPublicKeyInfo, matching what securesystemslib emits.
+        //
+        // NOTE: unlike the RSA arm above we must NOT trim, because
+        // securesystemslib keeps the trailing newline that pyca/cryptography's
+        // `public_bytes()` emits. The keyid is a hash over this exact string,
+        // so trimming it would silently produce a different keyid than every
+        // other implementation.
+        #[cfg(feature = "mldsa")]
+        KeyType::MlDsa => {
+            let contents = write_spki(public_key, key_type, signature_scheme)?;
+            let public_pem =
+                pem::Pem::new(PEM_PUBLIC_KEY.to_string(), contents);
+            let encoded = pem::encode(&public_pem).replace("\r\n", "\n");
+            if encoded.ends_with('\n') {
+                encoded
+            } else {
+                format!("{}\n", encoded)
+            }
+        }
         KeyType::Unknown(inner) => {
             return Err(Error::UnknownKeyType(format!("content: {}", inner)))
         }
@@ -264,6 +337,21 @@ pub enum SignatureScheme {
     /// Also known as 'prime256v1', 'P-256', and 'sepc256r1').
     #[serde(rename = "ecdsa-sha2-nistp256")]
     EcdsaP256Sha256,
+    /// [ML-DSA-44](https://csrc.nist.gov/pubs/fips/204/final) with the TAP 21
+    /// version 1 pre-signing scheme.
+    #[cfg(feature = "mldsa")]
+    #[serde(rename = "ml-dsa-44/1")]
+    MlDsa44V1,
+    /// [ML-DSA-65](https://csrc.nist.gov/pubs/fips/204/final) with the TAP 21
+    /// version 1 pre-signing scheme.
+    #[cfg(feature = "mldsa")]
+    #[serde(rename = "ml-dsa-65/1")]
+    MlDsa65V1,
+    /// [ML-DSA-87](https://csrc.nist.gov/pubs/fips/204/final) with the TAP 21
+    /// version 1 pre-signing scheme.
+    #[cfg(feature = "mldsa")]
+    #[serde(rename = "ml-dsa-87/1")]
+    MlDsa87V1,
     /// Placeholder for an unknown scheme.
     Unknown(String),
 }
@@ -310,6 +398,11 @@ pub enum KeyType {
     Rsa,
     /// [ECDSA](https://www.rfc-editor.org/rfc/rfc5480)
     Ecdsa,
+    /// [ML-DSA](https://csrc.nist.gov/pubs/fips/204/final). The parameter set
+    /// is carried by the `SignatureScheme`, not the key type, so this variant
+    /// covers ML-DSA-44, -65 and -87 alike.
+    #[cfg(feature = "mldsa")]
+    MlDsa,
     /// Placeholder for an unknown key type.
     Unknown(String),
 }
@@ -320,6 +413,10 @@ impl KeyType {
             RSA_SPKI_OID => Ok(KeyType::Rsa),
             ED25519_SPKI_OID => Ok(KeyType::Ed25519),
             ECC_SPKI_OID => Ok(KeyType::Ecdsa),
+            #[cfg(feature = "mldsa")]
+            MLDSA44_SPKI_OID | MLDSA65_SPKI_OID | MLDSA87_SPKI_OID => {
+                Ok(KeyType::MlDsa)
+            }
             oid => {
                 let oid = HEXLOWER.encode(oid);
                 Err(Error::Encoding(format!("Unknown OID: {}", oid)))
@@ -332,8 +429,42 @@ impl KeyType {
             KeyType::Rsa => Ok(RSA_SPKI_OID),
             KeyType::Ed25519 => Ok(ED25519_SPKI_OID),
             KeyType::Ecdsa => Ok(ECC_SPKI_OID),
+            // ML-DSA has one OID per parameter set, which is selected by the
+            // signature scheme; use `mldsa_oid` instead.
+            #[cfg(feature = "mldsa")]
+            KeyType::MlDsa => Err(Error::IllegalArgument(
+                "ml-dsa OID depends on the signature scheme".into(),
+            )),
             KeyType::Unknown(ref s) => Err(Error::UnknownKeyType(s.clone())),
         }
+    }
+}
+
+/// The SPKI OID for an ML-DSA parameter set, selected by signature scheme.
+#[cfg(feature = "mldsa")]
+fn mldsa_oid(scheme: &SignatureScheme) -> Result<&'static [u8]> {
+    match *scheme {
+        SignatureScheme::MlDsa44V1 => Ok(MLDSA44_SPKI_OID),
+        SignatureScheme::MlDsa65V1 => Ok(MLDSA65_SPKI_OID),
+        SignatureScheme::MlDsa87V1 => Ok(MLDSA87_SPKI_OID),
+        ref s => Err(Error::IllegalArgument(format!(
+            "Not an ml-dsa signature scheme: {:?}",
+            s
+        ))),
+    }
+}
+
+/// The signature scheme implied by an ML-DSA SPKI OID.
+#[cfg(feature = "mldsa")]
+fn mldsa_scheme_from_oid(oid: &[u8]) -> Result<SignatureScheme> {
+    match oid {
+        MLDSA44_SPKI_OID => Ok(SignatureScheme::MlDsa44V1),
+        MLDSA65_SPKI_OID => Ok(SignatureScheme::MlDsa65V1),
+        MLDSA87_SPKI_OID => Ok(SignatureScheme::MlDsa87V1),
+        oid => Err(Error::Encoding(format!(
+            "Not an ml-dsa OID: {}",
+            HEXLOWER.encode(oid)
+        ))),
     }
 }
 
@@ -345,6 +476,8 @@ impl FromStr for KeyType {
             "ed25519" => Ok(KeyType::Ed25519),
             "rsa" => Ok(KeyType::Rsa),
             "ecdsa" => Ok(KeyType::Ecdsa),
+            #[cfg(feature = "mldsa")]
+            "ml-dsa" => Ok(KeyType::MlDsa),
             typ => Err(Error::Encoding(typ.into())),
         }
     }
@@ -359,6 +492,8 @@ impl fmt::Display for KeyType {
                 KeyType::Ed25519 => "ed25519",
                 KeyType::Rsa => "rsa",
                 KeyType::Ecdsa => "ecdsa",
+                #[cfg(feature = "mldsa")]
+                KeyType::MlDsa => "ml-dsa",
                 KeyType::Unknown(ref s) => s,
             }
         )
@@ -389,6 +524,8 @@ enum PrivateKeyType {
     Ed25519(Ed25519KeyPair),
     Rsa(Arc<RsaKeyPair>),
     Ecdsa(EcdsaKeyPair),
+    #[cfg(feature = "mldsa")]
+    MlDsa(Box<MlDsaSigningKey>),
 }
 
 impl Debug for PrivateKeyType {
@@ -397,8 +534,53 @@ impl Debug for PrivateKeyType {
             PrivateKeyType::Ed25519(_) => "Ed25519",
             PrivateKeyType::Rsa(_) => "Rsa",
             PrivateKeyType::Ecdsa(_) => "Ecdsa",
+            #[cfg(feature = "mldsa")]
+            PrivateKeyType::MlDsa(_) => "MlDsa",
         };
         f.debug_tuple(s).field(&"_").finish()
+    }
+}
+
+/// An ML-DSA signing key, monomorphised over the three parameter sets so that
+/// `PrivateKey` can stay a plain enum.
+#[cfg(feature = "mldsa")]
+enum MlDsaSigningKey {
+    MlDsa44(ml_dsa::SigningKey<ml_dsa::MlDsa44>),
+    MlDsa65(ml_dsa::SigningKey<ml_dsa::MlDsa65>),
+    MlDsa87(ml_dsa::SigningKey<ml_dsa::MlDsa87>),
+}
+
+#[cfg(feature = "mldsa")]
+impl MlDsaSigningKey {
+    /// Sign the TAP 21 pre-signing byte string.
+    ///
+    /// `ml-dsa`'s `Signer` impl uses the deterministic variant with an empty
+    /// context string, which is what TAP 21 requires.
+    fn sign_presigned(&self, presign: &[u8]) -> Vec<u8> {
+        use ml_dsa::signature::Signer;
+        match self {
+            MlDsaSigningKey::MlDsa44(k) => k.sign(presign).encode().to_vec(),
+            MlDsaSigningKey::MlDsa65(k) => k.sign(presign).encode().to_vec(),
+            MlDsaSigningKey::MlDsa87(k) => k.sign(presign).encode().to_vec(),
+        }
+    }
+
+    /// The SPKI-encodable public key bytes.
+    fn public_key_bytes(&self) -> Vec<u8> {
+        use ml_dsa::signature::Keypair;
+        match self {
+            MlDsaSigningKey::MlDsa44(k) => k.verifying_key().encode().to_vec(),
+            MlDsaSigningKey::MlDsa65(k) => k.verifying_key().encode().to_vec(),
+            MlDsaSigningKey::MlDsa87(k) => k.verifying_key().encode().to_vec(),
+        }
+    }
+
+    fn scheme(&self) -> SignatureScheme {
+        match self {
+            MlDsaSigningKey::MlDsa44(_) => SignatureScheme::MlDsa44V1,
+            MlDsaSigningKey::MlDsa65(_) => SignatureScheme::MlDsa65V1,
+            MlDsaSigningKey::MlDsa87(_) => SignatureScheme::MlDsa87V1,
+        }
     }
 }
 
@@ -428,10 +610,58 @@ impl PrivateKey {
             )
             .map(|bytes| bytes.as_ref().to_vec())
             .map_err(|_| Error::Opaque("Failed to generate Ecdsa key".into())),
+            // The parameter set lives in the signature scheme, so there is no
+            // single "ml-dsa" key to generate here.
+            #[cfg(feature = "mldsa")]
+            KeyType::MlDsa => Err(Error::IllegalArgument(
+                "use PrivateKey::new_mldsa to pick a parameter set".into(),
+            )),
             KeyType::Unknown(s) => {
                 Err(Error::IllegalArgument(format!("Unknown key type: {}", s)))
             }
         }
+    }
+
+    /// Generate a new ML-DSA `PrivateKey` as PKCS#8 DER bytes, for the
+    /// parameter set named by `scheme`.
+    #[cfg(feature = "mldsa")]
+    pub fn new_mldsa(scheme: SignatureScheme) -> Result<Vec<u8>> {
+        use ml_dsa::common::Generate;
+
+        let entropy = |e| {
+            Error::Opaque(format!(
+                "Failed to get entropy for ml-dsa key: {}",
+                e
+            ))
+        };
+
+        let der = match scheme {
+            SignatureScheme::MlDsa44V1 => {
+                ml_dsa::SigningKey::<ml_dsa::MlDsa44>::try_generate()
+                    .map_err(entropy)?
+                    .to_pkcs8_der()
+            }
+            SignatureScheme::MlDsa65V1 => {
+                ml_dsa::SigningKey::<ml_dsa::MlDsa65>::try_generate()
+                    .map_err(entropy)?
+                    .to_pkcs8_der()
+            }
+            SignatureScheme::MlDsa87V1 => {
+                ml_dsa::SigningKey::<ml_dsa::MlDsa87>::try_generate()
+                    .map_err(entropy)?
+                    .to_pkcs8_der()
+            }
+            s => {
+                return Err(Error::IllegalArgument(format!(
+                    "Not an ml-dsa signature scheme: {:?}",
+                    s
+                )))
+            }
+        };
+
+        der.map(|d| d.as_bytes().to_vec()).map_err(|e| {
+            Error::Opaque(format!("Failed to encode ml-dsa key: {}", e))
+        })
     }
 
     /// Create a new `PrivateKey` from an ed25519 keypair, a 64 byte slice, where the first 32
@@ -526,6 +756,18 @@ impl PrivateKey {
             return res;
         }
 
+        #[cfg(feature = "mldsa")]
+        {
+            if matches!(
+                scheme,
+                SignatureScheme::MlDsa44V1
+                    | SignatureScheme::MlDsa65V1
+                    | SignatureScheme::MlDsa87V1
+            ) {
+                return Self::mldsa_from_pkcs8(der_key, scheme);
+            }
+        }
+
         let res = Self::ecdsa_from_pkcs8(der_key, scheme);
         if res.is_ok() {
             return res;
@@ -534,6 +776,55 @@ impl PrivateKey {
         Err(Error::Opaque(
             "Key was not Ed25519, RSA, or ECDSA".to_string(),
         ))
+    }
+
+    /// Parse an ML-DSA private key from PKCS#8 DER bytes.
+    ///
+    /// The parameter set is taken from `scheme` rather than sniffed, so a
+    /// mismatch between the requested scheme and the key is an error.
+    #[cfg(feature = "mldsa")]
+    fn mldsa_from_pkcs8(
+        der_key: &[u8],
+        scheme: SignatureScheme,
+    ) -> Result<Self> {
+        let bad = |e: ml_dsa::pkcs8::Error| {
+            Error::Encoding(format!("Could not parse ml-dsa PKCS#8 key: {}", e))
+        };
+
+        let key = match scheme {
+            SignatureScheme::MlDsa44V1 => MlDsaSigningKey::MlDsa44(
+                ml_dsa::SigningKey::<ml_dsa::MlDsa44>::from_pkcs8_der(der_key)
+                    .map_err(bad)?,
+            ),
+            SignatureScheme::MlDsa65V1 => MlDsaSigningKey::MlDsa65(
+                ml_dsa::SigningKey::<ml_dsa::MlDsa65>::from_pkcs8_der(der_key)
+                    .map_err(bad)?,
+            ),
+            SignatureScheme::MlDsa87V1 => MlDsaSigningKey::MlDsa87(
+                ml_dsa::SigningKey::<ml_dsa::MlDsa87>::from_pkcs8_der(der_key)
+                    .map_err(bad)?,
+            ),
+            s => {
+                return Err(Error::IllegalArgument(format!(
+                    "Not an ml-dsa signature scheme: {:?}",
+                    s
+                )))
+            }
+        };
+
+        // securesystemslib does not emit `keyid_hash_algorithms` for ml-dsa
+        // keys; including it here would change the keyid and break interop.
+        let public = PublicKey::new(
+            KeyType::MlDsa,
+            key.scheme(),
+            None,
+            key.public_key_bytes(),
+        )?;
+
+        Ok(PrivateKey {
+            private: PrivateKeyType::MlDsa(Box::new(key)),
+            public,
+        })
     }
 
     fn ed25519_from_pkcs8(der_key: &[u8]) -> Result<Self> {
@@ -642,6 +933,16 @@ impl PrivateKey {
                 })?;
                 SignatureValue(s.as_ref().into())
             }
+            #[cfg(feature = "mldsa")]
+            (
+                PrivateKeyType::MlDsa(key),
+                &SignatureScheme::MlDsa44V1
+                | &SignatureScheme::MlDsa65V1
+                | &SignatureScheme::MlDsa87V1,
+            ) => {
+                let presign = tap21_presign(msg, TAP21_VERSION)?;
+                SignatureValue(key.sign_presigned(&presign))
+            }
             (k, s) => {
                 return Err(Error::IllegalArgument(format!(
                     "Key {:?} can't be used with scheme {:?}",
@@ -716,6 +1017,16 @@ impl PublicKey {
         keyid_hash_algorithms: Option<Vec<String>>,
         value: Vec<u8>,
     ) -> Result<Self> {
+        // securesystemslib does not emit `keyid_hash_algorithms` for ml-dsa
+        // keys. Normalise here rather than at each call site, so every
+        // construction path agrees on the keyid.
+        #[cfg(feature = "mldsa")]
+        let keyid_hash_algorithms = if typ == KeyType::MlDsa {
+            None
+        } else {
+            keyid_hash_algorithms
+        };
+
         let key_id =
             calculate_key_id(&typ, &scheme, &keyid_hash_algorithms, &value)?;
         let value = PublicKeyValue(value);
@@ -764,13 +1075,21 @@ impl PublicKey {
     ) -> Result<Self> {
         let input = Input::from(der_bytes);
 
-        let (typ, value) = input.read_all(derp::Error::Read, |input| {
+        let (typ, oid, value) = input.read_all(derp::Error::Read, |input| {
             derp::nested(input, Tag::Sequence, |input| {
-                let typ = derp::nested(input, Tag::Sequence, |input| {
-                    let typ = derp::expect_tag_and_get_value(input, Tag::Oid)?;
+                let (typ, oid) = derp::nested(input, Tag::Sequence, |input| {
+                    let oid = derp::expect_tag_and_get_value(input, Tag::Oid)?;
+                    let oid = oid.as_slice_less_safe().to_vec();
 
-                    let typ = KeyType::from_oid(typ.as_slice_less_safe())
+                    let typ = KeyType::from_oid(&oid)
                         .map_err(|_| derp::Error::WrongValue)?;
+
+                    #[cfg(feature = "mldsa")]
+                    if typ == KeyType::MlDsa {
+                        // RFC 9881: the AlgorithmIdentifier is the OID alone,
+                        // with no parameters to skip.
+                        return Ok((typ, oid));
+                    }
 
                     if typ == KeyType::Ecdsa {
                         let _alg_oid =
@@ -779,12 +1098,27 @@ impl PublicKey {
                         // for RSA / ed25519 this is null, so don't both parsing it
                         derp::read_null(input)?;
                     }
-                    Ok(typ)
+                    Ok((typ, oid))
                 })?;
                 let value = derp::bit_string_with_no_unused_bits(input)?;
-                Ok((typ, value.as_slice_less_safe().to_vec()))
+                Ok((typ, oid, value.as_slice_less_safe().to_vec()))
             })
         })?;
+
+        // For ML-DSA the parameter set is pinned by the OID, so a scheme that
+        // disagrees with the key would silently verify against the wrong
+        // parameter set. Reject instead.
+        #[cfg(feature = "mldsa")]
+        if typ == KeyType::MlDsa {
+            let from_oid = mldsa_scheme_from_oid(&oid)?;
+            if scheme != from_oid {
+                return Err(Error::IllegalArgument(format!(
+                    "ml-dsa key is {:?} but scheme says {:?}",
+                    from_oid, scheme
+                )));
+            }
+        }
+        let _ = &oid;
 
         Self::new(typ, scheme, keyid_hash_algorithms, value)
     }
@@ -846,7 +1180,7 @@ impl PublicKey {
     ///
     /// See the documentation on `KeyValue` for more information on SPKI.
     pub fn as_spki(&self) -> Result<Vec<u8>> {
-        Ok(write_spki(&self.value.0, &self.typ)?)
+        Ok(write_spki(&self.value.0, &self.typ, &self.scheme)?)
     }
 
     /// An immutable reference to the key's type.
@@ -871,12 +1205,28 @@ impl PublicKey {
 
     /// Use this key to verify a message with a signature.
     pub fn verify(&self, msg: &[u8], sig: &Signature) -> Result<()> {
+        // ML-DSA is not provided by ring, and verifies over the TAP 21
+        // pre-signing byte string rather than the message itself.
+        #[cfg(feature = "mldsa")]
+        if self.typ == KeyType::MlDsa {
+            let presign = tap21_presign(msg, TAP21_VERSION)?;
+            return self.verify_mldsa(&presign, &sig.value.0);
+        }
+
         let alg: &dyn ring::signature::VerificationAlgorithm = match self.scheme
         {
             SignatureScheme::Ed25519 => &ED25519,
             SignatureScheme::RsaSsaPssSha256 => &RSA_PSS_2048_8192_SHA256,
             SignatureScheme::RsaSsaPssSha512 => &RSA_PSS_2048_8192_SHA512,
             SignatureScheme::EcdsaP256Sha256 => &ECDSA_P256_SHA256_ASN1,
+            #[cfg(feature = "mldsa")]
+            SignatureScheme::MlDsa44V1
+            | SignatureScheme::MlDsa65V1
+            | SignatureScheme::MlDsa87V1 => {
+                return Err(Error::IllegalArgument(
+                    "ml-dsa scheme used with a non-ml-dsa key".into(),
+                ));
+            }
             SignatureScheme::Unknown(ref s) => {
                 return Err(Error::IllegalArgument(format!(
                     "Unknown signature scheme: {}",
@@ -888,6 +1238,49 @@ impl PublicKey {
         let key = ring::signature::UnparsedPublicKey::new(alg, &self.value.0);
         key.verify(msg, &sig.value.0)
             .map_err(|_| Error::BadSignature)
+    }
+
+    /// Verify an ML-DSA signature over an already-constructed TAP 21
+    /// pre-signing byte string.
+    #[cfg(feature = "mldsa")]
+    fn verify_mldsa(&self, presign: &[u8], sig: &[u8]) -> Result<()> {
+        use ml_dsa::signature::Verifier;
+        use ml_dsa::{EncodedSignature, EncodedVerifyingKey, MlDsaParams};
+
+        fn check<P: MlDsaParams>(
+            public: &[u8],
+            presign: &[u8],
+            sig: &[u8],
+        ) -> Result<()> {
+            let encoded_key = EncodedVerifyingKey::<P>::try_from(public)
+                .map_err(|_| {
+                    Error::Encoding("Wrong ml-dsa public key length".into())
+                })?;
+            let key = ml_dsa::VerifyingKey::<P>::decode(&encoded_key);
+
+            let encoded_sig = EncodedSignature::<P>::try_from(sig)
+                .map_err(|_| Error::BadSignature)?;
+            let sig = ml_dsa::Signature::<P>::decode(&encoded_sig)
+                .ok_or(Error::BadSignature)?;
+
+            key.verify(presign, &sig).map_err(|_| Error::BadSignature)
+        }
+
+        match self.scheme {
+            SignatureScheme::MlDsa44V1 => {
+                check::<ml_dsa::MlDsa44>(&self.value.0, presign, sig)
+            }
+            SignatureScheme::MlDsa65V1 => {
+                check::<ml_dsa::MlDsa65>(&self.value.0, presign, sig)
+            }
+            SignatureScheme::MlDsa87V1 => {
+                check::<ml_dsa::MlDsa87>(&self.value.0, presign, sig)
+            }
+            ref s => Err(Error::IllegalArgument(format!(
+                "Not an ml-dsa signature scheme: {:?}",
+                s
+            ))),
+        }
     }
 }
 
@@ -1031,6 +1424,28 @@ impl<'de> Deserialize<'de> for PublicKey {
                     ))
                 })?
             }
+            #[cfg(feature = "mldsa")]
+            KeyType::MlDsa => {
+                let pub_pem = pem::parse(intermediate.public_key().as_bytes())
+                    .map_err(|e| {
+                        DeserializeError::custom(format!(
+                            "pem deserialize failed: {:?}",
+                            e
+                        ))
+                    })?;
+
+                PublicKey::from_spki_with_keyid_hash_algorithms(
+                    pub_pem.contents(),
+                    intermediate.scheme().clone(),
+                    intermediate.keyid_hash_algorithms().clone(),
+                )
+                .map_err(|e| {
+                    DeserializeError::custom(format!(
+                        "Couldn't parse key as SPKI: {:?}",
+                        e
+                    ))
+                })?
+            }
             KeyType::Unknown(inner) => {
                 return Err(DeserializeError::custom(format!(
                     "Unknown key type, content: {}",
@@ -1159,7 +1574,25 @@ impl Display for HashValue {
 fn write_spki(
     public: &[u8],
     key_type: &KeyType,
+    scheme: &SignatureScheme,
 ) -> ::std::result::Result<Vec<u8>, derp::Error> {
+    // ML-DSA AlgorithmIdentifiers carry the OID alone; RFC 9881 forbids the
+    // NULL parameters the other key types write here.
+    #[cfg(feature = "mldsa")]
+    if key_type == &KeyType::MlDsa {
+        let oid = mldsa_oid(scheme).map_err(|_| derp::Error::WrongValue)?;
+        let mut output = Vec::new();
+        {
+            let mut der = Der::new(&mut output);
+            der.sequence(|der| {
+                der.sequence(|der| der.element(Tag::Oid, oid))?;
+                der.bit_string(0, public)
+            })?;
+        }
+        return Ok(output);
+    }
+    let _ = scheme;
+
     let mut output = Vec::new();
     {
         let mut der = Der::new(&mut output);

@@ -34,6 +34,7 @@ strum = "0.28"
 strum_macros = "0.28"
 pem = "3.0.0"
 glob = "0.3.0"
+ml-dsa = { version = "=0.1.1", features = ["pkcs8"], optional = true }
 
 [dev-dependencies]
 assert-json-diff = "2.0.2"
@@ -46,4 +47,7 @@ rstest = "0.26.1"
 tempfile = "3"
 
 [features]
+# ML-DSA (FIPS 204) signing and verification, using the pre-signing scheme
+# defined by TAP 21. Off by default: the wire format is not final yet.
+mldsa = ["dep:ml-dsa"]
 

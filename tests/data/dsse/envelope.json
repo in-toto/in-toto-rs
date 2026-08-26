@@ -1,0 +1,10 @@
+{
+  "payload": "eyJfdHlwZSI6ImxpbmsiLCJuYW1lIjoicmVidWlsZCBleGFtcGxlXzEuMF9hbGwuZGViIn0=",
+  "payloadType": "application/vnd.in-toto+json",
+  "signatures": [
+    {
+      "keyid": "89351baedd3e4209753134538b02325730e80db951b21a6386e3aa7f7d777cd7",
+      "sig": "kqTLl23Ywcn1jJDdBnCOvhjpkjpimJE2zz3tPSXjFRHG9SnngBej2SLbVOjzew5+90a24IRfM2QlPMM0D3k8Bg=="
+    }
+  ]
+}

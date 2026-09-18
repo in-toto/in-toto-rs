@@ -1,0 +1,9 @@
+{
+  "keyid": "89351baedd3e4209753134538b02325730e80db951b21a6386e3aa7f7d777cd7",
+  "key_ed25519_hex": "c75a32d4a509f67e65a1f8af1f095fced39daa1cb1caa9ce6f89377237ab0d4cfeed091c60374115c8246d2de3601dee979e6f84e9cd7cfb6cf2f80393c0122d",
+  "public_hex": "feed091c60374115c8246d2de3601dee979e6f84e9cd7cfb6cf2f80393c0122d",
+  "payload_utf8": "{\"_type\":\"link\",\"name\":\"rebuild example_1.0_all.deb\"}",
+  "payload_type": "application/vnd.in-toto+json",
+  "pae_utf8": "DSSEv1 28 application/vnd.in-toto+json 53 {\"_type\":\"link\",\"name\":\"rebuild example_1.0_all.deb\"}",
+  "signature_hex": "92a4cb976dd8c1c9f58c90dd06708ebe18e9923a62989136cf3ded3d25e31511c6f529e78017a3d922db54e8f37b0e7ef746b6e0845f3364253cc3340f793c06"
+}

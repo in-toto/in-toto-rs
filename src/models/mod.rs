@@ -1,6 +1,6 @@
 //! Models used in in-toto
 
-mod envelope;
+pub mod envelope;
 mod helpers;
 mod layout;
 mod link;
@@ -8,6 +8,7 @@ mod metadata;
 mod predicate;
 mod statement;
 
+pub use envelope::EnvelopeFile;
 pub use helpers::*;
 pub use layout::*;
 pub use link::*;

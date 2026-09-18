@@ -7,6 +7,8 @@ use crate::{Error, Result};
 mod envelope_file;
 mod pae_v1;
 
+pub use envelope_file::EnvelopeFile;
+
 pub trait DSSEParser {
     fn pae_pack(payload_ver: String, payload: &[u8]) -> Vec<u8>;
     fn pae_unpack(bytes: &[u8]) -> Result<(Vec<u8>, String)>;
@@ -20,8 +22,6 @@ pub enum DSSEVersion {
 
 impl DSSEVersion {
     /// Use Pre-Authentication Encoding to pack payload for any version.
-    #[allow(dead_code)]
-    // TODO: remove #[allow(dead_code)] after metadata deploy
     pub fn pack(&self, payload: &[u8], payload_ver: String) -> Vec<u8> {
         let payload = payload.to_vec();
 
@@ -41,8 +41,6 @@ impl DSSEVersion {
     }
 
     /// Use Pre-Authentication Encoding to auto unpack a possible version.
-    #[allow(dead_code)]
-    // TODO: remove #[allow(dead_code)] after metadata deploy
     pub fn try_unpack(bytes: &[u8]) -> Result<(Vec<u8>, String)> {
         let mut file: Result<(Vec<u8>, String)> =
             Err(Error::Programming("no available DSSE parser".to_string()));

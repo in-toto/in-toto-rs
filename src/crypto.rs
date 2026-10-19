@@ -548,7 +548,7 @@ impl PrivateKey {
         keyid_hash_algorithms: Option<Vec<String>>,
     ) -> Result<Self> {
         let key = Ed25519KeyPair::from_pkcs8(der_key).map_err(|_| {
-            Error::Encoding("Could not parse key as PKCS#8v2".into())
+            Error::Encoding("Could not parse key as PKCS#8".into())
         })?;
 
         let public = PublicKey::new(
@@ -570,7 +570,7 @@ impl PrivateKey {
         }
 
         let key = RsaKeyPair::from_pkcs8(der_key).map_err(|_| {
-            Error::Encoding("Could not parse key as PKCS#8v2".into())
+            Error::Encoding("Could not parse key as PKCS#8".into())
         })?;
 
         if key.public().modulus_len() < 256 {
@@ -602,7 +602,7 @@ impl PrivateKey {
             der_key,
             &SystemRandom::new(),
         )
-        .unwrap();
+        .map_err(|_| Error::Encoding("Could not parse key as PKCS#8".into()))?;
         let public = PublicKey::new(
             KeyType::Ecdsa,
             scheme,
@@ -1470,6 +1470,27 @@ mod test {
                 .unwrap();
         let sig = key.sign(msg).unwrap();
         key.public.verify(msg, &sig).unwrap();
+    }
+
+    #[test]
+    fn ecdsa_from_malformed_pkcs8_is_an_error() {
+        let truncated = &ECDSA_PK8[..ECDSA_PK8.len() - 1];
+        let garbage = [0x30, 0x03, 0x02, 0x01, 0x00];
+
+        for der_key in [truncated, &garbage[..], &[][..]] {
+            assert!(matches!(
+                PrivateKey::ecdsa_from_pkcs8(
+                    der_key,
+                    SignatureScheme::EcdsaP256Sha256
+                ),
+                Err(Error::Encoding(_))
+            ));
+            assert!(PrivateKey::from_pkcs8(
+                der_key,
+                SignatureScheme::EcdsaP256Sha256
+            )
+            .is_err());
+        }
     }
 
     #[test]

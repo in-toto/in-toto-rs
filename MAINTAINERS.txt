@@ -15,3 +15,7 @@ Maintainers:
   Alan A. Chung Ma
     Email: alanchunggt@gmail.com
     GitHub username: @alanssitis
+
+  kpcyrd
+    Email: kpcyrd@archlinux.org
+    GitHub username: @kpcyrd
